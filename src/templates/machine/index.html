@@ -1,0 +1,12 @@
+<h1>RTG Measuring Online</h1>
+<hr>
+<table border="1">
+{% for key,value in rtgs.items %}
+            <tr>
+                    <td>{{key}}</td>
+                    {%for item,measurement in value.items %}
+                        <td style="text-align:center">{{measurement}}</td>
+                    {% endfor %}
+            </tr>
+{% endfor %}
+</table>

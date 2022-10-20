@@ -1,0 +1,61 @@
+FROM python:3.7.5-alpine
+
+RUN apk update && apk add libpq
+
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    unixodbc-dev \
+    python3-dev \
+    musl-dev \
+    postgresql-dev \
+    && pip install --no-cache-dir psycopg2 \
+    && apk del --no-cache .build-deps
+
+# Installing and build python module
+RUN pip install psycopg2
+
+
+RUN apk add build-base jpeg-dev zlib-dev
+
+RUN apk add freetype-dev musl-dev libpng-dev
+
+	#libjpeg-dev libjpeg8-dev libpng3 libfreetype6-dev
+
+ENV LIBRARY_PATH=/lib:/usr/lib
+
+RUN apk add --no-cache --virtual .build-deps build-base linux-headers \
+    && pip install Pillow==5.4.1
+
+
+RUN apk add curl sudo build-base unixodbc-dev unixodbc freetds-dev && pip install pyodbc
+
+
+
+ENV LIBRARY_PATH=/lib:/usr/lib
+
+WORKDIR /usr/src/web
+
+# set environment variables
+# Added by Chutchai on July 24,2020
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+
+COPY ./requirements.txt /usr/src/web
+
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
+
+#ENTRYPOINT ["python"]
+COPY . /usr/src/web
+
+COPY ./requirements.txt /usr/src/web
+
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+
+COPY . /usr/src/web
+
+RUN chmod a+x docker-entrypoint.sh
+ENTRYPOINT ["/usr/src/web/docker-entrypoint.sh"]
