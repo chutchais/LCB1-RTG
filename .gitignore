@@ -1,0 +1,10 @@
+# created by virtualenv automatically
+env
+src/db.sqlite3
+src/*.pyc
+src/machine/*.pyc
+src/machine/migrations/*.pyc
+src/machine/__pycache__/
+src/measuring/*.pyc
+src/measuring/migrations/*.pyc
+src/measuring/__pycache__/
