@@ -1,3 +1,4 @@
+from re import T
 from django.db import models
 
 # Create your models here.
@@ -37,15 +38,21 @@ class Equipment(BasicInfo):
             field_type  = item.parameter.field_type
             value       = read_value(ip,db_number,offset,field_type)
 
+            # Added on Oct 21,2022 -- to add Online status
+            # value_dict['live'] = True if value != -1 else False
+
             key = f'{self.name}:{item.parameter.name}:PREVIOUS'
             if value == -1 :
                 logging.warn(f'Get previous value of : {key} -->{value}')
                 value = get_previous_redis(key)
-                print(f'Get previous value of : {key} -->{value}')
+                print(f'Get current value of : {key} -->{value}')
                 
             else:
                 save_previous_redis(key,value)
-                print(f'Save to previous value of {key}-->{value} -- Successful')
+                # Added on Oct 21,2022 -- Save to Current value on Item
+                item.current_value = value
+                item.save()
+                print(f'Save to current value of {key}-->{value} -- Successful')
 
             value_dict[item.name] = value
             logging.info(f'{item} -->{value} {item.units}')
@@ -81,11 +88,23 @@ class Item(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'items')
+    # Added on Oct 21,2022 --To save current reading value
+    current_value          = models.IntegerField(default=0)
+
     def __str__(self):
-        return self.name
+        return f'{self.name} on {self.equipment.name}'
 
     class Meta(BasicInfo.Meta):
         db_table = 'equipment_item'
         ordering = ['seq']
 
 
+class DataLogger(BasicInfo):
+    item                 = models.ForeignKey(Item,
+                            on_delete=models.CASCADE,
+                            related_name = 'loggers')
+    last_value           = models.IntegerField(default=0)
+    current_value        = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f'Reding value :{self.current_value}'

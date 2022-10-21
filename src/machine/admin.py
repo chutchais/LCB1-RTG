@@ -1,11 +1,11 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Equipment,Item
+from .models import Equipment,Item,DataLogger
 
 class ItemInline(admin.TabularInline):
 	model = Item
-	fields = ('seq','name','parameter','units')
+	fields = ('seq','name','parameter','units','current_value')
 	autocomplete_fields = ['parameter']
 	extra = 1 # how many rows to show
 	show_change_link = True
@@ -29,4 +29,17 @@ class EquipmentAdmin(admin.ModelAdmin):
 	fieldsets = [
 		('Basic Information',{'fields': ['name','title','ip']}),
 		('System Information',{'fields':[('user','created'),'updated']})
+	]
+
+@admin.register(DataLogger)
+class DataLoggerAdmin(admin.ModelAdmin):
+	search_fields = []
+	list_filter = ['created_year','created_month','created_day']
+	list_display = ('item','last_value','current_value','created')
+	readonly_fields = ('created','updated')
+
+
+	fieldsets = [
+		('Basic Information',{'fields': ['item','last_value','current_value']}),
+		('System Information',{'fields':['created','updated']})
 	]
