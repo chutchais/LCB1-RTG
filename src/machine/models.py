@@ -66,6 +66,16 @@ class Equipment(BasicInfo):
         save_redis(key,value_dict)
         # print(value_dict)
 
+    def save_logged(self):
+        from .tasks import save_logged_item
+        # import datetime, pytz
+        logging.info(f'Start recording data of {self.name} ({self.ip})')
+        # tz      =   pytz.timezone('Asia/Bangkok')
+        # now_tz  =   datetime.datetime.now(tz=tz)
+        for item in self.items.all():
+            save_logged_item(item)
+        logging.info(f'Complete recording data of {self.name} ({self.ip})')
+
 
             
 
@@ -108,3 +118,8 @@ class DataLogger(BasicInfo):
 
     def __str__(self):
         return f'Reding value :{self.current_value}'
+
+@receiver(post_save, sender=DataLogger)
+def update_datalogger_created(sender, instance, created, **kwargs):
+    if created:
+        update_transaction_date(instance)

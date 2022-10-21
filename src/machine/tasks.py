@@ -5,9 +5,20 @@ import logging
 import redis
 from django.conf import settings
 
+from machine.models import Item
+
 db = redis.StrictRedis('redis', 6379,db=settings.RTG_READING_VALUE_DB, 
                             charset="utf-8", decode_responses=True) #Production
 
+# Added on Oct 21,2022 -- To keep current value for all items.
+def schedule_logged_value(equipment_name:str):
+    from machine.models import Equipment
+    try :
+        eq      = Equipment.objects.get(name=equipment_name)
+        eq.save_logged()
+        logging.info (f'Save log data of : {equipment_name} ..Successful.')
+    except :
+        logging.error(f'Unable to save log data of : {equipment_name}')
 
 def schedule_read_value(equipment_name:str):
     from machine.models import Equipment
@@ -60,3 +71,24 @@ def save_previous_redis(key:str,value:str):
 def get_previous_redis(key:str):
     value = db.get(key)
     return value if value else -1
+
+
+def save_logged_item(item:Item):
+    # Get Current value (from Redis :LATEST)
+    key = f'{item.equipment.name}:{item.parameter.name}:PREVIOUS'
+    current_value = get_previous_redis(key)
+
+    # Get Current value (from Redis :YESTERDAY)
+    key = f'{item.equipment.name}:{item.parameter.name}:YESTERDAY'
+    last_value = get_previous_redis(key)
+    last_value = last_value if last_value != -1 else current_value
+
+    # Save current value to Yesterday.
+    db.set(key,current_value)
+
+    # Save to DataLogger
+    from machine.models import DataLogger
+    d = DataLogger(item=item,
+                    last_value=last_value,
+                    current_value=current_value)
+    d.save()
