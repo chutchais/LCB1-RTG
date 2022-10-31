@@ -49,6 +49,11 @@ def machine_latest(request):
     response['Access-Control-Allow-Headers'] = '*'
     return response
 
+def calculate_diff(current:int,last:int):
+    if current >= last:
+        return current-last
+    else:
+        return (current+round(last,-3))-last
 
 class MachineDetailView(DetailView):
     model = Equipment
@@ -82,7 +87,7 @@ class MachineDetailView(DetailView):
                 created__gte = last_7_day).order_by('created').values(
                     'created__date','item__name','last_value','current_value'))
         # Add Diff
-        dict = [ {**d,'diff':d['current_value']-d['last_value']} for d in dict]
+        dict = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
         # Change crated__date format
         dict = [ {**d,'created__date':d['created__date'].strftime("%b %d")} for d in dict]
 
@@ -100,7 +105,7 @@ class MachineDetailView(DetailView):
                     'created__date','item__name','last_value','current_value','created_week'))
         # Add Diff
         if dict :
-            dict                    = [ {**d,'diff':d['current_value']-d['last_value']} for d in dict]
+            dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
             df_weekly               = pd.DataFrame(dict)
             weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum')
             context['weekly']       = weekly_table.to_html()
