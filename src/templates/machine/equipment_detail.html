@@ -3,6 +3,7 @@
   </head>
   <body>
 <h1>{{object}}</h1>
+<a href="{% url 'machine:index' %}">Back to main page</a>
 <hr>
 <h2>Real-time Data</h2>
 <table border="1">
@@ -15,5 +16,10 @@
     {% endfor %}
     </table>
 <hr>
+<h2>Daily working hour(Last 7 days)</h2>
+{{daily|safe}}
 
+<hr>
+<h2>Weekly working hour(Last 2 weeks)</h2>
+{{weekly|safe}}
 </body>

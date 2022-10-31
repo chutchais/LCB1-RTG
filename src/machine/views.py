@@ -63,4 +63,48 @@ class MachineDetailView(DetailView):
         if realtime_dict.get('Equipment'):
             del realtime_dict['Equipment']
         context['realtime']     = realtime_dict
+
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        from datetime import datetime, time
+        today_tz_00 = datetime.combine(today_tz, time.min) 
+        # today_tz_24 = datetime.combine(today_tz, time.max)
+        import datetime
+        last_7_day = today_tz_00 - datetime.timedelta(7)
+        last_14_day = today_tz_00 - datetime.timedelta(14)
+        start_last_14_day 	= last_14_day - datetime.timedelta(last_14_day.weekday())
+
+        # Daily (last 7 days)
+        
+        dict=list(DataLogger.objects.filter(
+                item__equipment__name=context["object"],
+                created__gte = last_7_day).order_by('created').values(
+                    'created__date','item__name','last_value','current_value'))
+        # Add Diff
+        dict = [ {**d,'diff':d['current_value']-d['last_value']} for d in dict]
+        # Change crated__date format
+        dict = [ {**d,'created__date':d['created__date'].strftime("%b %d")} for d in dict]
+
+        import pandas as pd
+        if dict :
+            df_daily                = pd.DataFrame(dict)
+            daily_table             = df_daily.pivot_table('diff',['item__name'],'created__date')
+            context['daily']        = daily_table.to_html() #daily_table.reset_index().to_html()
+        else:
+            context['daily']        = None
+        # Weekly
+        dict=list(DataLogger.objects.filter(
+                item__equipment__name=context["object"],
+                created__gte = start_last_14_day).order_by('created').values(
+                    'created__date','item__name','last_value','current_value','created_week'))
+        # Add Diff
+        if dict :
+            dict                    = [ {**d,'diff':d['current_value']-d['last_value']} for d in dict]
+            df_weekly               = pd.DataFrame(dict)
+            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum')
+            context['weekly']       = weekly_table.to_html()
+        else :
+            context['weekly']       = None
+
         return context
