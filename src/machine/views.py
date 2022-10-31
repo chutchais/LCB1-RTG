@@ -77,8 +77,8 @@ class MachineDetailView(DetailView):
         # today_tz_24 = datetime.combine(today_tz, time.max)
         import datetime
         last_7_day = today_tz_00 - datetime.timedelta(7)
-        last_14_day = today_tz_00 - datetime.timedelta(14)
-        start_last_14_day 	= last_14_day - datetime.timedelta(last_14_day.weekday())
+        last_7x5_day = today_tz_00 - datetime.timedelta(7*5)
+        start_last_7x5_day 	= last_7x5_day - datetime.timedelta(last_7x5_day.weekday())
 
         # Daily (last 7 days)
         
@@ -98,10 +98,10 @@ class MachineDetailView(DetailView):
             context['daily']        = daily_table.to_html() #daily_table.reset_index().to_html()
         else:
             context['daily']        = None
-        # Weekly
+        # Weekly (5 weeks)
         dict=list(DataLogger.objects.filter(
                 item__equipment__name=context["object"],
-                created__gte = start_last_14_day).order_by('created').values(
+                created__gte = start_last_7x5_day).order_by('created').values(
                     'created__date','item__name','last_value','current_value','created_week'))
         # Add Diff
         if dict :
