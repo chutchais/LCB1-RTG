@@ -8,6 +8,9 @@ import logging
 import redis
 from django.conf import settings
 
+from django.views.generic import DetailView,CreateView,UpdateView,DeleteView,ListView
+from .models import Equipment,Item,DataLogger
+
 db = redis.StrictRedis('redis', 6379,db=settings.RTG_READING_VALUE_DB, 
                             charset="utf-8", decode_responses=True) #Production
 
@@ -45,3 +48,19 @@ def machine_latest(request):
     response['Access-Control-Allow-Origin'] = '*'
     response['Access-Control-Allow-Headers'] = '*'
     return response
+
+
+class MachineDetailView(DetailView):
+    model = Equipment
+    def get_context_data(self,**kwargs):
+        context = super(MachineDetailView,self).get_context_data(**kwargs)
+        equipment_name          = f'{context["object"]}:LATEST'
+        realtime_dict           = db.hgetall(equipment_name)
+        if realtime_dict.get('Live'):
+            del realtime_dict['Live']
+        if realtime_dict.get('live'):
+            del realtime_dict['live']
+        if realtime_dict.get('Equipment'):
+            del realtime_dict['Equipment']
+        context['realtime']     = realtime_dict
+        return context

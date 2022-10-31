@@ -116,6 +116,10 @@ class DataLogger(BasicInfo):
     last_value           = models.IntegerField(default=0)
     current_value        = models.IntegerField(default=0)
 
+    @property
+    def diff(self):
+        return self.current_value - self.last_value
+
     def __str__(self):
         return f'Reding value :{self.current_value}'
 

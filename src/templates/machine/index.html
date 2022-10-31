@@ -2,14 +2,18 @@
     <title>RTG Measuring Online</title>
   </head>
   <body>
-<h1>RTG Measuring Online</h1>
+<h1>RTG Measuring Online - Realtime</h1>
 <hr>
 <table border="1">
 {% for key,value in rtgs.items %}
             <tr>
                     <td>{{key}}</td>
                     {%for item,measurement in value.items %}
-                        <td style="text-align:center">{{measurement}}</td>
+                        {% if key == 'Equipment' %}
+                          <td style="text-align:center"><a href="{% url 'machine:detail' measurement %}">{{measurement}}</a></td>
+                        {% else %}
+                          <td style="text-align:center">{{measurement}}</td>
+                        {% endif %}
                     {% endfor %}
             </tr>
 {% endfor %}

@@ -1,0 +1,19 @@
+<head>
+    <title>RTG Measuring Online</title>
+  </head>
+  <body>
+<h1>{{object}}</h1>
+<hr>
+<h2>Real-time Data</h2>
+<table border="1">
+    <tr><th>Parameter</th><th>Value</th></tr>
+    {% for key,value in realtime.items %}
+                <tr>
+                        <td>{{key}}</td>
+                        <td>{{value}}</td>
+                </tr>
+    {% endfor %}
+    </table>
+<hr>
+
+</body>
