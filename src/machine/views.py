@@ -103,7 +103,7 @@ class MachineDetailView(DetailView):
                 df_daily                = pd.DataFrame(dict)
                 daily_table             = df_daily.pivot_table('diff',['item__name'],'created__date')
                 context['daily']        = daily_table.to_html() #daily_table.reset_index().to_html()
-                cache.set(key, daily_table.to_html(),60*60)
+                cache.set(key, daily_table.to_html(),60*60*2)
             else:
                 context['daily']        = None
         else:
@@ -124,7 +124,7 @@ class MachineDetailView(DetailView):
                 df_weekly               = pd.DataFrame(dict)
                 weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum')
                 context['weekly']       = weekly_table.to_html()
-                cache.set(key, weekly_table.to_html(),60*60)
+                cache.set(key, weekly_table.to_html(),60*60*2)
             else :
                 context['weekly']       = None
         else:
