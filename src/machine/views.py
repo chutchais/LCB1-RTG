@@ -11,9 +11,14 @@ from django.conf import settings
 from django.views.generic import DetailView,CreateView,UpdateView,DeleteView,ListView
 from .models import Equipment,Item,DataLogger
 
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
+import pandas as pd
+
 db = redis.StrictRedis('redis', 6379,db=settings.RTG_READING_VALUE_DB, 
                             charset="utf-8", decode_responses=True) #Production
 
+@cache_page(60 * 5)
 def index(request):
     import json
     import pandas as pd
@@ -81,35 +86,48 @@ class MachineDetailView(DetailView):
         start_last_7x5_day 	= last_7x5_day - datetime.timedelta(last_7x5_day.weekday())
 
         # Daily (last 7 days)
-        
-        dict=list(DataLogger.objects.filter(
-                item__equipment__name=context["object"],
-                created__gte = last_7_day).order_by('created').values(
-                    'created__date','item__name','last_value','current_value'))
-        # Add Diff
-        dict = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
-        # Change crated__date format
-        dict = [ {**d,'created__date':d['created__date'].strftime("%b %d")} for d in dict]
+        key=f'{context["object"]}-7DAYS'
+        dict = cache.get(key)
+        if dict is None :
+            dict=list(DataLogger.objects.filter(
+                    item__equipment__name=context["object"],
+                    created__gte = last_7_day).order_by('created').values(
+                        'created__date','item__name','last_value','current_value'))
+            # Add Diff
+            dict = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+            # Change crated__date format
+            dict = [ {**d,'created__date':d['created__date'].strftime("%b %d")} for d in dict]
 
-        import pandas as pd
-        if dict :
-            df_daily                = pd.DataFrame(dict)
-            daily_table             = df_daily.pivot_table('diff',['item__name'],'created__date')
-            context['daily']        = daily_table.to_html() #daily_table.reset_index().to_html()
+            
+            if dict :
+                df_daily                = pd.DataFrame(dict)
+                daily_table             = df_daily.pivot_table('diff',['item__name'],'created__date')
+                context['daily']        = daily_table.to_html() #daily_table.reset_index().to_html()
+                cache.set(key, daily_table.to_html(),60*60)
+            else:
+                context['daily']        = None
         else:
-            context['daily']        = None
+            context['daily']        = dict #html
+
+
         # Weekly (5 weeks)
-        dict=list(DataLogger.objects.filter(
-                item__equipment__name=context["object"],
-                created__gte = start_last_7x5_day).order_by('created').values(
-                    'created__date','item__name','last_value','current_value','created_week'))
-        # Add Diff
-        if dict :
-            dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
-            df_weekly               = pd.DataFrame(dict)
-            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum')
-            context['weekly']       = weekly_table.to_html()
-        else :
-            context['weekly']       = None
+        key=f'{context["object"]}-5WEEKS'
+        dict = cache.get(key)
+        if dict is None :
+            dict=list(DataLogger.objects.filter(
+                    item__equipment__name=context["object"],
+                    created__gte = start_last_7x5_day).order_by('created').values(
+                        'created__date','item__name','last_value','current_value','created_week'))
+            # Add Diff
+            if dict :
+                dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+                df_weekly               = pd.DataFrame(dict)
+                weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum')
+                context['weekly']       = weekly_table.to_html()
+                cache.set(key, weekly_table.to_html(),60*60)
+            else :
+                context['weekly']       = None
+        else:
+            context['weekly']        = dict #html
 
         return context

@@ -17,3 +17,4 @@ redis
 pandas
 ipython
 python-snap7
+django-redis

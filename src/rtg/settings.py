@@ -163,3 +163,15 @@ Q_CLUSTER = {
 # Addition Setting
 
 RTG_READING_VALUE_DB = os.environ.get('REDIS_READING_DB', 0)
+
+
+# Added on Nov 1,2022 -- TO support caches
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://redis:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
