@@ -84,6 +84,9 @@ class MachineDetailView(DetailView):
         last_7_day = today_tz_00 - datetime.timedelta(7)
         last_7x5_day = today_tz_00 - datetime.timedelta(7*5)
         start_last_7x5_day 	= last_7x5_day - datetime.timedelta(last_7x5_day.weekday())
+        # Added on Nov 3,2022
+        last_2_month = today_tz_00 - datetime.timedelta(days=30*2)
+        start_last_2_month 	= last_2_month - datetime.timedelta(last_2_month.weekday())
 
         # Daily (last 7 days)
         key=f'{context["object"]}-7DAYS'
@@ -129,5 +132,25 @@ class MachineDetailView(DetailView):
                 context['weekly']       = None
         else:
             context['weekly']        = dict #html
+        
+        #Monthly 2 (2 months) 
+        key=f'{context["object"]}-2MONTH'
+        dict = cache.get(key)
+        if dict is None :
+            dict=list(DataLogger.objects.filter(
+                    item__equipment__name=context["object"],
+                    created__gte = start_last_2_month).order_by('created').values(
+                        'created__date','item__name','last_value','current_value','created_month'))
+            # Add Diff
+            if dict :
+                dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+                df_monthly               = pd.DataFrame(dict)
+                monthly_table            = df_monthly.pivot_table('diff',['item__name'],'created_month',aggfunc= 'sum')
+                context['monthly']       = monthly_table.to_html()
+                cache.set(key, monthly_table.to_html(),60*60*2)
+            else :
+                context['monthly']       = None
+        else:
+            context['monthly']        = dict #html
 
         return context
