@@ -2,8 +2,9 @@
     <title>RTG Measuring Online</title>
   </head>
   <body>
-<h1>RTG Measuring Online - Realtime</h1>
+<h1>RTG Online Metering</h1>
 <hr>
+<h2>Realtime Metering</h2>
 <table border="1">
 {% for key,value in rtgs.items %}
             <tr>
@@ -18,4 +19,7 @@
             </tr>
 {% endfor %}
 </table>
+<hr>
+<h2>Current Week Working Hour</h2>
+{{currentweek|safe}}
 </body>

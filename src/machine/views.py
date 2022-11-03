@@ -37,9 +37,39 @@ def index(request):
     sorted_df=df.sort_values(by=['Equipment'], ascending=True)
     # table = sorted_df.to_html()
     table = sorted_df.to_dict()
+
     context = {
         'rtgs' : table
     }
+    
+    # Added on Nov 3,2022 -- to show current week for all equipment
+    import datetime, pytz
+    tz 			= pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+    from datetime import datetime, time
+    today_tz_00 = datetime.combine(today_tz, time.min)
+    import datetime
+    start_week_day = today_tz_00 - datetime.timedelta(today_tz_00.weekday())
+
+    key=f'CURRENT-WEEKS'
+    dict = cache.get(key)
+    if dict is None :
+        dict=list(DataLogger.objects.filter(
+                created__gte = start_week_day).order_by('created').values(
+                    'created__date','item__name','last_value','current_value','item__equipment__name'))
+        # Add Diff
+        if dict :
+            dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+            df_weekly               = pd.DataFrame(dict)
+            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum')
+            context['currentweek']       = weekly_table.to_html()
+            cache.set(key, weekly_table.to_html(),60*5)
+        else :
+            context['currentweek']       = None
+    else:
+        context['currentweek']        = dict #html
+    
+    
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'machine/index.html', context=context)
     # return HttpResponse(table)
