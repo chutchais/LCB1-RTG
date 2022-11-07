@@ -69,7 +69,35 @@ def index(request):
     else:
         context['currentweek']        = dict #html
     
-    
+
+    # Added on Nov 7,2022 -- to show last week for all equipment
+    import datetime, pytz
+    tz 			= pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+    from datetime import datetime, time
+    today_tz_00 = datetime.combine(today_tz, time.min)
+    import datetime
+    end_Last_week_day = today_tz_00 - datetime.timedelta(today_tz_00.weekday())
+    start_Last_week_day = end_Last_week_day - datetime.timedelta(days=7)
+
+    key=f'LAST-WEEKS'
+    dict = cache.get(key)
+    if dict is None :
+        dict=list(DataLogger.objects.filter(
+                created__range = [start_Last_week_day,end_Last_week_day]).order_by('created').values(
+                    'created__date','item__name','last_value','current_value','item__equipment__name'))
+        # Add Diff
+        if dict :
+            dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+            df_weekly               = pd.DataFrame(dict)
+            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum')
+            context['lastweek']       = weekly_table.to_html()
+            cache.set(key, weekly_table.to_html(),60*60*2)
+        else :
+            context['lastweek']       = None
+    else:
+        context['lastweek']        = dict #html
+
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'machine/index.html', context=context)
     # return HttpResponse(table)
