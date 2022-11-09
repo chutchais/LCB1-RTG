@@ -25,9 +25,10 @@ def index(request):
     # get all key that suffix is *:LATEST
     value_dict = [db.hgetall(k) for k in db.keys('*:LATEST')]
     # Get Parameter name from first Equipment (to be reference)
-    from machine.models import Equipment
-    first_eq = Equipment.objects.filter(name__contains='RTG').first()
-    cols = [i.name for i in first_eq.items.all()]
+    # from machine.models import Equipment
+    # first_eq = Equipment.objects.filter(name__contains='RTG').first()
+    cols = get_parameter_ordered()#[i.name for i in first_eq.items.all()]
+
     header = ['Equipment','DateTime'] + cols
     # df = pd.DataFrame(value_dict,columns=['equipment','datetime',
     #                     'Hoist Motor Working Hours','Trolly Motor Working hours',
@@ -61,7 +62,7 @@ def index(request):
         if dict :
             dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
             df_weekly               = pd.DataFrame(dict)
-            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum')
+            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum').reindex(cols,level=0)
             context['currentweek']       = weekly_table.to_html()
             cache.set(key, weekly_table.to_html(),60*5)
         else :
@@ -90,7 +91,7 @@ def index(request):
         if dict :
             dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
             df_weekly               = pd.DataFrame(dict)
-            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum')
+            weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum').reindex(cols,level=0)
             context['lastweek']       = weekly_table.to_html()
             cache.set(key, weekly_table.to_html(),60*60*2)
         else :
@@ -101,6 +102,12 @@ def index(request):
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'machine/index.html', context=context)
     # return HttpResponse(table)
+
+def get_parameter_ordered():
+    from machine.models import Equipment
+    first_eq = Equipment.objects.filter(name__contains='RTG').first()
+    cols = [i.name for i in first_eq.items.all()]
+    return cols
 
 def machine_latest(request):
     import json
@@ -146,6 +153,9 @@ class MachineDetailView(DetailView):
         last_2_month = today_tz_00 - datetime.timedelta(days=30*2)
         start_last_2_month 	= last_2_month - datetime.timedelta(last_2_month.weekday())
 
+        # Added on Nov 9,2022 -- To order parameter
+        cols = get_parameter_ordered()
+
         # Daily (last 7 days)
         key=f'{context["object"]}-7DAYS'
         dict = cache.get(key)
@@ -162,7 +172,7 @@ class MachineDetailView(DetailView):
             
             if dict :
                 df_daily                = pd.DataFrame(dict)
-                daily_table             = df_daily.pivot_table('diff',['item__name'],'created__date')
+                daily_table             = df_daily.pivot_table('diff',['item__name'],'created__date').reindex(cols,level=0)
                 context['daily']        = daily_table.to_html() #daily_table.reset_index().to_html()
                 cache.set(key, daily_table.to_html(),60*60*2)
             else:
@@ -183,7 +193,7 @@ class MachineDetailView(DetailView):
             if dict :
                 dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
                 df_weekly               = pd.DataFrame(dict)
-                weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum')
+                weekly_table            = df_weekly.pivot_table('diff',['item__name'],'created_week',aggfunc= 'sum').reindex(cols,level=0)
                 context['weekly']       = weekly_table.to_html()
                 cache.set(key, weekly_table.to_html(),60*60*2)
             else :
@@ -203,7 +213,7 @@ class MachineDetailView(DetailView):
             if dict :
                 dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
                 df_monthly               = pd.DataFrame(dict)
-                monthly_table            = df_monthly.pivot_table('diff',['item__name'],'created_month',aggfunc= 'sum')
+                monthly_table            = df_monthly.pivot_table('diff',['item__name'],'created_month',aggfunc= 'sum').reindex(cols,level=0)
                 context['monthly']       = monthly_table.to_html()
                 cache.set(key, monthly_table.to_html(),60*60*2)
             else :
