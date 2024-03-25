@@ -7,7 +7,7 @@ from .models import Parameter
 class ParameterAdmin(admin.ModelAdmin):
 	search_fields = ['name','title']
 	list_filter = ['db_number','offset','field_type']
-	list_display = ('name','title','db_number','offset','field_type','user')
+	list_display = ('name','title','db_number','offset','field_type','bit_number','user')
 
 	readonly_fields = ('created','updated','user')
 
@@ -18,6 +18,6 @@ class ParameterAdmin(admin.ModelAdmin):
 
 	fieldsets = [
 		('Basic Information',{'fields': ['name','title']}),
-        ('PLC Information',{'fields': ['db_number','offset','field_type']}),
+        ('PLC Information',{'fields': ['db_number','offset','field_type','bit_number']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]

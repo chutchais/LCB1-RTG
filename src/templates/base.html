@@ -1,0 +1,91 @@
+{% load static %}
+<!doctype html>
+
+<section class="content">
+
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+   
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+    
+      <!-- Bootstrap CSS -->
+      <link rel="stylesheet" href="https://unpkg.com/browse/bootstrap@4.1.1/dist/css/bootstrap.min.css" >
+      <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+  
+
+    {% block meta %}
+    {% endblock meta %}
+    
+
+    <title>{% block title %}LCB - RTG Engine-On status{% endblock %}</title>
+
+    <style type="text/css">
+      .asteriskField{
+        display: none;
+      }
+
+      form .alert ul li {
+        list-style: none;
+      }
+
+      form .alert ul {
+        padding: 0;
+        margin: 0;
+      }
+
+      .avatar {
+        vertical-align: middle;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        }
+
+      #a {
+        text-decoration: none;
+      }
+    </style>
+    {% block style %} {% endblock style %}
+  </head>
+
+
+  <div class="container">
+    {% block content %}
+    {% endblock %}
+    </div>
+
+    {% block script %}
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+    <!-- <script src="https://unpkg.com/vue"></script> -->
+    <!-- <script src="https://unpkg.com/axios/dist/axios.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.25.1/moment.min.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    
+    <!-- <script src="http://html2canvas.hertzen.com/dist/html2canvas.js"></script> -->
+    
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.13.1/lodash.min.js"></script>
+
+    <!-- Added on Dec 16,2020 to Copy text to clipboard -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-clipboard2/0.3.1/vue-clipboard.js"></script>
+
+    <!-- Added on May 21,2021 -- To support Vue Cookie -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue-cookie@1.1.4/src/vue-cookie.min.js"></script> -->
+    <script src="https://unpkg.com/vue-cookies@1.7.4/vue-cookies.js"></script>
+
+    <!-- Added on May 21,2021 -- To support WS reconnect -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reconnecting-websocket/1.0.0/reconnecting-websocket.js" integrity="sha512-SxQulwFs2B38bmUJtBSo9tD07MDrtCbY8me3AOZ14tRknCPTeMDLvCQV4ekhs8R0o9QPnW5HQanKfveexVcwLA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    {% endblock %}
+
+</section>

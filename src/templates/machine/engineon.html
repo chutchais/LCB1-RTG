@@ -1,0 +1,28 @@
+<head>
+  <title>RTG Measuring Online</title>
+</head>
+<body>
+<h1>RTG Monitoring</h1>
+<hr>
+<h2>Realtime Monitoring</h2>
+<table border="1">
+{% for key,value in monitors.items %}
+          <tr>
+                  <td>{{key}}</td>
+                  {%for item,measurement in value.items %}
+                    
+                      {% if key == 'Engine Power On' %}
+                        <td style="text-align:center" 
+                          bgcolor="{% if measurement == '1' %}
+                          008000 {% else%} FF0000 {%endif%}">{% if measurement == '1' %}
+                          On {% else%} Off {%endif%}</td>
+                      {% else %}
+                        <td style="text-align:center">{{measurement}}</td>
+                      {% endif %}
+                  {% endfor %}
+          </tr>
+{% endfor %}
+</table>
+<hr>
+
+</body>

@@ -29,6 +29,18 @@ def schedule_read_value(equipment_name:str):
     except :
         logging.error(f'Unable to read data of : {equipment_name}')
 
+# Added on March 19,2024 -- To support reading monitor parameter for all  equipment.
+def schedule_read_monitor():
+    from machine.models import Equipment
+    try :
+        eqs      = Equipment.objects.all()
+        for eq in eqs:
+            eq.read_monitor_data()
+        logging.info (f'Read monitor data of : {eq} ..Successful.')
+    except :
+        logging.error(f'Unable to read monitor data of : {eq}')
+
+
 def read_value(ip:str,db_name:int,offset:int,field_type:str):
     try :
         client = snap7.client.Client()
@@ -54,6 +66,25 @@ def read_value(ip:str,db_name:int,offset:int,field_type:str):
         # logging.info(f'Save reading data to PREVIOUS key : {key} -->{t}')
         # save_previous_redis(key,str(t))
         return t
+    except :
+        logging.error(f'Unable to connect IP : {ip}')
+        return -1
+
+# Added on March 19,2024 -- To support Read 1 byte data ,specific number of bit
+def read_bit(ip:str,db_name:int,offset:int,bit_number:int):
+    # bit_number = base10 index number
+    try :
+        client = snap7.client.Client()
+        # client.connect(ip,0,1) # S7-1200 และ S7-1500  จะใช้เป็น Rack 0, Slot 1
+        client.connect(ip,0,2) # S7-300 จะใช้เป็น Rack 0, Slot 2
+        client.get_connected()
+
+        db = client.db_read(db_name, 
+                            offset, 
+                            1) #db_read(DB number, Start address, No. of byte) 
+        t=format(db[0],'b')[::-1] #Reverst 1000 --> 0001
+
+        return int(t[bit_number])
     except :
         logging.error(f'Unable to connect IP : {ip}')
         return -1

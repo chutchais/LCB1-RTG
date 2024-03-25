@@ -18,3 +18,5 @@ pandas
 ipython
 python-snap7
 django-redis
+# Added on June 13,2023
+pyodbc

@@ -27,7 +27,7 @@ def index(request):
     # Get Parameter name from first Equipment (to be reference)
     # from machine.models import Equipment
     # first_eq = Equipment.objects.filter(name__contains='RTG').first()
-    cols = get_parameter_ordered()#[i.name for i in first_eq.items.all()]
+    cols = get_parameter_ordered(monitor=False)#[i.name for i in first_eq.items.all()]
 
     header = ['Equipment','DateTime'] + cols
     # df = pd.DataFrame(value_dict,columns=['equipment','datetime',
@@ -103,10 +103,25 @@ def index(request):
     return render(request, 'machine/index.html', context=context)
     # return HttpResponse(table)
 
-def get_parameter_ordered():
+def engine_on(request):
+    import json
+    import pandas as pd
+    value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR')]
+    cols = get_parameter_ordered(monitor=True)#[i.name for i in first_eq.items.all()]
+    header = ['Equipment','DateTime'] + cols
+    df = pd.DataFrame(value_dict,columns=header)
+    sorted_df=df.sort_values(by=['Equipment'], ascending=True)
+    # table = sorted_df.to_html()
+    table = sorted_df.to_dict()
+    context = {
+        'monitors' : table
+    }
+    return render(request, 'machine/engineon.html', context=context)
+
+def get_parameter_ordered(monitor:bool):
     from machine.models import Equipment
     first_eq = Equipment.objects.filter(name__contains='RTG').first()
-    cols = [i.name for i in first_eq.items.all()]
+    cols = [i.name for i in first_eq.items.filter(monitor=monitor)]#MOdify on March 25,2024 -- To show only non-parameter
     return cols
 
 def machine_latest(request):
@@ -154,7 +169,7 @@ class MachineDetailView(DetailView):
         start_last_2_month 	= last_2_month - datetime.timedelta(last_2_month.weekday())
 
         # Added on Nov 9,2022 -- To order parameter
-        cols = get_parameter_ordered()
+        cols = get_parameter_ordered(monitor=False)
 
         # Daily (last 7 days)
         key=f'{context["object"]}-7DAYS'

@@ -32,6 +32,7 @@ class Equipment(BasicInfo):
         now_tz  =   datetime.datetime.now(tz=tz)
         value_dict = {}
         for item in self.items.all():
+            if item.monitor : continue #skip if monitor parameter is True
             ip          = self.ip
             db_number   = item.parameter.db_number
             offset      = item.parameter.offset
@@ -65,6 +66,48 @@ class Equipment(BasicInfo):
         key = f'{self.name}:LATEST'
         save_redis(key,value_dict)
         # print(value_dict)
+    
+    def read_monitor_data(self, *args, **kwargs):
+        from .tasks import read_bit,read_value,save_redis,save_previous_redis
+        import datetime, pytz
+        logging.info(f'Start reading data of {self.name} ({self.ip})')
+        # print(f'Start reading data of {self.name} ({self.ip})')
+        tz      = pytz.timezone('Asia/Bangkok')
+        now_tz  =   datetime.datetime.now(tz=tz)
+        value_dict = {}
+        for item in self.items.all():
+            if not item.monitor : continue #skip if monitor parameter is False
+            ip          = self.ip
+            db_number   = item.parameter.db_number
+            offset      = item.parameter.offset
+            field_type  = item.parameter.field_type
+            bit_number  = item.parameter.bit_number
+
+            if field_type == 'bit':
+                value       = read_bit(ip,db_number,offset,bit_number)
+            else:
+                value       = read_value(ip,db_number,offset,field_type)
+
+
+            key = f'{self.name}:{item.parameter.name}:MONITOR'
+            # if value == -1 :
+            #     logging.warn(f'Get previous value of : {key} -->{value}')              
+            # else:
+            save_previous_redis(key,value)
+            item.current_value = value
+            item.save()
+            print(f'Save to monitor value of {key}-->{value} -- Successful')
+
+            value_dict[item.name] = value
+            logging.info(f'{item} -->{value} {item.units}')
+            # print(f'{item} -->{value} {item.units}')
+        
+        value_dict['Equipment']     = self.name
+        value_dict['DateTime']      = now_tz.strftime("%b %d %H:%M")#now_tz.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Save to Redis (DB0), key = {Name}{item.name} , value = Reading value
+        key = f'{self.name}:MONITOR'
+        save_redis(key,value_dict)
 
     def save_logged(self):
         from .tasks import save_logged_item
@@ -99,7 +142,9 @@ class Item(BasicInfo):
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'items')
     # Added on Oct 21,2022 --To save current reading value
-    current_value          = models.IntegerField(default=0)
+    current_value       = models.IntegerField(default=0)
+    # Added on March 19,2024 -- To specific type of parameter Monitor(true)/Report
+    monitor             = models.BooleanField(default=False)
 
     def __str__(self):
         return f'{self.name} on {self.equipment.name}'

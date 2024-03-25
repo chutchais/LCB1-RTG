@@ -13,6 +13,7 @@ FIELDS_TYPE_CHOICES = (
         ('dint', 'dint'),#4byte
         ('real', 'real'),#4byte
         ('word', 'word'),#4byte
+        ('bit', 'bit'),#1byte , specific number of bit
     )
 
 class Parameter(BasicInfo):
@@ -25,6 +26,8 @@ class Parameter(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'parameters')
+    # Added on March 19,2024
+    bit_number          = models.SmallIntegerField(default=1) #base1 index number
     def __str__(self):
         return f'{self.name} DB:{self.db_number} Offset:{self.offset} {self.field_type}'
 

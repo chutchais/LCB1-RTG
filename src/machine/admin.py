@@ -5,7 +5,7 @@ from .models import Equipment,Item,DataLogger
 
 class ItemInline(admin.TabularInline):
 	model = Item
-	fields = ('seq','name','parameter','units','current_value')
+	fields = ('seq','name','parameter','monitor','units','current_value')
 	autocomplete_fields = ['parameter']
 	extra = 1 # how many rows to show
 	show_change_link = True
