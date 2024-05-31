@@ -109,14 +109,14 @@ class Equipment(BasicInfo):
         key = f'{self.name}:MONITOR'
         save_redis(key,value_dict)
 
-    def save_logged(self):
+    def save_logged(self,log_for_yesterday:bool=False):
         from .tasks import save_logged_item
         # import datetime, pytz
         logging.info(f'Start recording data of {self.name} ({self.ip})')
         # tz      =   pytz.timezone('Asia/Bangkok')
         # now_tz  =   datetime.datetime.now(tz=tz)
         for item in self.items.all():
-            save_logged_item(item)
+            save_logged_item(item,log_for_yesterday)
         logging.info(f'Complete recording data of {self.name} ({self.ip})')
 
 

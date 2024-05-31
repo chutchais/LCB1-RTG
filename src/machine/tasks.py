@@ -11,11 +11,11 @@ db = redis.StrictRedis('redis', 6379,db=settings.RTG_READING_VALUE_DB,
                             charset="utf-8", decode_responses=True) #Production
 
 # Added on Oct 21,2022 -- To keep current value for all items.
-def schedule_logged_value(equipment_name:str):
+def schedule_logged_value(equipment_name:str,log_for_yesterday:bool=False):
     from machine.models import Equipment
     try :
         eq      = Equipment.objects.get(name=equipment_name)
-        eq.save_logged()
+        eq.save_logged(log_for_yesterday)
         logging.info (f'Save log data of : {equipment_name} ..Successful.')
     except :
         logging.error(f'Unable to save log data of : {equipment_name}')
@@ -104,7 +104,7 @@ def get_previous_redis(key:str):
     return value if value else -1
 
 
-def save_logged_item(item:Item):
+def save_logged_item(item:Item,log_for_yesterday:bool=False):
     # Get Current value (from Redis :LATEST)
     key = f'{item.equipment.name}:{item.parameter.name}:PREVIOUS'
     current_value = get_previous_redis(key)
@@ -123,3 +123,15 @@ def save_logged_item(item:Item):
                     last_value=last_value,
                     current_value=current_value)
     d.save()
+
+    # Added on May 30,2024 - To change logged date to yesterday (same hour)
+    if log_for_yesterday :
+        import datetime, pytz
+        from datetime import timedelta
+        tz              = pytz.timezone('Asia/Bangkok')
+        now_tz          = datetime.datetime.now(tz=tz)
+        yesterday       = now_tz - timedelta(hours=24)
+
+        d.created       = yesterday
+        d.created_day   = yesterday.day
+        d.save()
