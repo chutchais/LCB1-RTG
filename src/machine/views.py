@@ -237,3 +237,71 @@ class MachineDetailView(DetailView):
             context['monthly']        = dict #html
 
         return context
+
+
+@cache_page(60 * 5)
+def operation(request):
+    import json
+    import pandas as pd
+    context = {}
+    
+    # Added on Nov 3,2022 -- to show current week for all equipment
+    import datetime, pytz
+    tz 			= pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+    from datetime import datetime, time
+    today_tz_00 = datetime.combine(today_tz, time.min)
+    import datetime
+    start_week_day = today_tz_00 - datetime.timedelta(today_tz_00.weekday())
+    last_7_days = today_tz_00 - datetime.timedelta(days=7)
+    yesterdays = today_tz_00 - datetime.timedelta(days=1)
+
+    key=f'CRANE_ON_LAST7DAYS'
+    dict = cache.get(key)
+
+    if dict is None :
+        dict_yesterday=list(DataLogger.objects.filter(
+                created = yesterdays,item__name='Crane On Hour').order_by('created').values(
+                    'created__date','item__name','last_value','current_value',
+                    'item__equipment__name','item__current_value'))
+        if dict_yesterday :
+            dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
+            for i in dict_yesterday:
+                i['created__date'] = i['created__date']+ datetime.timedelta(days=1)
+                i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
+
+            df_today      = pd.DataFrame(dict_yesterday)
+            today_table   = pd.pivot_table(df_today,values='diff',index=['item__equipment__name'],
+                            columns=['created__date'],aggfunc="sum")
+
+
+
+        dict=list(DataLogger.objects.filter(
+                created__gte = last_7_days,item__name='Crane On Hour').order_by('created').values(
+                    'created__date','item__name','last_value','current_value',
+                    'item__equipment__name','item__current_value'))
+        # Add Diff
+        if dict :
+            dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+            for i in dict:
+                i['created__date']=datetime.datetime.strftime(i['created__date'], "%b-%d")
+            df_weekly               = pd.DataFrame(dict)
+            # weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum').reindex(cols,level=0)
+            weekly_table            =pd.pivot_table(df_weekly,values='diff',index=['item__equipment__name'],
+                   columns=['created__date'],aggfunc="sum")
+            
+            # Merge table
+            if dict_yesterday :
+                final_df =pd.merge(weekly_table,today_table, on="item__equipment__name")
+            else:
+                final_df = weekly_table
+
+            context['currentweek']       = final_df.to_html()
+            cache.set(key, final_df.to_html(),60*5)
+        else :
+            context['currentweek']       = None
+    else:
+        context['currentweek']        = dict #html
+
+    # Render the HTML template index.html with the data in the context variable
+    return render(request, 'machine/operation.html', context=context)
