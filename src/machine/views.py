@@ -260,22 +260,31 @@ def operation(request):
     dict = cache.get(key)
 
     if dict is None :
+        # Check Last record date on DataLogger
+        last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
+        day_diff = (today_tz-last_record_date_tz).days
+
         dict_yesterday=list(DataLogger.objects.filter(
-                created = yesterdays,item__name='Crane On Hour').order_by('created').values(
+                created__gte = yesterdays,item__name='Crane On Hour').order_by('created').values(
                     'created__date','item__name','last_value','current_value',
                     'item__equipment__name','item__current_value'))
-        if dict_yesterday :
-            dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
-            for i in dict_yesterday:
-                i['created__date'] = i['created__date']+ datetime.timedelta(days=1)
-                i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
+        # if dict_yesterday :
+        dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
+        for i in dict_yesterday:
+            if day_diff == 1:
+                # See report after 8am
+                i['created__date'] = today_tz
+            else :
+                # See report before 8am
+                i['created__date'] = yesterdays
+            # Change Date format
+            i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
 
-            df_today      = pd.DataFrame(dict_yesterday)
-            today_table   = pd.pivot_table(df_today,values='diff',index=['item__equipment__name'],
-                            columns=['created__date'],aggfunc="sum")
+        df_today      = pd.DataFrame(dict_yesterday)
+        today_table   = pd.pivot_table(df_today,values='diff',index=['item__equipment__name'],
+                        columns=['created__date'],aggfunc="sum")
 
-
-
+        #Get data for last 7 days 
         dict=list(DataLogger.objects.filter(
                 created__gte = last_7_days,item__name='Crane On Hour').order_by('created').values(
                     'created__date','item__name','last_value','current_value',
