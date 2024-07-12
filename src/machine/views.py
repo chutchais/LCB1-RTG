@@ -262,21 +262,35 @@ def operation(request):
     if dict is None :
         # Check Last record date on DataLogger
         last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
-        day_diff = (today_tz-last_record_date_tz).days
+        # day_diff = (today_tz_00-datetime.datetime.combine(last_record_date_tz, time.min)).days
 
+
+
+        
+        last_record_date_00 = datetime.datetime.combine(last_record_date_tz, time.min)
+
+        # dict_yesterday=list(DataLogger.objects.filter(
+        #         created__gte = yesterdays,item__name='Crane On Hour').order_by('created').values(
+        #             'created__date','item__name','last_value','current_value',
+        #             'item__equipment__name','item__current_value'))
         dict_yesterday=list(DataLogger.objects.filter(
-                created__gte = yesterdays,item__name='Crane On Hour').order_by('created').values(
+                created__gte = last_record_date_00,item__name='Crane On Hour').order_by('created').values(
                     'created__date','item__name','last_value','current_value',
                     'item__equipment__name','item__current_value'))
         # if dict_yesterday :
         dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
+        
         for i in dict_yesterday:
-            if day_diff == 1:
-                # See report after 8am
-                i['created__date'] = today_tz
-            else :
-                # See report before 8am
-                i['created__date'] = yesterdays
+            # After midnight
+            # if day_diff == 2 and today_tz.hour >= 0 :
+            i['created__date'] = last_record_date_tz+datetime.timedelta(days=1)
+
+            # if day_diff == 1 :
+            #     # See report after 8am
+            #     i['created__date'] = today_tz
+            # else :
+            #     # See report before 8am
+            #     i['created__date'] = yesterdays
             # Change Date format
             i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
 
