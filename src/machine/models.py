@@ -50,14 +50,17 @@ class Equipment(BasicInfo):
                 
             else:
                 # Added on July 11,2024 -- To ensure new read value more than current value
-                if value > item.current_value :
+                # Edit on JUly 16,2024 -- To protect Over value , more than 30.
+                # if value > item.current_value :
+                offset_reading_value = 30
+                if value > item.current_value and value < item.current_value + offset_reading_value   :
                     save_previous_redis(key,value)
                     # Added on Oct 21,2022 -- Save to Current value on Item
                     item.current_value = value
                     item.save()
                     print(f'Save to current value of {key}-->{value} -- Successful')
                 else:
-                    logging.warn(f'Reading value is less than current value of : {key} --> Read :{value} , Current : {item.current_value}')
+                    logging.warn(f'Reading value is less or more than current value of : {key} --> Read :{value} , Current : {item.current_value}')
 
             value_dict[item.name] = value
             logging.info(f'{item} -->{value} {item.units}')
