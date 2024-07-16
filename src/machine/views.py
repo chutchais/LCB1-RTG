@@ -106,7 +106,9 @@ def index(request):
 def engine_on(request):
     import json
     import pandas as pd
-    value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR')]
+    # value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR')]
+    # Modify on JUly 16,2024 -- to ignore 'LIST' key
+    value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR') if ':LIST' not in k]
     cols = get_parameter_ordered(monitor=True)#[i.name for i in first_eq.items.all()]
     header = ['Equipment','DateTime'] + cols
     df = pd.DataFrame(value_dict,columns=header)
