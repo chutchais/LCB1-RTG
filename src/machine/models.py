@@ -75,7 +75,7 @@ class Equipment(BasicInfo):
         # print(value_dict)
     
     def read_monitor_data(self, *args, **kwargs):
-        from .tasks import read_bit,read_value,save_redis,save_previous_redis
+        from .tasks import read_bit,read_value,save_redis,save_previous_redis,save_redis_stack
         import datetime, pytz
         logging.info(f'Start reading data of {self.name} ({self.ip})')
         # print(f'Start reading data of {self.name} ({self.ip})')
@@ -103,11 +103,16 @@ class Equipment(BasicInfo):
             save_previous_redis(key,value)
             item.current_value = value
             item.save()
-            print(f'Save to monitor value of {key}-->{value} -- Successful')
+            
 
             value_dict[item.name] = value
             logging.info(f'{item} -->{value} {item.units}')
             # print(f'{item} -->{value} {item.units}')
+            # Added on July 16,2024 -- To record last 12 data
+            key_lastest = f'{self.name}:{item.parameter.name}:LASTEST'
+            save_redis_stack(key_lastest,value)
+            # ------------------------------------------------
+            print(f'Save to monitor value of {key}-->{value} -- Successful')
         
         value_dict['Equipment']     = self.name
         value_dict['DateTime']      = now_tz.strftime("%b %d %H:%M")#now_tz.strftime("%Y-%m-%d %H:%M:%S")

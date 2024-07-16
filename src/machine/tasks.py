@@ -135,3 +135,11 @@ def save_logged_item(item:Item,log_for_yesterday:bool=False):
         d.created       = yesterday
         d.created_day   = yesterday.day
         d.save()
+
+
+# Addded July 16,2024 -- To save to stack
+def save_redis_stack(key:str,value,max_range=12):
+    if db.llen (key) == max_range:
+        db.lpop(key)
+    db.rpush(key,value)
+    return db.lrange(key,0,-1)
