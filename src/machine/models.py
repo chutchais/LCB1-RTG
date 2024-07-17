@@ -111,7 +111,7 @@ class Equipment(BasicInfo):
             # Added on July 16,2024 -- To record last 12 data
             key_lastest     = f'{self.name}:{item.parameter.name}:LASTEST'
             value_latest    = save_redis_stack(key_lastest,value)
-            value_dict[f'{item.name}:LIST'] = 0#value_latest
+            value_dict[f'{item.name}:LIST'] = ','.join(value_latest)
             # ------------------------------------------------
             print(f'Save to monitor value of {key}-->{value} -- Successful')
         
