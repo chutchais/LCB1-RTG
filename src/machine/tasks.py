@@ -74,6 +74,7 @@ def read_value(ip:str,db_name:int,offset:int,field_type:str):
 def read_bit(ip:str,db_name:int,offset:int,bit_number:int):
     # bit_number = base10 index number
     try :
+        t=0
         client = snap7.client.Client()
         # client.connect(ip,0,1) # S7-1200 และ S7-1500  จะใช้เป็น Rack 0, Slot 1
         client.connect(ip,0,2) # S7-300 จะใช้เป็น Rack 0, Slot 2
