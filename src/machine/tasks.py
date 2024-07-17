@@ -77,16 +77,21 @@ def read_bit(ip:str,db_name:int,offset:int,bit_number:int):
         client = snap7.client.Client()
         # client.connect(ip,0,1) # S7-1200 และ S7-1500  จะใช้เป็น Rack 0, Slot 1
         client.connect(ip,0,2) # S7-300 จะใช้เป็น Rack 0, Slot 2
-        client.get_connected()
+        # Modify on JUly 17,2024 -- To check network connection
+        conn = client.get_connected()
+        if not conn:
+            logging.error(f'Unable to connect IP : {ip}')
+            return -1
 
         db = client.db_read(db_name, 
                             offset, 
                             1) #db_read(DB number, Start address, No. of byte) 
         t=format(db[0],'b')[::-1] #Reverst 1000 --> 0001
-
-        return int(t[bit_number])
+        # Modify on July 17,2024 -- TO fix out of range of index
+        # return int(t[bit_number])
+        return int(t[bit_number-1])
     except :
-        logging.error(f'Unable to connect IP : {ip}')
+        logging.error(f'Error to read bit: {ip}')
         return -1
 
 def save_redis(key:str,value:dict):
