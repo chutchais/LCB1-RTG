@@ -89,6 +89,8 @@ def read_bit(ip:str,db_name:int,offset:int,bit_number:int):
                             1) #db_read(DB number, Start address, No. of byte) 
         t=format(db[0],'b')[::-1] #Reverst 1000 --> 0001
         # Modify on July 17,2024 -- TO fix out of range of index
+        if len(t)==bit_number:
+            bit_number = bit_number-1
         return int(t[bit_number])
         # return int(t[bit_number-1])
     except :
