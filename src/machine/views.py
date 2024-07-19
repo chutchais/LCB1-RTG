@@ -261,6 +261,12 @@ def operation(request):
     key=f'CRANE_ON_LAST7DAYS'
     dict = cache.get(key)
 
+
+    # Added on JUly 19,2024 -- To handle with non-hybrid RTG
+    remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
+              'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
+              'RTG34','RTG35']
+
     if dict is None :
         # Check Last record date on DataLogger
         last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
@@ -272,13 +278,24 @@ def operation(request):
         last_record_date_00 = datetime.datetime.combine(last_record_date_tz, time.min)
 
         # dict_yesterday=list(DataLogger.objects.filter(
-        #         created__gte = yesterdays,item__name='Crane On Hour').order_by('created').values(
+        #         created__gte = last_record_date_00,item__name='Crane On Hour').order_by('created').values(
         #             'created__date','item__name','last_value','current_value',
         #             'item__equipment__name','item__current_value'))
+
+        # Added on July 19,2024 -- To remove 'Engine Working Hour' of RTG16 to RTG35
         dict_yesterday=list(DataLogger.objects.filter(
-                created__gte = last_record_date_00,item__name='Crane On Hour').order_by('created').values(
+                created__gte = last_record_date_00,item__name__in =['Crane On Hour','Engine Working Hour']).order_by(
+                    'item__equipment__name','created').values(
                     'created__date','item__name','last_value','current_value',
                     'item__equipment__name','item__current_value'))
+        # Select Engine Working Hour only Hybrid RTG
+        dict_yesterday =  [
+                            i for i in dict_yesterday 
+                            if i['item__name']=='Crane On Hour' or 
+                            (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+                         ]
+        # -------------------------------------------------------------------------------------------
+
         # if dict_yesterday :
         dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
         
@@ -286,14 +303,6 @@ def operation(request):
             # After midnight
             # if day_diff == 2 and today_tz.hour >= 0 :
             i['created__date'] = last_record_date_tz+datetime.timedelta(days=1)
-
-            # if day_diff == 1 :
-            #     # See report after 8am
-            #     i['created__date'] = today_tz
-            # else :
-            #     # See report before 8am
-            #     i['created__date'] = yesterdays
-            # Change Date format
             i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
 
         df_today      = pd.DataFrame(dict_yesterday)
@@ -301,10 +310,21 @@ def operation(request):
                         columns=['created__date'],aggfunc="sum")
 
         #Get data for last 7 days 
+        # dict=list(DataLogger.objects.filter(
+        #         created__gte = last_7_days,item__name='Crane On Hour').order_by('created').values(
+        #             'created__date','item__name','last_value','current_value',
+        #             'item__equipment__name','item__current_value'))
+        # Modify on 19 JUly -- to support Hybrid RTG
         dict=list(DataLogger.objects.filter(
-                created__gte = last_7_days,item__name='Crane On Hour').order_by('created').values(
+                created__gte = last_7_days,item__name__in =['Crane On Hour','Engine Working Hour']).order_by(
+                    'item__equipment__name','created').values(
                     'created__date','item__name','last_value','current_value',
                     'item__equipment__name','item__current_value'))
+        dict =  [
+                            i for i in dict 
+                            if i['item__name']=='Crane On Hour' or 
+                            (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+                         ]
         # Add Diff
         if dict :
             dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
