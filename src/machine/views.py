@@ -341,6 +341,10 @@ def operation(request):
             else:
                 final_df = weekly_table
 
+            # Added JUly 29,2024 -- To save final DF to Redis
+            save_df_to_redis ('OPS_7DAYS_ENGINE_ON',final_df)
+            # -----------------------------------------------
+
             context['currentweek']       = final_df.to_html()
             cache.set(key, final_df.to_html(),60*5)
         else :
@@ -350,3 +354,12 @@ def operation(request):
 
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'machine/operation.html', context=context)
+
+def save_df_to_redis(key,df):
+    data = df.to_json()
+    db.set(key,data)
+
+def get_df_from_redis(key):
+    import pandas as pd
+    blob = db.get(key)
+    return pd.read_json(blob)

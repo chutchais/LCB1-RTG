@@ -20,3 +20,5 @@ python-snap7
 django-redis
 # Added on June 13,2023
 pyodbc
+# Added on July 29,2024
+xlsxwriter
