@@ -33,8 +33,8 @@ class EquipmentAdmin(admin.ModelAdmin):
 
 @admin.register(DataLogger)
 class DataLoggerAdmin(admin.ModelAdmin):
-	search_fields = []
-	list_filter = ['created_year','created_month','created_day']
+	search_fields = ['item__equipment__name','item__parameter__name']
+	list_filter = ['item__equipment__name','item__parameter__name']
 	list_display = ('item','last_value','current_value','created')
 	readonly_fields = ('created','updated')
 
