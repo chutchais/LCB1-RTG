@@ -363,3 +363,19 @@ def get_df_from_redis(key):
     import pandas as pd
     blob = db.get(key)
     return pd.read_json(blob)
+
+def operation_export(request):
+    import pandas as pd
+    from io import BytesIO
+    from django.http import HttpResponse
+    df = get_df_from_redis('OPS_7DAYS_ENGINE_ON')
+    with BytesIO() as b:
+        # Use the StringIO object as the filehandle.
+        writer = pd.ExcelWriter(b, engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Sheet1')
+        writer.save()
+        filename = 'Last7day'
+        content_type = 'application/vnd.ms-excel'
+        response = HttpResponse(b.getvalue(), content_type=content_type)
+        response['Content-Disposition'] = 'attachment; filename="' + filename + '.xlsx"'
+        return response
