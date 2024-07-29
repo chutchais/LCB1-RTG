@@ -369,13 +369,19 @@ def operation_export(request):
     from io import BytesIO
     from django.http import HttpResponse
     df = get_df_from_redis('OPS_7DAYS_ENGINE_ON')
-    with BytesIO() as b:
-        # Use the StringIO object as the filehandle.
-        writer = pd.ExcelWriter(b, engine='xlsxwriter')
-        df.to_excel(writer, sheet_name='Sheet1')
-        writer.save()
-        filename = 'Last7day'
-        content_type = 'application/vnd.ms-excel'
-        response = HttpResponse(b.getvalue(), content_type=content_type)
-        response['Content-Disposition'] = 'attachment; filename="' + filename + '.xlsx"'
-        return response
+    response = HttpResponse(content_type='application/xlsx')
+    response['Content-Disposition'] = f'attachment; filename="EngineOn.xlsx"'
+    with pd.ExcelWriter(response) as writer:
+        df.to_excel(writer, sheet_name='last7days')
+
+    return response
+    # with BytesIO() as b:
+    #     # Use the StringIO object as the filehandle.
+    #     writer = pd.ExcelWriter(b, engine='xlsxwriter')
+    #     df.to_excel(writer, sheet_name='Sheet1')
+    #     writer.save()
+    #     filename = 'Last7day'
+    #     content_type = 'application/vnd.ms-excel'
+    #     response = HttpResponse(b.getvalue(), content_type=content_type)
+    #     response['Content-Disposition'] = 'attachment; filename="' + filename + '.xlsx"'
+    #     return response
