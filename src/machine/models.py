@@ -113,7 +113,8 @@ class Equipment(BasicInfo):
             # print(f'{item} -->{value} {item.units}')
             # Added on July 16,2024 -- To record last 12 data
             key_lastest     = f'{self.name}:{item.parameter.name}:LASTEST'
-            value_latest    = save_redis_stack(key_lastest,value)
+            # Modify on Aug 17,2024 -- if value is -1 change to 0
+            value_latest    = save_redis_stack(key_lastest,0 if (value == -1 or value == '-1') else value)
             value_dict[f'{item.name}:LIST'] = ','.join(value_latest)
             # ------------------------------------------------
             print(f'Save to monitor value of {key}-->{value} -- Successful')
