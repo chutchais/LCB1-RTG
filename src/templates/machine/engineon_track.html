@@ -39,12 +39,14 @@
                         008000 {% else%} FF0000 {%endif%}">{% if value == '1' %}
                         On {% else%} Off {%endif%}</td>
                     {% elif key == 'Engine Power On:LIST' %}
-                       
+                       <td>
                         {% for char in value %}  
                             {% if char != ',' %}
-                                {{ char }}  
+                            <span class="{% if char == 1 %}.dot_green{% else %}.dot_red{% endif %}">  
+                            </span>  
                             {% endif %}
                         {% endfor %}
+                        </td>
                     {% else %}
                         <td style="text-align:center">{{value}}</td>
                     {% endif %}
