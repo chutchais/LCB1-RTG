@@ -122,7 +122,7 @@ def engine_on(request):
     context = {
         'monitors' : table
     }
-    return render(request, 'machine/engineon.html', context=context)
+    return render(request, 'machine/engineon_track.html', context=context)
 
 def get_parameter_ordered(monitor:bool):
     from machine.models import Equipment
