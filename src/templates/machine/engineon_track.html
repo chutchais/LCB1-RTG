@@ -6,10 +6,23 @@
   <hr>
   <h2>Realtime Monitoring</h2>
   <table border="1">
+    <tr>
+        <td>Machine</td>
+        <td>Datetime</td>
+        <td>สถานะล่าสุด</td>
+        <td>สถานะที่ผ่านมา</td>
+    </tr>
   {% for item in monitors %}
             <tr>
                 {%for key,value in item.items %}
-                    <td>{{value}}</td>
+                    {% if key == 'Engine Power On' %}
+                    <td style="text-align:center" 
+                    bgcolor="{% if value == '1' %}
+                    008000 {% else%} FF0000 {%endif%}">{% if value == '1' %}
+                    On {% else%} Off {%endif%}</td>
+                    {% else %}
+                        <td style="text-align:center">{{value}}</td>
+                    {% endif %}
                 {% endfor %}
                 
             </tr>
