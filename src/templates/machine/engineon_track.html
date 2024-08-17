@@ -1,6 +1,24 @@
 <head>
     <title>RTG Measuring Online</title>
   </head>
+
+  <style>
+    .dot_red {
+      height: 10px;
+      width: 10px;
+      background-color: #FF0000;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot_green {
+      height: 10px;
+      width: 10px;
+      background-color: #00FF00;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    </style>
+
   <body>
   <h1>RTG Monitoring</h1>
   <hr>
@@ -16,10 +34,16 @@
             <tr>
                 {%for key,value in item.items %}
                     {% if key == 'Engine Power On' %}
-                    <td style="text-align:center" 
-                    bgcolor="{% if value == '1' %}
-                    008000 {% else%} FF0000 {%endif%}">{% if value == '1' %}
-                    On {% else%} Off {%endif%}</td>
+                        <td style="text-align:center" 
+                        bgcolor="{% if value == '1' %}
+                        008000 {% else%} FF0000 {%endif%}">{% if value == '1' %}
+                        On {% else%} Off {%endif%}</td>
+                    {% elif key == 'Engine Power On:LIST' %}
+                        {{ value|replace:"-1":"0" }}
+                        {{ value|replace:",":"" }} 
+                        {% for char in value %}  
+                            {{ char }}  
+                        {% endfor %}
                     {% else %}
                         <td style="text-align:center">{{value}}</td>
                     {% endif %}
