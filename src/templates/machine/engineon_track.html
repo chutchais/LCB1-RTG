@@ -40,8 +40,10 @@
                         On {% else%} Off {%endif%}</td>
                     {% elif key == 'Engine Power On:LIST' %}
                        
-                        {% for char in value if ',' not in char %}  
-                            {{ char }}  
+                        {% for char in value %}  
+                            {% if char != ',' %}
+                                {{ char }}  
+                            {%%}
                         {% endfor %}
                     {% else %}
                         <td style="text-align:center">{{value}}</td>
