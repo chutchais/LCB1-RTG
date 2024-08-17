@@ -43,7 +43,7 @@
                         {% for char in value %}  
                             {% if char != ',' %}
                                 {{ char }}  
-                            {%%}
+                            {% endif %}
                         {% endfor %}
                     {% else %}
                         <td style="text-align:center">{{value}}</td>
