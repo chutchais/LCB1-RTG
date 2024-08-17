@@ -39,8 +39,8 @@
                         008000 {% else%} FF0000 {%endif%}">{% if value == '1' %}
                         On {% else%} Off {%endif%}</td>
                     {% elif key == 'Engine Power On:LIST' %}
-                        {{ value|replace:"-1":"0" }}
-                        {{ value|replace:",":"" }} 
+                        {{ value|replace:'-1':'0' }}
+                        {{ value|replace:'','':'' }} 
                         {% for char in value %}  
                             {{ char }}  
                         {% endfor %}
