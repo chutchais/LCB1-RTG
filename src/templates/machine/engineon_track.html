@@ -1,0 +1,20 @@
+<head>
+    <title>RTG Measuring Online</title>
+  </head>
+  <body>
+  <h1>RTG Monitoring</h1>
+  <hr>
+  <h2>Realtime Monitoring</h2>
+  <table border="1">
+  {% for item in monitors %}
+            <tr>
+                <td>{{item['Equipment']}}</td>
+                <td>{{item['DateTime']}}</td>
+                <td>{{item['Engine Power On']}}</td>
+                <td>{{item['Engine Power On:LIST']}}</td>
+            </tr>
+  {% endfor %}
+  </table>
+  <hr>
+  
+  </body>

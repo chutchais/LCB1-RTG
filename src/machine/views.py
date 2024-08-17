@@ -106,15 +106,19 @@ def index(request):
 def engine_on(request):
     import json
     import pandas as pd
-    # value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR')]
     # Modify on JUly 16,2024 -- to ignore 'LIST' key
-    value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR') if ':LIST' not in k]
-    cols = get_parameter_ordered(monitor=True)#[i.name for i in first_eq.items.all()]
-    header = ['Equipment','DateTime'] + cols
+    # value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR') if ':LIST' not in k]
+    # Modify on Aug 17,2024 -- to remove Minute data
+    value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR') if 'Crane On Minute' not in k]
+    # Comment on Aug 17,2024 --- to fix col
+    # cols = get_parameter_ordered(monitor=True)#[i.name for i in first_eq.items.all()]
+    # header = ['Equipment','DateTime'] + cols
+    header = ['Equipment','DateTime','Engine Power On','Engine Power On:LIST']
     df = pd.DataFrame(value_dict,columns=header)
     sorted_df=df.sort_values(by=['Equipment'], ascending=True)
-    # table = sorted_df.to_html()
-    table = sorted_df.to_dict()
+    # table = sorted_df.to_dict()
+    # Modify on Aug 17,2024 -- to change dict to be table wise
+    table = sorted_df.to_dict(orient='records')
     context = {
         'monitors' : table
     }
