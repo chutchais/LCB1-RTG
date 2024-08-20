@@ -10,6 +10,31 @@ from machine.models import Item
 db = redis.StrictRedis('redis', 6379,db=settings.RTG_READING_VALUE_DB, 
                             charset="utf-8", decode_responses=True) #Production
 
+
+# Added on Aug 20,2024 --Check PLC connection
+from time import sleep
+from snap7 import client as s7
+def plc_connect(ip, rack, slot, stop_tries=3, freq=0.2):
+    plc = s7.Client()
+    tries = 1
+    while tries < stop_tries and not plc.get_connected():
+        try:
+            print('trying for connecting to PLC ...')
+            sleep(freq)
+            plc.connect(ip, rack, slot)
+            return True
+
+        except Exception as e:
+            # logger.error("warning in PLC connection >>{}".format(e))
+            sleep(freq)
+
+            if tries == (stop_tries - 1):
+                print('error in plc connection')
+                return False
+
+        tries += 1
+    return False
+
 # Added on Oct 21,2022 -- To keep current value for all items.
 def schedule_logged_value(equipment_name:str,log_for_yesterday:bool=False):
     from machine.models import Equipment
@@ -43,6 +68,11 @@ def schedule_read_monitor():
 
 def read_value(ip:str,db_name:int,offset:int,field_type:str):
     try :
+        # Added on Aug 20,2024 -- To check PLC connection
+        if not plc_connect(ip,0,2,5):
+            return -1
+        # -----------------------------------------------
+
         client = snap7.client.Client()
         # client.connect(ip,0,1) # S7-1200 และ S7-1500  จะใช้เป็น Rack 0, Slot 1
         client.connect(ip,0,2) # S7-300 จะใช้เป็น Rack 0, Slot 2
@@ -60,11 +90,6 @@ def read_value(ip:str,db_name:int,offset:int,field_type:str):
             t = util.get_int(db, 0)#2 byte
         else :
             t = util.get_dint(db, 0) #4 byte
-
-        # Save to by item
-        # key = f'{equipment_name}:{item_name}:PREVIOUS'
-        # logging.info(f'Save reading data to PREVIOUS key : {key} -->{t}')
-        # save_previous_redis(key,str(t))
         return t
     except :
         logging.error(f'Unable to connect IP : {ip}')
@@ -151,3 +176,5 @@ def save_redis_stack(key:str,value,max_range=12):
         db.lpop(key)
     db.rpush(key,value)
     return db.lrange(key,0,-1)
+
+
