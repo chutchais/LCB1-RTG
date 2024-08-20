@@ -49,9 +49,9 @@
                        <td>
                         {% for char in value %}  
                             {% if char != ',' %}
-                            <span class="{% if char == '1' %}dot_green
-                                        {% elif char == '0' %}dot_red
-                                        {% endif %}{% else %}dot_gray
+                            <span class="{% if char == '1' %}dot_green 
+                                        {% elif char == '0' %} dot_red 
+                                        {% else %}dot_gray
                                         {% endif %}">  
                             </span>  
                             {% endif %}
