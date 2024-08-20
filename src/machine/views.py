@@ -111,6 +111,12 @@ def engine_on(request):
     # value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR') if ':LIST' not in k]
     # Modify on Aug 17,2024 -- to remove Minute data
     value_dict = [db.hgetall(k) for k in db.keys('RTG??:MONITOR') if 'Crane On Minute' not in k]
+
+    # Added on Aug 20,2024 -- To change number from -1 to 2 of 'Engine Power On:LIST'
+    for i in value_dict:
+        i['Engine Power On:LIST']=i['Engine Power On:LIST'].replace('-1','2')
+    # ------------------------------------------------------------------------------
+
     # Comment on Aug 17,2024 --- to fix col
     # cols = get_parameter_ordered(monitor=True)#[i.name for i in first_eq.items.all()]
     # header = ['Equipment','DateTime'] + cols
@@ -324,7 +330,7 @@ def operation(request):
         # # Modify on 19 JUly -- to support Hybrid RTG
         dict=list(DataLogger.objects.filter(
                 created__gte = last_7_days,item__name__in =[
-                    'Crane On Hour','Engine Working Hour','Crane On Minute']).order_by(
+                    'Engine Working Hour','Crane On Minute']).order_by(
                     'item__equipment__name','created').values(
                     'created__date','item__name','last_value','current_value',
                     'item__equipment__name','item__current_value'))
@@ -338,11 +344,11 @@ def operation(request):
                     if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
                     (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
                     ]
-        dict =  [
-            i for i in dict
-            if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
-            (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
-        ]
+        # dict =  [
+        #     i for i in dict
+        #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
+        #     (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
+        # ]
         # Add Diff
         if dict :
             dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
@@ -424,7 +430,7 @@ def get_data_by_start_date(start_date_00,today_report):
             # Modify on Aug 18,2024 -- To to add 'Crane On Minute' parameter ,remove 'Crane On Hour'
         dict_yesterday=list(DataLogger.objects.filter(
                 created__gte = start_date_00,item__name__in =[
-                    'Crane On Hour','Engine Working Hour','Crane On Minute']).order_by(
+                    'Engine Working Hour','Crane On Minute']).order_by(
                     'item__equipment__name','created').values(
                     'created__date','item__name','last_value','current_value',
                     'item__equipment__name','item__current_value'))
@@ -439,12 +445,12 @@ def get_data_by_start_date(start_date_00,today_report):
                             (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
                          ]
         # Added on Aug 18,2024 -- To remove 'Crane On Hour' for eRTG
-        dict_yesterday =  [
-            i for i in dict_yesterday
-            if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
-              (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
+        # dict_yesterday =  [
+        #     i for i in dict_yesterday
+        #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
+        #       (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
             
-        ]
+        # ]
         # -------------------------------------------------------------------------------------------
 
         # if dict_yesterday :
