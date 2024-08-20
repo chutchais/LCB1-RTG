@@ -42,9 +42,9 @@
                 {%for key,value in item.items %}
                     {% if key == 'Engine Power On' %}
                         <td style="text-align:center" 
-                        bgcolor="{% if char == '1' %}dot_green 
-                        {% elif char == '0' %} dot_red 
-                        {% else %}dot_gray
+                        bgcolor="{% if char == '1' %}#00FF00 
+                        {% elif char == '0' %} #FF0000 
+                        {% else %}#5c5e5c
                         {% endif %}">
                         {% if value == '1' %}On 
                         {% elif char == '0' %}Off 
