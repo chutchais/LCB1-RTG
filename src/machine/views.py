@@ -390,11 +390,11 @@ def operation(request):
     context = {}
     if dict is None :
         final_df = get_operation_dataframe()
-        if final_df :
-            context['currentweek']       = final_df.to_html()
-            cache.set(key, final_df.to_html(),60*5)
-        else :
-            context['currentweek']       = None
+        # if final_df :
+        context['currentweek']       = final_df.to_html()
+        cache.set(key, final_df.to_html(),60*5)
+        # else :
+        #     context['currentweek']       = None
     else:
         context['currentweek']        = dict #html
     # Render the HTML template index.html with the data in the context variable
