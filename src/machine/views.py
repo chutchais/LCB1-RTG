@@ -252,16 +252,160 @@ class MachineDetailView(DetailView):
         return context
 
 
-@cache_page(60 * 5)
-def operation(request):
-    import json
-    import pandas as pd
-    context = {}
+# @cache_page(60 * 5)
+# def operation(request):
+#     import json
+#     import pandas as pd
+#     context = {}
 
-    # Added on Aug 18,2024 -- To set report show in Hour mode or Minute mode
-    hour_mode = True
+#     # Added on Aug 18,2024 -- To set report show in Hour mode or Minute mode
+#     hour_mode = True
 
     
+#     # Added on Nov 3,2022 -- to show current week for all equipment
+#     import datetime, pytz
+#     tz 			= pytz.timezone('Asia/Bangkok')
+#     today_tz 	=   datetime.datetime.now(tz=tz)
+#     from datetime import datetime, time
+#     today_tz_00 = datetime.combine(today_tz, time.min)
+#     import datetime
+#     start_week_day = today_tz_00 - datetime.timedelta(today_tz_00.weekday())
+#     last_7_days = today_tz_00 - datetime.timedelta(days=7)
+#     yesterdays = today_tz_00 - datetime.timedelta(days=1)
+
+#     key=f'CRANE_ON_LAST7DAYS'
+#     dict = cache.get(key)
+
+
+#     # Added on JUly 19,2024 -- To handle with non-hybrid RTG
+#     remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
+#               'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
+#               'RTG34','RTG35']
+
+#     if dict is None :
+#         # Check Last record date on DataLogger
+#         last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
+#         last_record_date_00 = datetime.datetime.combine(last_record_date_tz, time.min)
+
+#         # # Modify on Aug 18,2024 -- To to add 'Crane On Minute' parameter ,remove 'Crane On Hour'
+#         # dict_yesterday=list(DataLogger.objects.filter(
+#         #         created__gte = last_record_date_00,item__name__in =[
+#         #             'Crane On Hour','Engine Working Hour','Crane On Minute']).order_by(
+#         #             'item__equipment__name','created').values(
+#         #             'created__date','item__name','last_value','current_value',
+#         #             'item__equipment__name','item__current_value'))
+#         # # Select Engine Working Hour only Hybrid RTG
+#         # dict_yesterday =  [
+#         #                     i for i in dict_yesterday 
+#         #                     if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
+#         #                     (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+#         #                  ]
+#         # # Added on Aug 18,2024 -- To remove 'Crane On Hour' for eRTG
+#         # dict_yesterday =  [
+#         #     i for i in dict_yesterday
+#         #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
+#         #       (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
+            
+#         # ]
+#         # # -------------------------------------------------------------------------------------------
+
+#         # # if dict_yesterday :
+#         # dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
+        
+#         # for i in dict_yesterday:
+#         #     # After midnight
+#         #     # if day_diff == 2 and today_tz.hour >= 0 :
+#         #     i['created__date'] = last_record_date_tz+datetime.timedelta(days=1)
+#         #     i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
+#         #     # # Added on Aug 18,2024 -- To change Diff to either Hour or Minute mode
+#         #     i['diff'] = i['diff']*60 if i['item__name'] != 'Crane On Minute' else i['diff']
+#         #     # {i['diff']//60}:{i['diff']%60}
+
+#         # df_today      = pd.DataFrame(dict_yesterday)
+#         # today_table   = pd.pivot_table(df_today,values='diff',index=['item__equipment__name'],
+#         #                 columns=['created__date'],aggfunc="sum")
+
+#         today_found_data,today_table = get_data_by_start_date(last_record_date_00,today_report=True)
+
+#         # # Modify on 19 JUly -- to support Hybrid RTG
+#         dict=list(DataLogger.objects.filter(
+#                 created__gte = last_7_days,item__name__in =[
+#                     'Engine Working Hour','Crane On Minute']).order_by(
+#                     'item__equipment__name','created').values(
+#                     'created__date','item__name','last_value','current_value',
+#                     'item__equipment__name','item__current_value'))
+#         # dict =  [
+#         #         i for i in dict 
+#         #         if i['item__name']=='Crane On Hour' or 
+#         #         (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+#         #         ]
+#         dict =  [
+#                     i for i in dict 
+#                     if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
+#                     (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+#                     ]
+#         # dict =  [
+#         #     i for i in dict
+#         #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
+#         #     (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
+#         # ]
+#         # Add Diff
+#         if dict :
+#             dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+#             for i in dict:
+#                 i['created__date']=datetime.datetime.strftime(i['created__date'], "%b-%d")
+#                 # # Added on Aug 18,2024 -- To change Diff to either Hour or Minute mode
+#                 i['diff'] = i['diff']*60 if i['item__name'] != 'Crane On Minute' else i['diff']  
+
+#             df_weekly               = pd.DataFrame(dict)
+#             # weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum').reindex(cols,level=0)
+#             weekly_table            =pd.pivot_table(df_weekly,values='diff',index=['item__equipment__name'],
+#                    columns=['created__date'],aggfunc="sum")
+
+
+#             # Merge table
+#             if today_found_data :
+#                 final_df =pd.merge(weekly_table,today_table, on="item__equipment__name")
+#             else:
+#                 final_df = weekly_table
+
+#             # Added JUly 29,2024 -- To save final DF to Redis
+#             save_df_to_redis ('OPS_7DAYS_ENGINE_ON',final_df)
+#             # -----------------------------------------------
+
+#             context['currentweek']       = final_df.to_html()
+#             cache.set(key, final_df.to_html(),60*5)
+#         else :
+#             context['currentweek']       = None
+#     else:
+#         context['currentweek']        = dict #html
+
+#     # Render the HTML template index.html with the data in the context variable
+#     return render(request, 'machine/operation.html', context=context)
+
+@cache_page(60 * 5)
+def operation(request):
+    key=f'CRANE_ON_LAST7DAYS'
+    dict = cache.get(key)
+    context = {}
+    if dict:
+        final_df = get_operation_dataframe()
+        if final_df :
+            context['currentweek']       = final_df.to_html()
+            cache.set(key, final_df.to_html(),60*5)
+        else :
+            context['currentweek']       = None
+    else:
+        context['currentweek']        = dict #html
+    # Render the HTML template index.html with the data in the context variable
+    return render(request, 'machine/operation.html', context=context)
+
+def get_operation_dataframe():
+    import json
+    import pandas as pd
+    # context = {}
+    # Added on Aug 18,2024 -- To set report show in Hour mode or Minute mode
+    hour_mode = True
     # Added on Nov 3,2022 -- to show current week for all equipment
     import datetime, pytz
     tz 			= pytz.timezone('Asia/Bangkok')
@@ -273,115 +417,56 @@ def operation(request):
     last_7_days = today_tz_00 - datetime.timedelta(days=7)
     yesterdays = today_tz_00 - datetime.timedelta(days=1)
 
-    key=f'CRANE_ON_LAST7DAYS'
-    dict = cache.get(key)
-
+    # key=f'CRANE_ON_LAST7DAYS'
+    # dict = cache.get(key)
 
     # Added on JUly 19,2024 -- To handle with non-hybrid RTG
     remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
               'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
               'RTG34','RTG35']
 
-    if dict is None :
-        # Check Last record date on DataLogger
-        last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
-        last_record_date_00 = datetime.datetime.combine(last_record_date_tz, time.min)
+    # if dict is None :
+    # Check Last record date on DataLogger
+    last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
+    last_record_date_00 = datetime.datetime.combine(last_record_date_tz, time.min)
+    today_found_data,today_table = get_data_by_start_date(last_record_date_00,today_report=True)
 
-        # # Modify on Aug 18,2024 -- To to add 'Crane On Minute' parameter ,remove 'Crane On Hour'
-        # dict_yesterday=list(DataLogger.objects.filter(
-        #         created__gte = last_record_date_00,item__name__in =[
-        #             'Crane On Hour','Engine Working Hour','Crane On Minute']).order_by(
-        #             'item__equipment__name','created').values(
-        #             'created__date','item__name','last_value','current_value',
-        #             'item__equipment__name','item__current_value'))
-        # # Select Engine Working Hour only Hybrid RTG
-        # dict_yesterday =  [
-        #                     i for i in dict_yesterday 
-        #                     if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
-        #                     (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
-        #                  ]
-        # # Added on Aug 18,2024 -- To remove 'Crane On Hour' for eRTG
-        # dict_yesterday =  [
-        #     i for i in dict_yesterday
-        #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
-        #       (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
-            
-        # ]
-        # # -------------------------------------------------------------------------------------------
+    # # Modify on 19 JUly -- to support Hybrid RTG
+    dict=list(DataLogger.objects.filter(
+            created__gte = last_7_days,item__name__in =[
+                'Engine Working Hour','Crane On Minute']).order_by(
+                'item__equipment__name','created').values(
+                'created__date','item__name','last_value','current_value',
+                'item__equipment__name','item__current_value'))
+    dict =  [
+                i for i in dict 
+                if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
+                (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+                ]
+    # Add Diff
+    if dict :
+        dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
+        for i in dict:
+            i['created__date']=datetime.datetime.strftime(i['created__date'], "%b-%d")
+            # # Added on Aug 18,2024 -- To change Diff to either Hour or Minute mode
+            i['diff'] = i['diff']*60 if i['item__name'] != 'Crane On Minute' else i['diff']  
 
-        # # if dict_yesterday :
-        # dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
-        
-        # for i in dict_yesterday:
-        #     # After midnight
-        #     # if day_diff == 2 and today_tz.hour >= 0 :
-        #     i['created__date'] = last_record_date_tz+datetime.timedelta(days=1)
-        #     i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
-        #     # # Added on Aug 18,2024 -- To change Diff to either Hour or Minute mode
-        #     i['diff'] = i['diff']*60 if i['item__name'] != 'Crane On Minute' else i['diff']
-        #     # {i['diff']//60}:{i['diff']%60}
-
-        # df_today      = pd.DataFrame(dict_yesterday)
-        # today_table   = pd.pivot_table(df_today,values='diff',index=['item__equipment__name'],
-        #                 columns=['created__date'],aggfunc="sum")
-
-        today_found_data,today_table = get_data_by_start_date(last_record_date_00,today_report=True)
-
-        # # Modify on 19 JUly -- to support Hybrid RTG
-        dict=list(DataLogger.objects.filter(
-                created__gte = last_7_days,item__name__in =[
-                    'Engine Working Hour','Crane On Minute']).order_by(
-                    'item__equipment__name','created').values(
-                    'created__date','item__name','last_value','current_value',
-                    'item__equipment__name','item__current_value'))
-        # dict =  [
-        #         i for i in dict 
-        #         if i['item__name']=='Crane On Hour' or 
-        #         (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
-        #         ]
-        dict =  [
-                    i for i in dict 
-                    if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
-                    (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
-                    ]
-        # dict =  [
-        #     i for i in dict
-        #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
-        #     (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
-        # ]
-        # Add Diff
-        if dict :
-            dict                    = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict]
-            for i in dict:
-                i['created__date']=datetime.datetime.strftime(i['created__date'], "%b-%d")
-                # # Added on Aug 18,2024 -- To change Diff to either Hour or Minute mode
-                i['diff'] = i['diff']*60 if i['item__name'] != 'Crane On Minute' else i['diff']  
-
-            df_weekly               = pd.DataFrame(dict)
-            # weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum').reindex(cols,level=0)
-            weekly_table            =pd.pivot_table(df_weekly,values='diff',index=['item__equipment__name'],
-                   columns=['created__date'],aggfunc="sum")
+        df_weekly               = pd.DataFrame(dict)
+        # weekly_table            = df_weekly.pivot_table('diff',['item__name'],'item__equipment__name',aggfunc= 'sum').reindex(cols,level=0)
+        weekly_table            =pd.pivot_table(df_weekly,values='diff',index=['item__equipment__name'],
+                columns=['created__date'],aggfunc="sum")
 
 
-            # Merge table
-            if today_found_data :
-                final_df =pd.merge(weekly_table,today_table, on="item__equipment__name")
-            else:
-                final_df = weekly_table
+        # Merge table
+        if today_found_data :
+            final_df =pd.merge(weekly_table,today_table, on="item__equipment__name")
+        else:
+            final_df = weekly_table
 
-            # Added JUly 29,2024 -- To save final DF to Redis
-            save_df_to_redis ('OPS_7DAYS_ENGINE_ON',final_df)
-            # -----------------------------------------------
-
-            context['currentweek']       = final_df.to_html()
-            cache.set(key, final_df.to_html(),60*5)
-        else :
-            context['currentweek']       = None
-    else:
-        context['currentweek']        = dict #html
-
-    # Render the HTML template index.html with the data in the context variable
-    return render(request, 'machine/operation.html', context=context)
+        # Added JUly 29,2024 -- To save final DF to Redis
+        save_df_to_redis ('OPS_7DAYS_ENGINE_ON',final_df)
+        # -----------------------------------------------
+    return final_df
 
 def save_df_to_redis(key,df):
     data = df.to_json()
