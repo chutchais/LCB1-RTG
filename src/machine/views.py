@@ -388,7 +388,7 @@ def operation(request):
     key=f'CRANE_ON_LAST7DAYS'
     dict = cache.get(key)
     context = {}
-    if not dict:
+    if dict is None :
         final_df = get_operation_dataframe()
         if final_df :
             context['currentweek']       = final_df.to_html()
