@@ -556,3 +556,31 @@ def get_data_by_start_date(start_date_00,today_report):
                         columns=['created__date'],aggfunc="sum")
         
         return True , table
+
+def send_operation_report(to_email,send_email,server='192.168.1.15'):
+    import smtplib  
+    from email.message import EmailMessage
+
+    import datetime, pytz
+    tz 		    = pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+
+    # Run generate operation report
+    df = get_operation_dataframe()
+    
+    msg = EmailMessage()  
+    msg['Subject'] = f'RTG Working hour : {today_tz.strftime("%d-%b-%Y %H:%M")}'  
+    msg['From'] = send_email 
+    msg['To'] = to_email 
+    msg.set_content(df.to_html(), subtype='html')  
+
+    df.to_excel('rtg_working_hour.xlsx')
+
+    with open('rtg_working_hour.xlsx', 'rb') as f:  
+        file_data = f.read()  
+        file_name = f.name  
+        msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=file_name)
+
+    # ส่งอีเมล  
+    with smtplib.SMTP(server) as server:  
+        server.send_message(msg)  
