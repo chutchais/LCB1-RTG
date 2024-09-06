@@ -65,6 +65,15 @@ def schedule_read_monitor():
     except :
         logging.error(f'Unable to read monitor data of : {eq}')
 
+def schedule_monitor(equipment_name:str):
+    from machine.models import Equipment
+    try :
+        eq      = Equipment.objects.get(name=equipment_name)
+        eq.read_monitor_data()        
+        logging.info (f'Read single  monitor data of : {equipment_name} ..Successful.')
+    except :
+        logging.error(f'Unable to read monitor data of : {equipment_name}')
+
 
 def read_value(ip:str,db_name:int,offset:int,field_type:str):
     try :
