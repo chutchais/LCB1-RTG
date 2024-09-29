@@ -28,6 +28,8 @@ services:
       - main
     volumes:
       - pgdata:/var/lib/postgresql/rtg_db/
+    ports:
+      - ${POSTGRES_PORT}:5432
 
   web-server:
     restart: always

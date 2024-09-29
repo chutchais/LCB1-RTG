@@ -91,7 +91,7 @@ DATABASES = {
         'USER':     os.environ.get('POSTGRES_USER', None),#'qsystem_sa',
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', None),#,'pAssw0rd!',
         'HOST':     os.environ.get('POSTGRES_HOST', None),#'db-server',
-        'PORT':     os.environ.get('POSTGRES_PORT', None),#'5432'
+        'PORT':     5432,#os.environ.get('POSTGRES_PORT', None),#'5432'
     }
 }
 
