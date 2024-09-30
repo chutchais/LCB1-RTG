@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'machine',
     'measuring',
     'django_q',
+    # Added on Sep 29,2024 -- To support maintenance model
+    'maintenance',
 ]
 
 MIDDLEWARE = [
