@@ -137,7 +137,7 @@ class Failure(BasicInfo):
 
 
     def __str__(self):
-        return f'{self.start_date.strftime("%Y-%m-%d")} - {self.machine.name} - {self.details[1:20]}'
+        return f'{self.start_date.strftime("%Y-%m-%d")} - {self.details[1:20]}'
 
     @property
     def defect_count(self):
@@ -200,7 +200,7 @@ class Preventive(BasicInfo):
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'pms')
     def __str__(self):
-        return f'{self.machine.name} - {self.period} {self.period_unit}'
+        return f'{self.period} {self.period_unit}'
 
    
     class Meta(BasicInfo.Meta):
