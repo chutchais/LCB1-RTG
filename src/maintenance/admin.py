@@ -52,7 +52,8 @@ class MachineInline(admin.TabularInline):
 class MachineTypeAdmin(admin.ModelAdmin):
 	search_fields = ['name','title']
 	list_filter = ['section']
-	list_display = ('name','title','section','machine_count','target','created','user')
+	list_display = ('name','title','section','machine_count',
+				 	'target','machine_on_working','machine_on_preventive','created','user')
 
 	readonly_fields = ('created','updated','user','machine_count')
 

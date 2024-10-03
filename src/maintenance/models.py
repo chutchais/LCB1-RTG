@@ -85,6 +85,16 @@ class MachineType(BasicInfo):
     def machine_count(self):
         return self.ma_machines.all().count()
 
+    # Added on Oct 3,2024 -- To count machine that on working
+    @property
+    def machine_on_working(self):
+        return Failure.objects.filter(machine__machine_type=self,status='OPEN').count()
+ 
+    @property
+    def machine_on_preventive(self):
+        return Preventive.objects.filter(machine__machine_type=self,status='WORKING').count()
+    # -------------------------------------------------------
+
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine_types'
         ordering = ('name',)

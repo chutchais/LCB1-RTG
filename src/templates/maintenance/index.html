@@ -1,0 +1,94 @@
+<head></head>
+    <title>Equipment Avaiability Report</title>
+  </head>
+  <body>
+<h1>Equipment Avaiability Report</h1>
+<hr>
+<h4>By Equipment type</h4>
+<table border="1">
+    <tr>
+        <th style="text-align:center">Type</th>
+        <th style="text-align:center">Section</th>
+        <th style="text-align:center">Total</th>
+        <th style="text-align:center">Target</th>
+        <th style="text-align:center">On Repair</th>
+        <th style="text-align:center">On Preventive</th>
+    </tr>
+    {% for m in overall %}
+              <tr>
+                      <td style="text-align:center">{{m.name}}</td>
+                      <td style="text-align:center">{{m.section}}</td>
+                      <td style="text-align:center">{{m.machine_count}}</td>
+                      <td style="text-align:center">{{m.target}}</td>
+                      <td style="text-align:center">{{m.machine_on_working}}</td>
+                      <td style="text-align:center">{{m.machine_on_preventive}}</td>
+              </tr>
+    {% endfor %}
+    </table>
+    <hr>
+    <h4>On Repair Process</h4>
+    <table border="1">
+        <tr>
+            <th style="text-align:center">Equipment</th>
+            <th style="text-align:center">Details</th>
+            <th style="text-align:center">Start Date</th>
+            <th style="text-align:center">Expect Date</th>
+            <th style="text-align:center">Status</th>
+            <th style="text-align:center">Update Date</th>
+        </tr>
+        {% for r in repair %}
+                  <tr>
+                          <td style="text-align:center">{{r.machine__name}}</td>
+                          <td style="text-align:center">{{r.details}}</td>
+                          <td style="text-align:center">{{r.start_date}}</td>
+                          <td style="text-align:center">{{r.expect_date}}</td>
+                          <td style="text-align:center">{{r.status}}</td>
+                          <td style="text-align:center">{{r.updated}}</td>
+                  </tr>
+        {% endfor %}
+        </table>
+        <hr>
+        <h4>On Preventive Process</h4>
+        <table border="1">
+            <tr>
+                <th style="text-align:center">Equipment</th>
+                <th style="text-align:center">Details</th>
+                <th style="text-align:center">Start Date</th>
+                <th style="text-align:center">End Date</th>
+                <th style="text-align:center">Status</th>
+                <th style="text-align:center">Update Date</th>
+            </tr>
+            {% for p in preventive %}
+                      <tr>
+                              <td style="text-align:center">{{p.machine__name}}</td>
+                              <td style="text-align:center">{{p.details}}</td>
+                              <td style="text-align:center">{{p.start_date}}</td>
+                              <td style="text-align:center">{{p.end_date}}</td>
+                              <td style="text-align:center">{{p.status}}</td>
+                              <td style="text-align:center">{{p.updated}}</td>
+                      </tr>
+            {% endfor %}
+            </table>
+            <hr>
+            <h4>Preventive Plan</h4>
+            <table border="1">
+                <tr>
+                    <th style="text-align:center">Equipment</th>
+                    <th style="text-align:center">Details</th>
+                    <th style="text-align:center">Start Date</th>
+                    <th style="text-align:center">End Date</th>
+                    <th style="text-align:center">Status</th>
+                    <th style="text-align:center">Update Date</th>
+                </tr>
+                {% for p in plan %}
+                          <tr>
+                                  <td style="text-align:center">{{p.machine__name}}</td>
+                                  <td style="text-align:center">{{p.details}}</td>
+                                  <td style="text-align:center">{{p.start_date}}</td>
+                                  <td style="text-align:center">{{p.end_date}}</td>
+                                  <td style="text-align:center">{{p.status}}</td>
+                                  <td style="text-align:center">{{p.updated}}</td>
+                          </tr>
+                {% endfor %}
+                </table>
+</body>
