@@ -31,7 +31,7 @@ def get_preventive_dataframe():
     return df
 
 
-@cache_page(60 * 5)
+# @cache_page(60 * 5)
 def index(request):
     context = {}
     # context['overall']  = get_overall_dataframe().to_html()
