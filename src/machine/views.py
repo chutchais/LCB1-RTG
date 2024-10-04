@@ -584,3 +584,27 @@ def send_operation_report(to_email,send_email,server='192.168.1.15'):
     # ส่งอีเมล  
     with smtplib.SMTP(server) as server:  
         server.send_message(msg)  
+
+# 'Added on Oct 4,2024'
+def send_eq_availability_report(to_email,send_email,
+                                url='http://10.24.50.96:8080/maintenance/',
+                                server='192.168.1.15'):
+    import smtplib  
+    from email.message import EmailMessage
+
+    import datetime, pytz
+    tz 		    = pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+
+    import urllib.request  
+    response = urllib.request.urlopen(url)  
+    html = response.read().decode('utf-8')
+    
+    msg = EmailMessage()  
+    msg['Subject'] = f'Equipment Availability Report : {today_tz.strftime("%d-%b-%Y %H:%M")}'  
+    msg['From'] = send_email 
+    msg['To'] = to_email 
+    msg.set_content(html, subtype='html')  
+    # ส่งอีเมล  
+    with smtplib.SMTP(server) as server:  
+        server.send_message(msg)  
