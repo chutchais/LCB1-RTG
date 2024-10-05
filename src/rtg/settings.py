@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django_q',
     # Added on Sep 29,2024 -- To support maintenance model
     'maintenance',
+    'django.contrib.humanize'
 ]
 
 MIDDLEWARE = [

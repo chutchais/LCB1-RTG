@@ -81,8 +81,8 @@ WORKDIR /usr/src/web
 
 # set environment variables
 # Added by Chutchai on July 24,2020
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 
 COPY ./requirements.txt /usr/src/web

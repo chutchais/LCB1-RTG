@@ -11,6 +11,7 @@ from base.models                import BasicInfo
 from base.utility               import update_transaction_date
 from measuring.models           import FIELDS_TYPE_CHOICES, Parameter
 import logging
+from django.urls                import reverse
 
 
 # maintenance section
@@ -60,10 +61,13 @@ class Section(BasicInfo):
     def __str__(self):
         return self.name
     
+    def get_absolute_url(self):
+        return reverse('maintenance:detail', kwargs={'section': self.name})
+    
     @property
     def machine_type_count(self):
         return self.ma_machine_types.all().count()
-
+    
     class Meta(BasicInfo.Meta):
         db_table = 'ma-section'
         ordering = ('name',)
@@ -93,6 +97,10 @@ class MachineType(BasicInfo):
     @property
     def machine_on_preventive(self):
         return Preventive.objects.filter(machine__machine_type=self,status='WORKING').count()
+    
+    @property
+    def machine_available(self):
+        return self.machine_count-(self.machine_on_working+self.machine_on_preventive)
     # -------------------------------------------------------
 
     class Meta(BasicInfo.Meta):
