@@ -146,7 +146,7 @@ class FailureAdmin(admin.ModelAdmin):
 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
 	}
 	search_fields = ['machine__name','details']
-	list_filter = ['status','category','machine']
+	list_filter = ['status','category','machine__machine_type','machine']
 	list_display = ('machine','details','start_date','expect_date','status','category','defect_count','created','user')
 
 	readonly_fields = ('created','updated','user','defect_count')
