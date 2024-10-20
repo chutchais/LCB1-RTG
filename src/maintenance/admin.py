@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Section,MachineType,Machine,Failure,Defect,Preventive
+from .models import Section,MachineType,Machine,Failure,Defect,Preventive,Accident,AccidentImage,FailureImage
 from django import forms
 from django.db import models
 from django.forms               import TextInput, Textarea
@@ -98,6 +98,13 @@ class PreventiveInline(admin.TabularInline):
 		qs = super(PreventiveInline, self).get_queryset(request)
 		return qs.filter(status='WORKING')
 
+class AccidentInline(admin.TabularInline):
+	model = Accident
+	fields = ['details','created','status']
+	extra = 0
+	show_change_link = True
+	readonly_fields=['created']
+
 @admin.register(Machine)
 class MachineAdmin(admin.ModelAdmin):
 	search_fields = ['name','title']
@@ -108,7 +115,8 @@ class MachineAdmin(admin.ModelAdmin):
 
 	inlines = [
         FailureInline,
-		PreventiveInline
+		PreventiveInline,
+		AccidentInline
     ]
 	save_as = True
 	save_as_continue = True
@@ -125,6 +133,12 @@ class MachineAdmin(admin.ModelAdmin):
 			# Only set added_by during the first save.
 			obj.user = request.user
 		super().save_model(request, obj, form, change)
+
+class FailureImageInline(admin.TabularInline):
+	model = FailureImage
+	fields = ['details','image']
+	extra = 0
+	show_change_link = True
 
 class DefectInline(admin.TabularInline):
 	formfield_overrides = {
@@ -147,11 +161,13 @@ class FailureAdmin(admin.ModelAdmin):
 	}
 	search_fields = ['machine__name','details']
 	list_filter = ['status','category','machine__machine_type','machine']
-	list_display = ('machine','details','start_date','expect_date','status','category','defect_count','created','user')
+	list_display = ('machine','details','start_date','expect_date','status','category','image_count',
+				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count')
 	autocomplete_fields  = ['machine']
 	inlines = [
+		FailureImageInline,
         DefectInline,
     ]
 	save_as = True
@@ -232,6 +248,47 @@ class PreventiveAdmin(admin.ModelAdmin):
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','period','period_unit']}),
 		('Plan Information',{'fields': ['start_date','end_date','status']}),
+		('System Information',{'fields':[('user','created'),'updated']})
+	]
+	def save_model(self, request, obj, form, change):
+		# print(request.user)
+		if not change:
+			# Only set added_by during the first save.
+			obj.user = request.user
+		super().save_model(request, obj, form, change)
+
+
+class AccidentImageInline(admin.TabularInline):
+	model = AccidentImage
+	fields = ['details','image']
+	extra = 0
+	show_change_link = True
+	# def get_queryset(self, request):
+	# 	qs = super(PreventiveInline, self).get_queryset(request)
+	# 	return qs.filter(status='WORKING')
+	
+@admin.register(Accident)
+class AccidentAdmin(admin.ModelAdmin):
+	formfield_overrides = {
+	models.CharField: {'widget': TextInput(attrs={'size':'50'})},
+	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
+	}
+	search_fields = ['machine__name','details']
+	list_filter = ['created','machine__machine_type','status']
+	list_display = ('machine','details','image_count','status','created','user')
+
+	readonly_fields = ('created','updated','user','image_count')
+	autocomplete_fields  = ['machine']
+	inlines = [
+        AccidentImageInline,
+    ]
+	save_as = True
+	save_as_continue = True
+	save_on_top =True
+	list_select_related = True
+
+	fieldsets = [
+		('Basic Information',{'fields': ['machine','details']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]
 	def save_model(self, request, obj, form, change):

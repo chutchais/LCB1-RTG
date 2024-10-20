@@ -12,6 +12,8 @@ from base.utility               import update_transaction_date
 from measuring.models           import FIELDS_TYPE_CHOICES, Parameter
 import logging
 from django.urls                import reverse
+import os
+import datetime
 
 
 # maintenance section
@@ -161,6 +163,10 @@ class Failure(BasicInfo):
     def defect_count(self):
         return self.defects.all().count()
     
+    @property
+    def image_count(self):
+        return self.images.all().count()
+    
     class Meta(BasicInfo.Meta):
         db_table = 'ma-failure'
         ordering = ('-start_date',)
@@ -224,3 +230,125 @@ class Preventive(BasicInfo):
     class Meta(BasicInfo.Meta):
         db_table = 'ma-pm'
         ordering = ('-created',)
+
+
+def failure_upload_path(instance, filename):
+    # name = instance.__class__.__name__.lower()
+    return os.path.join('failure/{}/{}/{}/{}/{}/{}'.format(
+        datetime.datetime.now().year,
+        datetime.datetime.now().month,
+        datetime.datetime.now().day,
+        instance.failure.machine.machine_type,
+        instance.failure.machine,filename))
+
+def accident_upload_path(instance, filename):
+    # name = instance.__class__.__name__.lower()
+    return os.path.join('accident/{}/{}/{}/{}/{}/{}'.format(
+        datetime.datetime.now().year,
+        datetime.datetime.now().month,
+        datetime.datetime.now().day,
+        instance.accident.machine.machine_type,
+        instance.accident.machine,filename))
+
+
+class FailureImage(BasicInfo):
+    failure             = models.ForeignKey(Failure,
+                            on_delete=models.SET_NULL,
+                            blank=True,null=True,related_name = 'images')
+    image               = models.ImageField(upload_to=failure_upload_path)
+    details             = models.CharField(max_length=100,blank=True, null=True)
+    user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
+                            on_delete=models.CASCADE,
+                            blank=True,null=True,related_name = 'failure_images')
+    
+    def filename(self):
+        return os.path.basename(self.image.name)
+
+    def __str__(self):
+        return f'{self.filename()}'
+
+    class Meta(BasicInfo.Meta):
+        db_table = 'ma-failure-image'
+        ordering = ('-created',)
+
+
+class Accident(BasicInfo):
+    machine             = models.ForeignKey(Machine,
+                            on_delete=models.SET_NULL,
+                            blank=True,null=True,related_name = 'accidents')
+    details             = models.TextField(max_length=200,blank=True, null=True)
+    status              = models.CharField(max_length=10,choices=STATUS_CHOICES,default='OPEN')
+    user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
+                            on_delete=models.CASCADE,
+                            blank=True,null=True,related_name = 'accidents')
+
+    @property
+    def image_count(self):
+        return self.images.all().count()
+    
+    def __str__(self):
+        return f'{self.machine} - {self.details[1:20]}'
+    
+    class Meta(BasicInfo.Meta):
+        db_table = 'ma-accident'
+        ordering = ('-created',)
+
+class AccidentImage(BasicInfo):
+    accident             = models.ForeignKey(Accident,
+                            on_delete=models.SET_NULL,
+                            blank=True,null=True,related_name = 'images')
+    image               = models.ImageField(upload_to=accident_upload_path)
+    details             = models.CharField(max_length=100,blank=True, null=True)
+    user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
+                            on_delete=models.CASCADE,
+                            blank=True,null=True,related_name = 'accident_images')
+    
+    def filename(self):
+        return os.path.basename(self.image.name)
+
+    def __str__(self):
+        return f'{self.filename()}'
+
+    class Meta(BasicInfo.Meta):
+        db_table = 'ma-accident-image'
+        ordering = ('-created',)
+# class ContentManager(models.Manager):
+#     def all(self):
+#         qs = super().all()
+#         return qs
+
+#     def filter_by_instance(self, instance):
+#         content_type = ContentType.objects.get_for_model(instance.__class__)
+#         obj_id = instance.id
+#         qs = super().filter(
+#             content_type=content_type, object_id=obj_id)
+#         return qs
+    
+# Support multiple image for each contianer
+# class Media(models.Model):
+#     image           = models.ImageField(upload_to=get_upload_path)
+#     details         = models.TextField(max_length=100,blank=True, null=True)
+#     content_type    = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+#     object_id       = models.PositiveIntegerField()
+#     content_object  = GenericForeignKey('content_type', 'object_id')
+#     created_date    = models.DateTimeField(auto_now_add=True)
+#     modified_date   = models.DateTimeField(auto_now=True)
+
+#     objects = ContentManager()
+
+#     class Meta:
+#         default_related_name = 'media'
+#         verbose_name = 'media'
+#         verbose_name_plural = 'media'
+#         # ordering = ['order']
+
+#     def get_object(self):
+#         ct = ContentType.objects.get_for_model(self.content_object)
+#         obj = ct.get_object_for_this_type(pk=self.object_id)
+#         return obj
+
+#     def filename(self):
+#         return os.path.basename(self.image.name)
+
+#     def __str__(self):
+#         return self.filename()
