@@ -40,7 +40,7 @@ def index(request):
     context['overall']      = MachineType.objects.all().order_by('section__name','name')
     context['repair']       = Failure.objects.filter(status='OPEN').order_by('start_date')
     context['preventive']   = Preventive.objects.filter(status='WORKING').order_by('start_date')
-    # context['plan']         = Preventive.objects.filter(status='PLAN').order_by('start_date')
+    context['plan']         = Preventive.objects.filter(status='PLAN').order_by('start_date')
     return render(request, 'maintenance/index.html', context=context)
 
 def by_equipment(request,section):

@@ -43,9 +43,15 @@
                       <td style="text-align:center">{{m.target|floatformat}}</td>
                       <td style="text-align:center">{{m.machine_on_working}}</td>
                       <td style="text-align:center">{{m.machine_on_preventive}}</td>
-                      <td style="text-align:center" class="{% if m.machine_available < m.target  %}table-danger{% else %}table-success{% endif %}">
+                      {% if m.machine_available < m.target  %}
+                      <td style="text-align:center;background-color:Tomato;">
                         {{m.machine_available}}
-                     </td>
+                      </td>
+                      {% else %}
+                      <td style="text-align:center;background-color:MediumSeaGreen;">
+                        {{m.machine_available}}
+                      </td>
+                      {% endif %}
               </tr>
     {% endfor %}
 </tbody>
@@ -70,7 +76,7 @@
                           <td style="text-align:center">{{r.details}}</td>
                           <td style="text-align:center">{{r.start_date|date:"j M H:s"}}</td>
                           <td style="text-align:center">{{r.expect_date|date:"j M H:s"}}</td>
-                          <td style="text-align:center">{{r.status}}</td>
+                          <td style="text-align:center">On Repairing</td>
                   </tr>
         {% endfor %}
         </table>
@@ -92,12 +98,12 @@
                               <td style="text-align:center">{{p.details}}</td>
                               <td style="text-align:center">{{p.start_date|date:"j M H:s"}}</td>
                               <td style="text-align:center">{{p.end_date|date:"j M H:s"}}</td>
-                              <td style="text-align:center">{{p.status}}</td>
+                              <td style="text-align:center">On process</td>
                       </tr>
             {% endfor %}
             </table>
-            <!-- <hr>
-            <h4>Preventive Plan</h4>
+            <hr>
+            <h4>Next Preventive Plan</h4>
 
 
                 <table class="table table-bordered">
@@ -119,6 +125,6 @@
                                   <td style="text-align:center">{{p.status}}</td>
                           </tr>
                 {% endfor %}
-                </table> -->
+                </table>
 </body>
 </div>
