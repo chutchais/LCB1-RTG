@@ -4,6 +4,8 @@ from django.shortcuts import render
 from django.views.decorators.cache import cache_page
 from django.core.cache import cache
 from .models import MachineType,Machine,Failure,Preventive
+from django.views.generic import DetailView,CreateView,UpdateView,DeleteView,ListView
+from django.db.models import Q,F
 
 
 
@@ -54,6 +56,23 @@ def by_equipment(request,section):
                                 section__name=section)),status='WORKING')
     return render(request, 'maintenance/section.html', context=context)
 
+def failure(request):
+    return render(request, 'maintenance/failure_list.html', context={})
+
+class FailureDetailView(DetailView):
+    model = Failure
+
+class FailureListView(ListView):
+    model = Failure
+    paginate_by = 50
+    def get_queryset(self):
+        query = self.request.GET.get('q')
+        # lacking_stock = self.request.GET.get('lacking')
+        # over_stock = self.request.GET.get('over')
+        if query :
+            return Failure.objects.filter(Q(machine__name__icontains=query) |
+                                    Q(details__icontains=query)).select_related('machine').order_by('-updated')
+        return Failure.objects.all().order_by('-updated')
 
 # 'Added on Oct 4,2024'
 def send_eq_availability_report(to_email,send_email,

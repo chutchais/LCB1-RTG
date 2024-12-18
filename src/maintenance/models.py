@@ -158,6 +158,9 @@ class Failure(BasicInfo):
 
     def __str__(self):
         return f'{self.start_date.strftime("%Y-%m-%d")} - {self.details[1:20]}'
+    
+    def get_absolute_url(self):
+        return reverse('maintenance:failure-detail', kwargs={'pk': self.pk})
 
     @property
     def defect_count(self):

@@ -72,7 +72,7 @@
         </thead>
         {% for r in repair %}
                   <tr>
-                          <td style="text-align:center">{{r.machine}}</td>
+                          <td style="text-align:center"><a href="{{r.get_absolute_url}}">{{r.machine}}</a></td>
                           <td style="text-align:center">{{r.details}}</td>
                           <td style="text-align:center">{{r.start_date|date:"j M H:s"}}</td>
                           <td style="text-align:center">{{r.expect_date|date:"j M H:s"}}</td>
