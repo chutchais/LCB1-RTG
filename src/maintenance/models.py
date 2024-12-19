@@ -139,6 +139,7 @@ FAILURE_TYPE_CHOICES = (
     ("AO", "Assit Operation"),
     ("BO", "Breakdown outside operation"),
     ("BD", "Breakdown"),
+    ("CM", "Corrective maintenance"),
     ("PC", "Power Cut")
 )
 class Failure(BasicInfo):
@@ -229,6 +230,12 @@ class Preventive(BasicInfo):
     def __str__(self):
         return f'{self.period} {self.period_unit}'
 
+    @property
+    def image_count(self):
+        return self.images.all().count()
+
+    def get_absolute_url(self):
+        return reverse('maintenance:preventive-detail', kwargs={'pk': self.pk})
    
     class Meta(BasicInfo.Meta):
         db_table = 'ma-pm'
@@ -253,6 +260,15 @@ def accident_upload_path(instance, filename):
         instance.accident.machine.machine_type,
         instance.accident.machine,filename))
 
+# Added on Dec 19,2024 -- To support image for PM
+def preventive_upload_path(instance, filename):
+    # name = instance.__class__.__name__.lower()
+    return os.path.join('pm/{}/{}/{}/{}/{}/{}'.format(
+        datetime.datetime.now().year,
+        datetime.datetime.now().month,
+        datetime.datetime.now().day,
+        instance.preventive.machine.machine_type,
+        instance.preventive.machine,filename))
 
 class FailureImage(BasicInfo):
     failure             = models.ForeignKey(Failure,
@@ -315,6 +331,30 @@ class AccidentImage(BasicInfo):
     class Meta(BasicInfo.Meta):
         db_table = 'ma-accident-image'
         ordering = ('-created',)
+
+
+# Added on Dec 19,2024 -- To support PM image
+class PreventiveImage(BasicInfo):
+    preventive          = models.ForeignKey(Preventive,
+                            on_delete=models.SET_NULL,
+                            blank=True,null=True,related_name = 'images')
+    image               = models.ImageField(upload_to=preventive_upload_path)
+    details             = models.CharField(max_length=100,blank=True, null=True)
+    user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
+                            on_delete=models.CASCADE,
+                            blank=True,null=True,related_name = 'preventive_images')
+    
+    def filename(self):
+        return os.path.basename(self.image.name)
+
+    def __str__(self):
+        return f'{self.filename()}'
+
+    class Meta(BasicInfo.Meta):
+        db_table = 'ma-preventive-image'
+        ordering = ('-created',)
+
+
 # class ContentManager(models.Manager):
 #     def all(self):
 #         qs = super().all()

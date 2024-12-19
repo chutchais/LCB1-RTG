@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Section,MachineType,Machine,Failure,Defect,Preventive,Accident,AccidentImage,FailureImage
+from .models import Section,MachineType,Machine,Failure,Defect,Preventive,Accident,AccidentImage,FailureImage,PreventiveImage
 from django import forms
 from django.db import models
 from django.forms               import TextInput, Textarea
@@ -224,6 +224,12 @@ class DefectAdmin(admin.ModelAdmin):
 			obj.user = request.user
 		super().save_model(request, obj, form, change)
 
+# Added on Dec 19,2024 -- To support Image
+class PreventiveImageInline(admin.TabularInline):
+	model = PreventiveImage
+	fields = ['details','image']
+	extra = 0
+	show_change_link = True
 
 @admin.register(Preventive)
 class PreventiveAdmin(admin.ModelAdmin):
@@ -237,9 +243,9 @@ class PreventiveAdmin(admin.ModelAdmin):
 
 	readonly_fields = ('created','updated','user')
 	autocomplete_fields  = ['machine']
-	# inlines = [
-    #     DefectInline,
-    # ]
+	inlines = [
+        PreventiveImageInline,
+    ]
 	save_as = True
 	save_as_continue = True
 	save_on_top =True

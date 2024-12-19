@@ -67,16 +67,18 @@
                 <th style="text-align:center">Start Date</th>
                 <th style="text-align:center">End Date</th>
                 <th style="text-align:center">Pictures</th>
+                <th style="text-align:center">Category</th>
                 <th style="text-align:center">Status</th>
             </tr>
             </thead>
             {% for object in object_list %}
                       <tr>
                               <td style="text-align:center"><a href="{{object.get_absolute_url}}">{{object.machine}}</a></td>
-                              <td style="text-align:center">{{object.details}}</td>
+                              <td style="text-align:left">{{object.details}}</td>
                               <td style="text-align:center">{{object.start_date|date:"j M H:s"}}</td>
                               <td style="text-align:center">{{object.end_date|date:"j M H:s"}}</td>
                               <td style="text-align:center">{{object.image_count}}</td>
+                              <td style="text-align:center">{{object.category}}</td>
                               <td style="text-align:center">{{object.status}}</td>
                       </tr>
             {% endfor %}
