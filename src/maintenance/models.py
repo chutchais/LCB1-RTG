@@ -155,6 +155,9 @@ class Failure(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'failures')
+    # Added on Dec 20,2024 -- To collect rootcause and repair_action
+    rootcause            = models.TextField(max_length=200,blank=True, null=True)
+    repair_action       = models.TextField(max_length=200,blank=True, null=True)
 
 
     def __str__(self):

@@ -159,7 +159,7 @@ class FailureAdmin(admin.ModelAdmin):
 	models.CharField: {'widget': TextInput(attrs={'size':'50'})},
 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
 	}
-	search_fields = ['machine__name','details']
+	search_fields = ['machine__name','details','rootcause','repair_action']
 	list_filter = ['status','category','machine__machine_type','machine']
 	list_display = ('machine','details','start_date','expect_date','status','category','image_count',
 				 'defect_count','user')
@@ -178,6 +178,7 @@ class FailureAdmin(admin.ModelAdmin):
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','category']}),
 		('Plan Information',{'fields': ['start_date','expect_date','status','end_date']}),
+		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]
 	def save_model(self, request, obj, form, change):
