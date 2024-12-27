@@ -72,9 +72,9 @@ class FailureListView(ListView):
         if query :
             return Failure.objects.filter(Q(machine__name__icontains=query) |
                                     Q(details__icontains=query) |
-                                    Q(riitcause__icontains=query) |
+                                    Q(rootcause__icontains=query) |
                                     Q(repair_action__icontains=query)).select_related('machine').order_by('-updated')
-        return Failure.objects.all().order_by('-updated')[:300]
+        return Failure.objects.all().order_by('-updated')[:50]
 
 # 'Added on Oct 4,2024'
 def send_eq_availability_report(to_email,send_email,
