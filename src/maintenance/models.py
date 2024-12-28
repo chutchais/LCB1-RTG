@@ -142,6 +142,20 @@ FAILURE_TYPE_CHOICES = (
     ("CM", "Corrective maintenance"),
     ("PC", "Power Cut")
 )
+
+# Added on Dec 28,2024 -- To collect vendor
+class Vendor(BasicInfo):
+    name                = models.CharField(max_length=50,primary_key=True)
+    title               = models.CharField(max_length=50,blank=True, null=True)
+    user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
+                            on_delete=models.CASCADE,
+                            blank=True,null=True,related_name = 'ma_vendors')
+    def __str__(self):
+        return self.name
+    
+    def get_absolute_url(self):
+        return reverse('maintenance:vendor', kwargs={'vendor': self.name})
+    
 class Failure(BasicInfo):
     machine             = models.ForeignKey(Machine,
                             on_delete=models.SET_NULL,
@@ -159,6 +173,14 @@ class Failure(BasicInfo):
     rootcause            = models.TextField(max_length=200,blank=True, null=True)
     repair_action       = models.TextField(max_length=200,blank=True, null=True)
 
+    # Added on Dec 28,2024 -- To collect vendor, repair cost, and service cost
+    vendor               = models.ForeignKey(Vendor,
+                            on_delete=models.SET_NULL,
+                            blank=True, null=True,related_name="failures")
+    repair_cost          = models.DecimalField(max_digits=10, 
+                                               decimal_places=2, blank=True,null=True)
+    service_cost         = models.DecimalField(max_digits=10, 
+                                               decimal_places=2, blank=True,null=True)
 
     def __str__(self):
         return f'{self.start_date.strftime("%Y-%m-%d")} - {self.details[1:20]}'

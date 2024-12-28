@@ -1,7 +1,9 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Section,MachineType,Machine,Failure,Defect,Preventive,Accident,AccidentImage,FailureImage,PreventiveImage
+from .models import Section,MachineType,Machine,Failure,Defect, \
+				Preventive,Accident,AccidentImage,FailureImage,PreventiveImage, \
+				Vendor
 from django import forms
 from django.db import models
 from django.forms               import TextInput, Textarea
@@ -67,6 +69,31 @@ class MachineTypeAdmin(admin.ModelAdmin):
 
 	fieldsets = [
 		('Basic Information',{'fields': ['name','title','section','target']}),
+		('System Information',{'fields':[('user','created'),'updated']})
+	]
+	def save_model(self, request, obj, form, change):
+		# print(request.user)
+		if not change:
+			# Only set added_by during the first save.
+			obj.user = request.user
+		super().save_model(request, obj, form, change)
+
+
+@admin.register(Vendor)
+class VendorAdmin(admin.ModelAdmin):
+	search_fields = ['name','title']
+	list_filter = []
+	list_display = ('name','title','created','user')
+
+	readonly_fields = ('created','updated','user')
+
+	save_as = True
+	save_as_continue = True
+	save_on_top =True
+	list_select_related = True
+
+	fieldsets = [
+		('Basic Information',{'fields': ['name','title']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]
 	def save_model(self, request, obj, form, change):
@@ -160,12 +187,12 @@ class FailureAdmin(admin.ModelAdmin):
 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
 	}
 	search_fields = ['machine__name','details','rootcause','repair_action']
-	list_filter = ['status','category','machine__machine_type','machine']
+	list_filter = ['status','category','machine__machine_type','vendor','machine']
 	list_display = ('machine','details','start_date','expect_date','status','category','image_count',
 				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count')
-	autocomplete_fields  = ['machine']
+	autocomplete_fields  = ['machine','vendor']
 	inlines = [
 		FailureImageInline,
         DefectInline,
@@ -179,6 +206,7 @@ class FailureAdmin(admin.ModelAdmin):
 		('Basic Information',{'fields': ['machine','details','category']}),
 		('Plan Information',{'fields': ['start_date','expect_date','status','end_date']}),
 		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
+		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]
 	def save_model(self, request, obj, form, change):
