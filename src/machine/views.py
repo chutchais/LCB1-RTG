@@ -529,14 +529,7 @@ def get_data_by_start_date(start_date_00,today_report):
                             if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
                             (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
                          ]
-        # Added on Aug 18,2024 -- To remove 'Crane On Hour' for eRTG
-        # dict_yesterday =  [
-        #     i for i in dict_yesterday
-        #     if i['item__equipment__name'] in ['RTG33','RTG34','RTG35'] or
-        #       (i['item__name']!='Crane On Hour' and i['item__equipment__name'] not in ['RTG33','RTG34','RTG35'])
-            
-        # ]
-        # -------------------------------------------------------------------------------------------
+
 
         # if dict_yesterday :
         dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
@@ -605,6 +598,187 @@ def send_eq_availability_report(to_email,send_email,
     msg['From'] = send_email 
     msg['To'] = to_email 
     msg.set_content(html, subtype='html')  
+    # ส่งอีเมล  
+    with smtplib.SMTP(server) as server:  
+        server.send_message(msg)  
+
+
+
+# Added on Dec 30,2024 -- To create data frame of RTG productivity
+def get_rtg_productivity_dataframe():
+    import json
+    import pandas as pd
+    hour_mode = True
+    # Added on Nov 3,2022 -- to show current week for all equipment
+    import datetime, pytz
+    tz 			= pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+    from datetime import datetime, time
+    today_tz_00 = datetime.combine(today_tz, time.min)
+    import datetime
+    start_week_day = today_tz_00 - datetime.timedelta(today_tz_00.weekday())
+    last_7_days = today_tz_00 - datetime.timedelta(days=7)
+    yesterdays = today_tz_00 - datetime.timedelta(days=1)
+
+    # Added on JUly 19,2024 -- To handle with non-hybrid RTG
+    remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
+              'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
+              'RTG34','RTG35']
+
+    # if dict is None :
+    # Check Last record date on DataLogger
+    last_record_date_tz = DataLogger.objects.last().created.astimezone(tz)
+    last_record_date_00 = datetime.datetime.combine(last_record_date_tz, time.min)
+
+    today_found_data,today_table = get_rtg_productivity_by_start_date(last_record_date_00,today_report=True)
+
+    # # Modify on 19 JUly -- to support Hybrid RTG
+    dict_org =list(DataLogger.objects.filter(
+            created__gte = last_7_days,item__name__in =[
+                'Number of Move','Crane On Minute']).order_by(
+                'item__equipment__name','created').values(
+                'created__date','item__name','last_value','current_value',
+                'item__equipment__name','item__current_value'))
+    # Add Diff
+    if dict_org :
+        dict_with_diff   = [ {**d,'diff':calculate_diff(d['current_value'],d['last_value'])} for d in dict_org]
+        for i in dict_with_diff:
+            i['created__date']=datetime.datetime.strftime(i['created__date'], "%b-%d")
+            i['diff'] = round(i['diff']/60,2) if i['item__name'] == 'Crane On Minute' else i['diff']
+
+        df_weekly               = pd.DataFrame(dict_with_diff)
+
+
+        weekly_table = (
+                df_weekly.pivot_table(
+                    index=["created__date", "item__equipment__name"],  # Grouping columns
+                    columns="item__name",  # Pivot this column
+                    values="diff",  # Values to aggregate
+                    aggfunc="sum"  # Aggregation function
+                )
+                .reset_index()  # Flatten the DataFrame
+            )
+        
+        # Rename 'Crane On Minute' to 'Crane On Hour'
+        weekly_table.rename(columns={"Crane On Minute": "Crane On Hour"}, inplace=True)
+        weekly_table.rename(columns={"item__equipment__name": "Equipment"}, inplace=True)
+        weekly_table.rename(columns={"created__date": "Date"}, inplace=True)
+
+            # Add 'move per hour' column
+        weekly_table["Move per Hour"] = (weekly_table["Number of Move"] / weekly_table["Crane On Hour"]).round(2)
+        
+        # Merge table
+        if today_found_data :
+            final_table = pd.concat([weekly_table , today_table], ignore_index=True)
+        else:
+            final_table = weekly_table
+
+        final_table = final_table.fillna('')
+        final_table['Number of Move'] = final_table['Number of Move'].astype(int)
+
+
+        # Added JUly 29,2024 -- To save final DF to Redis
+        save_df_to_redis ('OPS_7DAYS_RTG_PRODUCTIVITY',final_table)
+        # -----------------------------------------------
+    return final_table,today_table
+
+def get_rtg_productivity_by_start_date(start_date_00,today_report):
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        from datetime import datetime, time
+        today_tz_00 = datetime.combine(today_tz, time.min)
+        import datetime
+
+        # Added on JUly 19,2024 -- To handle with non-hybrid RTG
+        remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
+              'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
+              'RTG34','RTG35']
+            # Modify on Aug 18,2024 -- To to add 'Crane On Minute' parameter ,remove 'Crane On Hour'
+        # dict_yesterday=list(DataLogger.objects.filter(
+        #         created__gte = start_date_00,item__name__in =[
+        #             'Engine Working Hour','Crane On Minute']).order_by(
+        #             'item__equipment__name','created').values(
+        #             'created__date','item__name','last_value','current_value',
+        #             'item__equipment__name','item__current_value'))
+        dict_yesterday =list(DataLogger.objects.filter(
+                created__gte = start_date_00,item__name__in =[
+                    'Number of Move','Crane On Minute']).order_by(
+                    'item__equipment__name','created').values(
+                    'created__date','item__name','last_value','current_value',
+                    'item__equipment__name','item__current_value'))
+        
+        if not dict_yesterday:
+            return False,None
+
+        # # Select Engine Working Hour only Hybrid RTG
+        # dict_yesterday =  [
+        #                     i for i in dict_yesterday 
+        #                     if i['item__name'] in ['Crane On Hour','Crane On Minute'] or 
+        #                     (i['item__equipment__name'] not in remove_rtgs and i['item__name']=='Engine Working Hour')
+        #                  ]
+
+
+        # # if dict_yesterday :
+        dict_yesterday  = [ {**d,'diff':calculate_diff(d['item__current_value'],d['current_value'])} for d in dict_yesterday]
+        
+        for i in dict_yesterday:
+            # After midnight
+            # if day_diff == 2 and today_tz.hour >= 0 :
+            if today_report :
+                i['created__date'] = start_date_00 + datetime.timedelta(days=1)
+            i['created__date'] =datetime.datetime.strftime(i['created__date'], "%b-%d")
+            i['diff'] = round(i['diff']/60,2) if i['item__name'] == 'Crane On Minute' else i['diff']
+            # # Added on Aug 18,2024 -- To change Diff to either Hour or Minute mode
+
+
+        df_weekly      = pd.DataFrame(dict_yesterday)
+        weekly_table = (
+                df_weekly.pivot_table(
+                    index=["created__date", "item__equipment__name"],  # Grouping columns
+                    columns="item__name",  # Pivot this column
+                    values="diff",  # Values to aggregate
+                    aggfunc="sum"  # Aggregation function
+                )
+                .reset_index()  # Flatten the DataFrame
+            )
+        
+        # Rename 'Crane On Minute' to 'Crane On Hour'
+        weekly_table.rename(columns={"Crane On Minute": "Crane On Hour"}, inplace=True)
+        weekly_table.rename(columns={"item__equipment__name": "Equipment"}, inplace=True)
+        weekly_table.rename(columns={"created__date": "Date"}, inplace=True)
+
+            # Add 'move per hour' column
+        weekly_table["Move per Hour"] = (weekly_table["Number of Move"] / weekly_table["Crane On Hour"]).round(2)
+        weekly_table = weekly_table.fillna('')
+        weekly_table['Number of Move'] = weekly_table['Number of Move'].astype(int)
+        
+        return True , weekly_table
+
+def send_rtg_productivity_report(to_email,send_email,server='192.168.1.15'):
+    import smtplib  
+    from email.message import EmailMessage
+
+    import datetime, pytz
+    tz 		    = pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+
+    # Run generate operation report
+    df_week,df_today = get_rtg_productivity_dataframe()
+    
+    msg = EmailMessage()  
+    msg['Subject'] = f'RTG Productivity report : {today_tz.strftime("%d-%b-%Y %H:%M")}'  
+    msg['From'] = send_email 
+    msg['To'] = to_email 
+    msg.set_content(df_today.to_html(), subtype='html')  
+
+    df_week.to_excel('rtg_productivity.xlsx')
+
+    with open('rtg_productivity.xlsx', 'rb') as f:  
+        file_data = f.read()  
+        file_name = f.name  
+        msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=file_name)
+
     # ส่งอีเมล  
     with smtplib.SMTP(server) as server:  
         server.send_message(msg)  
