@@ -104,7 +104,15 @@ class MachineType(BasicInfo):
     def machine_available(self):
         return self.machine_count-(self.machine_on_working+self.machine_on_preventive)
     # -------------------------------------------------------
-
+    # Added on Jan 22,2025 -- To support to get availability data
+    def get_availability_data(self):
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        key = f'{today_tz.year}:{self.name}:AVAILABILITY'
+        from maintenance.tasks import get_daily_data_all
+        return get_daily_data_all(key)
+    
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine_types'
         ordering = ('name',)
@@ -130,6 +138,14 @@ class Machine(BasicInfo):
     @property
     def on_preventive(self):
         return self.pms.filter(status='WORKING').count()
+    # Added on Jan 22,2025 -- To support to get availability data
+    def get_availability_data(self):
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        key = f'{today_tz.year}:{self.name}:AVAILABILITY'
+        from maintenance.tasks import get_daily_data_all
+        return get_daily_data_all(key)
     
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine'
