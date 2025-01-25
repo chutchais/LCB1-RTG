@@ -8,7 +8,7 @@ from django.conf 	            import settings
 from django.db.models.signals   import post_save
 from django.dispatch            import receiver
 from base.models                import BasicInfo
-from base.utility               import update_transaction_date
+from base.utility               import update_transaction_date,get_execution_time_in_minutes
 from measuring.models           import FIELDS_TYPE_CHOICES, Parameter
 import logging
 from django.urls                import reverse
@@ -105,7 +105,8 @@ class MachineType(BasicInfo):
         return self.machine_count-(self.machine_on_working+self.machine_on_preventive)
     # -------------------------------------------------------
     # Added on Jan 22,2025 -- To support to get availability data
-    def get_availability_data(self):
+    @property
+    def availability_data(self):
         import datetime, pytz
         tz 			= pytz.timezone('Asia/Bangkok')
         today_tz 	=   datetime.datetime.now(tz=tz)
@@ -139,7 +140,8 @@ class Machine(BasicInfo):
     def on_preventive(self):
         return self.pms.filter(status='WORKING').count()
     # Added on Jan 22,2025 -- To support to get availability data
-    def get_availability_data(self):
+    @property
+    def availability_data(self):
         import datetime, pytz
         tz 			= pytz.timezone('Asia/Bangkok')
         today_tz 	=   datetime.datetime.now(tz=tz)
@@ -158,6 +160,11 @@ FAILURE_TYPE_CHOICES = (
     ("CM", "Corrective maintenance"),
     ("PC", "Power Cut")
 )
+
+SHIFT_CHOICES =(
+    ("Day" , "Day"),
+    ("Night" , "Night")
+    )
 
 # Added on Dec 28,2024 -- To collect vendor
 class Vendor(BasicInfo):
@@ -197,6 +204,10 @@ class Failure(BasicInfo):
                                                decimal_places=2, blank=True,null=True)
     service_cost         = models.DecimalField(max_digits=10, 
                                                decimal_places=2, blank=True,null=True)
+    # Added on Jan 25, 2025 -- To collect operation date and working shift
+    operation_date       = models.DateField(blank=True,null=True)
+    operation_shift      = models.CharField(blank=True,null=True,
+                                            max_length=10,choices=SHIFT_CHOICES,default='DAY')
 
     def __str__(self):
         return f'{self.start_date.strftime("%Y-%m-%d")} - {self.details[1:20]}'
@@ -211,6 +222,12 @@ class Failure(BasicInfo):
     @property
     def image_count(self):
         return self.images.all().count()
+
+    @property
+    def elapsed_time(self):
+        # Return in minute
+        return get_execution_time_in_minutes(self.start_date,self.end_date)
+    elapsed_time.fget.short_description = 'Elapsed time (minute)'
     
     class Meta(BasicInfo.Meta):
         db_table = 'ma-failure'
@@ -236,6 +253,11 @@ class Defect(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'defects')
+    # Added on Jan 25, 2025 -- To collect operation date and working shift
+    operation_date       = models.DateField(blank=True,null=True)
+    operation_shift      = models.CharField(blank=True,null=True,
+                                            max_length=10,choices=SHIFT_CHOICES,default='DAY')
+
     def __str__(self):
         return self.symptom_area
 
@@ -268,6 +290,10 @@ class Preventive(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'pms')
+    # Added on Jan 25, 2025 -- To collect operation date and working shift
+    operation_date       = models.DateField(blank=True,null=True)
+    operation_shift      = models.CharField(blank=True,null=True,
+                                            max_length=10,choices=SHIFT_CHOICES,default='DAY')
     def __str__(self):
         return f'{self.period} {self.period_unit}'
 
@@ -341,7 +367,10 @@ class Accident(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'accidents')
-
+    # Added on Jan 25, 2025 -- To collect operation date and working shift
+    operation_date       = models.DateField(blank=True,null=True)
+    operation_shift      = models.CharField(blank=True,null=True,
+                                            max_length=10,choices=SHIFT_CHOICES,default='DAY')
     @property
     def image_count(self):
         return self.images.all().count()

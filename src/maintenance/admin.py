@@ -7,7 +7,46 @@ from .models import Section,MachineType,Machine,Failure,Defect, \
 from django import forms
 from django.db import models
 from django.forms               import TextInput, Textarea
+from base.utility import get_date_range,get_day_or_night_with_date
+from django.utils.translation import gettext_lazy as _
 
+class OperationDateListFilter(admin.SimpleListFilter):
+	# Human-readable title which will be displayed in the
+	# right admin sidebar just above the filter options.
+	title = _('Operation Date range')
+
+	# Parameter for the filter that will be used in the URL query.
+	parameter_name = 'operation_date'
+
+	def lookups(self, request, model_admin):
+		"""
+		Returns a list of tuples. The first element in each
+		tuple is the coded value for the option that will
+		appear in the URL query. The second element is the
+		human-readable name for the option that will appear
+		in the right sidebar.
+		"""
+		return (
+		('yesterday', _('Yesterday')),
+		('today', _('Today')),
+		('thisweek', _('This week')),
+		('lastweek', _('Last week')),
+		('thismonth', _('This month')),
+		('lastmonth', _('Last month')),
+		('thisyear', _('This year')),
+		('lastyear', _('Last year')),
+		)
+
+	def queryset(self, request, queryset):
+		from datetime import datetime
+		from django.utils import timezone
+		tz = timezone.get_current_timezone()
+		today = timezone.now().astimezone(tz).date()
+		if not self.value():
+			return queryset
+
+		start_date,end_date = get_date_range(today,self.value())
+		return queryset.filter(operation_date__range = [start_date, end_date]).order_by('start_date')
 
 class MachineTypeInline(admin.TabularInline):
 	model = MachineType
@@ -187,11 +226,12 @@ class FailureAdmin(admin.ModelAdmin):
 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
 	}
 	search_fields = ['machine__name','details','rootcause','repair_action']
-	list_filter = ['status','category','machine__machine_type','vendor','machine']
-	list_display = ('machine','details','start_date','expect_date','status','category','image_count',
+	list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
+	list_display = ('machine','details','start_date','end_date','status','category','image_count',
 				 'defect_count','user')
 
-	readonly_fields = ('created','updated','user','defect_count')
+	readonly_fields = ('created','updated','user','defect_count',
+					'operation_date','operation_shift','elapsed_time')
 	autocomplete_fields  = ['machine','vendor']
 	inlines = [
 		FailureImageInline,
@@ -204,7 +244,8 @@ class FailureAdmin(admin.ModelAdmin):
 
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','category']}),
-		('Plan Information',{'fields': ['start_date','expect_date','status','end_date']}),
+		('Plan Information',{'fields': ['start_date','expect_date','status','end_date',
+								  'operation_date','operation_shift','elapsed_time']}),
 		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
 		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
 		('System Information',{'fields':[('user','created'),'updated']})
@@ -214,6 +255,14 @@ class FailureAdmin(admin.ModelAdmin):
 		if not change:
 			# Only set added_by during the first save.
 			obj.user = request.user
+		if obj.end_date:
+			# Timezone awareness
+			from django.utils import timezone
+			tz = timezone.get_current_timezone()
+			operation_date,operation_shift = get_day_or_night_with_date(obj.start_date.astimezone(tz))
+			# print(operation_date,operation_shift,obj.end_date)
+			obj.operation_date	=	operation_date
+			obj.operation_shift	=	operation_shift
 		super().save_model(request, obj, form, change)
 
 @admin.register(Defect)
