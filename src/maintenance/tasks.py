@@ -6,6 +6,14 @@ db = redis.StrictRedis('redis', 6379,db=settings.RTG_READING_VALUE_DB,
                             charset="utf-8", decode_responses=True) #Production
 from datetime import datetime
 
+import json
+def convert_to_json(data):
+    result = [
+        {"date": entry[0][:10], "value": entry[1]}  # Format the date and value
+        for entry in data
+    ]
+    return result  # Return the JSON-like list of dictionaries
+
 def record_availability_for_equipment_type():
     import datetime, pytz
     tz 			= pytz.timezone('Asia/Bangkok')
@@ -45,13 +53,15 @@ def get_daily_data_by_date(key:str, start_date:datetime, end_date:datetime):
     end_iso = end_date.isoformat()
     # Get all data and filter by date range
     all_data = db.zrange(key, 0, -1, withscores=True)
-    return [(date, int(score)) for date, score in all_data if start_iso <= date <= end_iso]
+    return convert_to_json([(date, int(score)) for date, score in all_data if start_iso <= date <= end_iso])
 
 def get_daily_data_by_value(key:str, start_value:float, end_value:float):
-    return db.zrangebyscore(key, start_value, end_value, withscores=True)
+    return convert_to_json(db.zrangebyscore(key, start_value, end_value, withscores=True))
 
 def get_daily_data_all(key:str):
-    return db.zrange(key, 0, -1, withscores=True)
+    return convert_to_json(db.zrange(key, 0, -1, withscores=True))
+
+
 # Get all data
 # all_data = r.zrange(key, 0, -1, withscores=True)
 
