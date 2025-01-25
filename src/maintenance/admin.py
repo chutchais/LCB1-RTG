@@ -10,6 +10,12 @@ from django.forms               import TextInput, Textarea
 from base.utility import get_date_range,get_day_or_night_with_date
 from django.utils.translation import gettext_lazy as _
 
+# Register your models here.
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
+from import_export.admin import ImportExportActionModelAdmin
+from import_export.fields import Field
+
 class OperationDateListFilter(admin.SimpleListFilter):
 	# Human-readable title which will be displayed in the
 	# right admin sidebar just above the filter options.
@@ -218,9 +224,27 @@ class DefectInline(admin.TabularInline):
 	# def get_queryset(self, request):
 	# 	qs = super(FailureInline, self).get_queryset(request)
 	# 	return qs.filter(status='OPEN')
+
+class FailureResource(resources.ModelResource):
+	# operation_date_field = Field(attribute='operation_date', column_name='operation_date')
+	elapsed_time = Field()
+
+	class Meta:
+		model = Failure
+		exclude  =('id','created','updated','created_year','created_month',
+			 'created_day','created_hour','created_week',)
+		widgets = {
+            'operation_date': {'format': '%b %d, %Y'},
+        }
 	
+	def dehydrate_elapsed_time(self, failure):
+		return failure.elapsed_time/60
+	# def dehydrate_operation_date(self, failure):
+	# 	return failure
+
+
 @admin.register(Failure)
-class FailureAdmin(admin.ModelAdmin):
+class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.ModelAdmin):
 	formfield_overrides = {
 	models.CharField: {'widget': TextInput(attrs={'size':'50'})},
 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
@@ -241,6 +265,8 @@ class FailureAdmin(admin.ModelAdmin):
 	save_as_continue = True
 	save_on_top =True
 	list_select_related = True
+
+	resource_class      = FailureResource
 
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','category']}),
