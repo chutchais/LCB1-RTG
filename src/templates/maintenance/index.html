@@ -15,7 +15,9 @@
   <body>
 <h1>Equipment Availability Report</h1>
 
-<p><a class="link-opacity-10-hover" href="http://10.24.50.96:8080/maintenance/">Main page</a></p>
+<p><a class="link-opacity-10-hover" href="/maintenance/">Main page</a> |
+    <a class="link-opacity-10-hover" href="/maintenance/failures/">Failures</a>
+</p>
 
 <hr>
 <h4>By Equipment type</h4>
@@ -36,9 +38,11 @@
               <tr>
                       
                       <td style="text-align:center">
-                        <a href="{% url 'maintenance:detail' m.section %}">{{m.section}}</a>
+                        {{m.section}}
                         </td>
-                        <td style="text-align:center">{{m.name}}</td>
+                        <td style="text-align:center">
+                            <a href="{% url 'maintenance:machinetype-detail' m.name %}">{{m.name}}</a>
+                        </td>
                       <td style="text-align:center">{{m.machine_count}}</td>
                       <td style="text-align:center">{{m.target|floatformat}}</td>
                       <td style="text-align:center">{{m.machine_on_working}}</td>

@@ -36,9 +36,6 @@ def get_preventive_dataframe():
 # @cache_page(60 * 5)
 def index(request):
     context = {}
-    # context['overall']  = get_overall_dataframe().to_html()
-    # context['repair']   = get_failure_dataframe().to_html()
-    # context['preventive']  = get_preventive_dataframe().to_html()
     context['overall']      = MachineType.objects.all().order_by('section__name','name')
     context['repair']       = Failure.objects.filter(status='OPEN').order_by('start_date')
     context['preventive']   = Preventive.objects.filter(status='WORKING').order_by('start_date')
@@ -56,12 +53,22 @@ def by_equipment(request,section):
                                 section__name=section)),status='WORKING')
     return render(request, 'maintenance/section.html', context=context)
 
+class MachineTypeDetailView(DetailView):
+    model = MachineType
+    def get_context_data(self, **kwargs):
+        context = super(MachineTypeDetailView, self).get_context_data(**kwargs)
+        context['failures'] = Failure.objects.filter(
+                            machine__machine_type =self.object).order_by('-start_date')[:50]
+        context['machinetypes'] = MachineType.objects.all().exclude(name=self.object.name)
+        return context
+
 def failure(request):
     return render(request, 'maintenance/failure_list.html', context={})
 
 class FailureDetailView(DetailView):
     model = Failure
 
+    
 class FailureListView(ListView):
     model = Failure
     paginate_by = 50
