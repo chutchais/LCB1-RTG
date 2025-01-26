@@ -2,7 +2,7 @@
 {% load l10n %}
 
 <script>
-  const data ={{ object.machine.availability_data|safe }};
+  const inputData ={{ object.machine.availability_data|safe }};
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
@@ -23,6 +23,9 @@
 
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <script src="https://unpkg.com/cal-heatmap/dist/plugins/Tooltip.min.js"></script>
+
+    <script src="https://unpkg.com/cal-heatmap/dist/plugins/Legend.min.js"></script>
+    <script src="https://unpkg.com/cal-heatmap/dist/plugins/CalendarLabel.min.js"></script>
     
     
     
@@ -212,58 +215,70 @@
         const cal = new CalHeatmap();
         console.log('Initial ......Done')
         // Generate example data
-        const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
-        const exampleData = {};
-        for (let i = 0; i < 30; i++) {
-            const timestamp = now - i * 24 * 3600; // Subtract i days
-            exampleData[timestamp] = Math.floor(Math.random() * 100); // Random value (0-99)
-        }
+        // Convert data on the fly for Cal-Heatmap
+        const heatmapData = inputData.reduce((acc, item) => {
+            const timestamp = Math.floor(new Date(item.date).getTime() / 1000); // Convert date to Unix timestamp
+            acc[timestamp] = Math.floor(item.value); // Ensure value is an integer
+            return acc;
+        }, {});
+        // console.log(heatmapData)
 
         cal.paint({
             itemSelector: '#ex-height',
             data: {
-                source: data,
+                source: inputData,
                 type: 'json',
                 x: 'date',
-                y: d => +d['value'],
-                groupY: 'max',
+                y: 'value',
+                // y: d => +d['value'],
+                // groupY: 'max',
             },
             date: { start: new Date('2025-01-01') },
-                    range: 12,
-                    scale: {
-                    color: {
-                        type: 'quantize',
-                        // scheme: 'Green',
-                        range: ['yellow','red', 'green'],
-                        domain: [-1,0, 1],
-                    },
-                    },
+            range: 12,
+            scale: {
+                color: {
+                    type: 'quantize',
+                    // scheme: 'Green',
+                    range: ['yellow','red', 'green'],
+                    domain: [-1,0,1],
+                },
+            },
             domain: { 
                 label: { height: 100 },
                 type: 'month',
                 },
-                subDomain: { type: 'day', radius: 2 },
-                
-        },
-            // //Start tool tip
-            // [[Tooltip, {
-            //         text: function (timestamp, value, dayjsDate) {
-            //                     return `${value} - ${dayjsDate.toString()}`;
-            //                     }
-            //     }
-            // ]],
-            // [
-            // Legend,
-            // {
-            //     tickSize: 0,
-            //     width: 100,
-            //     itemSelector: '#ex-wind-legend',
-            //     label: 'Seattle wind (km/h)',
-            // },
-            // ]
-            // // End 
+            subDomain: { 
+                width: 15,
+                height: 15,
+                type: 'day',
+                radius: 2,
+                label: 'DD'
+                },
+    },
+    [[
+      CalendarLabel,
+      {
+        position: 'left',
+        key: 'left',
+        text: () => ['Sun', '', '', 'Wed', '', '', 'Sat'],
+        textAlign: 'end',
+        width: 30,
+        padding: [0, 5, 0, 10],
+      },
+    ]]
+    // [[Legend, { 
+    //     itemSelector: '#ex-height' ,
+    //     label: 'Status',
+    //     legend: [-1, 0, 1], // Legend values
+    //         legendColors: {
+    //             "-1": "yellow", // Color for -1
+    //             "0": "red",     // Color for 0
+    //             "1": "green",   // Color for 1
+    //         },
+    // }]]
     );
-    </script>
+
+</script>
 
     </body>
  </div>
