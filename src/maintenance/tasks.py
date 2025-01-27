@@ -14,6 +14,19 @@ def convert_to_json(data):
     ]
     return result  # Return the JSON-like list of dictionaries
 
+#Add on Jan 27,2025 -- keep number of available machine
+def record_available_for_equipment_type():
+    import datetime, pytz
+    tz 			= pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+    from datetime import datetime, time
+    today_tz_00 = datetime.combine(today_tz, time.min)
+    from maintenance.models import MachineType
+    machinetypes = MachineType.objects.all()
+    for mt in machinetypes:
+        key = f'{mt.name}:AVAILABLE'
+        collect_daily_data(today_tz_00,key,mt.machine_available)#keep number of available machine
+
 def record_availability_for_equipment_type():
     import datetime, pytz
     tz 			= pytz.timezone('Asia/Bangkok')
@@ -38,6 +51,31 @@ def record_availability_for_equipment():
         key = f'{mt.name}:AVAILABILITY'
         collect_daily_data(today_tz_00,key, \
                 0 if mt.on_repair > 0 else -1 if mt.on_preventive > 0 else 1)
+
+# Added on Jan 27,2025 -- Add equpment status
+def record_status_for_equipment():
+    import datetime, pytz
+    tz 			= pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+    from datetime import datetime, time
+    today_tz_00 = datetime.combine(today_tz, time.min)
+    from maintenance.models import Machine
+    machines = Machine.objects.all()
+    for mt in machines:
+        key = f'{mt.name}:STATUS'
+        # Running   = 1
+        # BD        = 0
+        # CM        = -1
+        # PM        = -2
+        status = 1 #default is running
+        if mt.failures.filter(start_date__gt=today_tz_00).count() > 0:
+            status = 0 #BD
+        if mt.failures.filter(start_date__gt=today_tz_00,category='CM').count() > 0:
+            status = -1 #CM
+        if mt.pms.filter(start_date__gt=today_tz_00).count() > 0:
+            status = -2 #PM
+
+        collect_daily_data(today_tz_00,key, status)
 
 def collect_daily_data(current_date:datetime,key:str,value:float):
     # Get current year.
