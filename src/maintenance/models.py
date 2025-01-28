@@ -148,6 +148,15 @@ class Machine(BasicInfo):
         key = f'{today_tz.year}:{self.name}:AVAILABILITY'
         from maintenance.tasks import get_daily_data_all
         return get_daily_data_all(key)
+    # Added on Jan 27,2025 -- TO support to get status
+    @property
+    def status_data(self):
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        key = f'{today_tz.year}:{self.name}:STATUS'
+        from maintenance.tasks import get_daily_data_all
+        return get_daily_data_all(key)
     
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine'

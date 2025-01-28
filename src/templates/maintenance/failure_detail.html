@@ -2,7 +2,8 @@
 {% load l10n %}
 
 <script>
-  const inputData ={{ object.machine.availability_data|safe }};
+//   const inputData ={{ object.machine.availability_data|safe }};
+const inputData ={{ object.machine.status_data|safe }};
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
@@ -133,7 +134,8 @@
      <!-- End Image -->
 
      <!-- Last 10 Repair history -->
-     <p class="fs-4 text-start">Availability map : {{object.machine}} <a class="link-opacity-10-hover" href="/maintenance/machinetype/{{object.machine.machine_type}}">ดูภาพรวมของกลุ่ม : {{object.machine.machine_type}}</a>
+     <p class="fs-4 text-start">ประวัติทั่วไปของ : {{object.machine}} 
+        <a class="link-opacity-10-hover" href="/maintenance/machinetype/{{object.machine.machine_type}}"> Availability ของกลุ่ม : {{object.machine.machine_type}}</a>
      </p>
      <div id="ex-height"></div>
      
@@ -239,8 +241,10 @@
                 color: {
                     type: 'quantize',
                     // scheme: 'Green',
-                    range: ['yellow','red', 'green'],
-                    domain: [-1,0,1],
+                    //range: ['yellow','red', 'green'],
+                    //domain: [-1,0,1],
+                    range: ['blue','yellow','red', 'green'],
+                    domain: [-2,-1,0,1],
                 },
             },
             domain: { 
