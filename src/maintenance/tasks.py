@@ -68,9 +68,11 @@ def record_status_for_equipment():
         # CM        = -1
         # PM        = -2
         status = 1 #default is running
-        if mt.failures.filter(start_date__gt=today_tz_00).count() > 0 or (mt.on_repair == 1 and mt.category=='BD') :
+        if mt.failures.filter(start_date__gt=today_tz_00).count() > 0 or \
+                mt.failures.filter(status='OPEN',category='BD').count() > 0 :
             status = 0 #BD
-        if mt.failures.filter(start_date__gt=today_tz_00,category='CM').count() > 0 or (mt.on_repair == 1 and mt.category=='CM'):
+        if mt.failures.filter(start_date__gt=today_tz_00,category='CM').count() > 0 \
+            or mt.failures.filter(status='OPEN',category='CM').count() > 0:
             status = -1 #CM
         if mt.pms.filter(start_date__gt=today_tz_00).count() > 0 or mt.on_preventive == 1:
             status = -2 #PM
