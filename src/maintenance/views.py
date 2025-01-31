@@ -60,6 +60,14 @@ class MachineTypeDetailView(DetailView):
         context['failures'] = Failure.objects.filter(
                             machine__machine_type =self.object).order_by('-start_date')[:50]
         context['machinetypes'] = MachineType.objects.all().exclude(name=self.object.name)
+        # Added Jan 31,2025 - to send start date of year
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        from datetime import datetime, time
+        today_tz_00 = datetime.combine(today_tz, time.min)
+        start_date = today_tz_00.replace(month=1, day=1).strftime('%Y-%m-%d')
+        context['start_date'] = start_date
         return context
 
 def failure(request):
@@ -67,6 +75,17 @@ def failure(request):
 
 class FailureDetailView(DetailView):
     model = Failure
+    def get_context_data(self, **kwargs):
+        context = super(FailureDetailView, self).get_context_data(**kwargs)
+        # Added Jan 31,2025 - to send start date of year
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        from datetime import datetime, time
+        today_tz_00 = datetime.combine(today_tz, time.min)
+        start_date = today_tz_00.replace(month=1, day=1).strftime('%Y-%m-%d')
+        context['start_date'] = start_date
+        return context
 
     
 class FailureListView(ListView):
@@ -105,4 +124,39 @@ def send_eq_availability_report(to_email,send_email,
     msg.set_content(html, subtype='html')  
     # ส่งอีเมล  
     with smtplib.SMTP(server) as server:  
-        server.send_message(msg)  
+        server.send_message(msg) 
+
+
+class MachineListView(ListView):
+    model = Machine
+    paginate_by = 30
+    def get_context_data(self, **kwargs):
+        context = super(MachineListView, self).get_context_data(**kwargs)
+        # Added Jan 31,2025 - to send start date of year
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        from datetime import datetime, time,timedelta
+        today_tz_00 = datetime.combine(today_tz, time.min)
+        start_date = (today_tz_00-timedelta(days=7)).strftime('%Y-%m-%d')
+        context['start_date'] = start_date
+        return context
+    def get_queryset(self):
+        query = self.request.GET.get('q')
+        if query :
+            return Machine.objects.filter(name__icontains=query)[:30]
+        return Machine.objects.all()[:30]
+
+class MachineDetailView(DetailView):
+    model = Machine
+    def get_context_data(self, **kwargs):
+        context = super(MachineDetailView, self).get_context_data(**kwargs)
+        # Added Jan 31,2025 - to send start date of year
+        import datetime, pytz
+        tz 			= pytz.timezone('Asia/Bangkok')
+        today_tz 	=   datetime.datetime.now(tz=tz)
+        from datetime import datetime, time
+        today_tz_00 = datetime.combine(today_tz, time.min)
+        start_date = today_tz_00.replace(month=1, day=1).strftime('%Y-%m-%d')
+        context['start_date'] = start_date
+        return context
