@@ -138,7 +138,7 @@ class MachineListView(ListView):
         today_tz 	=   datetime.datetime.now(tz=tz)
         from datetime import datetime, time,timedelta
         today_tz_00 = datetime.combine(today_tz, time.min)
-        start_date = (today_tz_00-timedelta(days=7)).strftime('%Y-%m-%d')
+        start_date = (today_tz_00-timedelta(days=14)).strftime('%Y-%m-%d')
         context['start_date'] = start_date
         return context
     def get_queryset(self):
