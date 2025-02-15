@@ -94,11 +94,13 @@ class MachineType(BasicInfo):
     # Added on Oct 3,2024 -- To count machine that on working
     @property
     def machine_on_working(self):
-        return Failure.objects.filter(machine__machine_type=self,status='OPEN').count()
+        return sum([ms.on_repair for ms in self.ma_machines.all()])
+        # return Failure.objects.filter(machine__machine_type=self,status='OPEN').count()
  
     @property
     def machine_on_preventive(self):
-        return Preventive.objects.filter(machine__machine_type=self,status='WORKING').count()
+        return sum([ms.on_preventive for ms in self.ma_machines.all()])
+        # return Preventive.objects.filter(machine__machine_type=self,status='WORKING').count()
     
     @property
     def machine_available(self):
@@ -134,11 +136,11 @@ class Machine(BasicInfo):
     
     @property
     def on_repair(self):
-        return self.failures.filter(status='OPEN').count()
+        return 0 if self.failures.filter(status='OPEN').count() == 0 else 1
 
     @property
     def on_preventive(self):
-        return self.pms.filter(status='WORKING').count()
+        return 0 if self.pms.filter(status='WORKING').count() == 0 else 1
     # Added on Jan 22,2025 -- To support to get availability data
     @property
     def availability_data(self):
