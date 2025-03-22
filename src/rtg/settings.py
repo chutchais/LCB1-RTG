@@ -179,3 +179,8 @@ CACHES = {
         }
     }
 }
+
+
+# settings.py
+from import_export.formats.base_formats import XLSX
+EXPORT_FORMATS = [XLSX]

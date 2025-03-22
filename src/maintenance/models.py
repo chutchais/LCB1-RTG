@@ -219,6 +219,8 @@ class Failure(BasicInfo):
     operation_date       = models.DateField(blank=True,null=True)
     operation_shift      = models.CharField(blank=True,null=True,
                                             max_length=10,choices=SHIFT_CHOICES,default='DAY')
+    # Added on March 21,2025 -- To collect machine receiving date
+    receiving_date          = models.DateTimeField(blank=True,null=True)
 
     def __str__(self):
         return f'{self.start_date.strftime("%Y-%m-%d")} - {self.details[1:20]}'

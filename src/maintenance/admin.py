@@ -231,8 +231,10 @@ class FailureResource(resources.ModelResource):
 
 	class Meta:
 		model = Failure
+		# Fields = ('receiving_date','machine','detail','category','start_date','end_date',
+		#    		'rootcause','repair_action','operation_date','operation_shift','status',)
 		exclude  =('id','created','updated','created_year','created_month',
-			 'created_day','created_hour','created_week',)
+			 'created_day','created_hour','created_week','expect_date',)
 		widgets = {
             'operation_date': {'format': '%b %d, %Y'},
         }
@@ -251,7 +253,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 	}
 	search_fields = ['machine__name','details','rootcause','repair_action']
 	list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
-	list_display = ('machine','details','start_date','end_date','status','category','image_count',
+	list_display = ('machine','details','receiving_date','start_date','end_date','status','category','image_count',
 				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count',
@@ -270,7 +272,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','category']}),
-		('Plan Information',{'fields': ['start_date','expect_date','status','end_date',
+		('Plan Information',{'fields': ['receiving_date','start_date','status','end_date',
 								  'operation_date','operation_shift','elapsed_time']}),
 		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
 		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),

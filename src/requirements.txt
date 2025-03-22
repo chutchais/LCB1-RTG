@@ -16,9 +16,12 @@ django-import-export
 redis
 pandas
 ipython
-python-snap7
+# python-snap7
 django-redis
 # Added on June 13,2023
 pyodbc
 # Added on July 29,2024
 xlsxwriter
+# Added on March 21,2025
+tablib[xlsx]
+python-snap7[cli]
