@@ -228,6 +228,7 @@ class DefectInline(admin.TabularInline):
 class FailureResource(resources.ModelResource):
 	# operation_date_field = Field(attribute='operation_date', column_name='operation_date')
 	elapsed_time = Field()
+	lead_time	= Field()
 
 	class Meta:
 		model = Failure
@@ -241,6 +242,9 @@ class FailureResource(resources.ModelResource):
 	
 	def dehydrate_elapsed_time(self, failure):
 		return failure.elapsed_time/60
+	
+	def dehydrate_lead_time(self, failure):
+		return failure.lead_time/60
 	# def dehydrate_operation_date(self, failure):
 	# 	return failure
 

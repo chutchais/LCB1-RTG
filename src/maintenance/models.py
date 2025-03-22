@@ -241,7 +241,14 @@ class Failure(BasicInfo):
         # Return in minute
         return get_execution_time_in_minutes(self.start_date,self.end_date)
     elapsed_time.fget.short_description = 'Elapsed time (minute)'
-    
+
+# Added on March 22,2025 --
+    @property
+    def lead_time(self):
+        # Return in minute
+        return get_execution_time_in_minutes(self.receiving_date,self.end_date)
+    lead_time.fget.short_description = 'Lead time (minute)'
+
     class Meta(BasicInfo.Meta):
         db_table = 'ma-failure'
         ordering = ('-start_date',)
