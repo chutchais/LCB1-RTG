@@ -227,24 +227,31 @@ class DefectInline(admin.TabularInline):
 
 class FailureResource(resources.ModelResource):
 	# operation_date_field = Field(attribute='operation_date', column_name='operation_date')
-	elapsed_time = Field()
+	waitting_time = Field()
+	repairing_time = Field()
 	lead_time	= Field()
+	
 
 	class Meta:
 		model = Failure
-		# Fields = ('receiving_date','machine','detail','category','start_date','end_date',
-		#    		'rootcause','repair_action','operation_date','operation_shift','status',)
+		Fields = ('machine','receiving_date','start_date','end_date','repairing_time',
+				'lead_time','waitting_time','detail','category',
+		   		'rootcause','repair_action','operation_date','operation_shift','status',)
 		exclude  =('id','created','updated','created_year','created_month',
 			 'created_day','created_hour','created_week','expect_date',)
+		
 		widgets = {
             'operation_date': {'format': '%b %d, %Y'},
         }
 	
-	def dehydrate_elapsed_time(self, failure):
-		return failure.elapsed_time/60
+	def dehydrate_repairing_time(self, failure):
+		return failure.repairing_time/60
 	
 	def dehydrate_lead_time(self, failure):
 		return failure.lead_time/60
+
+	def dehydrate_waitting_time(self, failure):
+		return failure.waitting_time/60
 	# def dehydrate_operation_date(self, failure):
 	# 	return failure
 
@@ -261,7 +268,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count',
-					'operation_date','operation_shift','elapsed_time')
+					'operation_date','operation_shift','repairing_time','lead_time','waitting_time')
 	autocomplete_fields  = ['machine','vendor']
 	inlines = [
 		FailureImageInline,
@@ -277,7 +284,8 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','category']}),
 		('Plan Information',{'fields': ['receiving_date','start_date','status','end_date',
-								  'operation_date','operation_shift','elapsed_time']}),
+								  'operation_date','operation_shift',
+								  'waitting_time','repairing_time','lead_time']}),
 		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
 		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
 		('System Information',{'fields':[('user','created'),'updated']})
@@ -287,11 +295,12 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 		if not change:
 			# Only set added_by during the first save.
 			obj.user = request.user
-		if obj.end_date:
+		# if obj.end_date:
+		if obj.receiving_date :
 			# Timezone awareness
 			from django.utils import timezone
 			tz = timezone.get_current_timezone()
-			operation_date,operation_shift = get_day_or_night_with_date(obj.start_date.astimezone(tz))
+			operation_date,operation_shift = get_day_or_night_with_date(obj.receiving_date.astimezone(tz))
 			# print(operation_date,operation_shift,obj.end_date)
 			obj.operation_date	=	operation_date
 			obj.operation_shift	=	operation_shift

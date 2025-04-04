@@ -223,7 +223,7 @@ class Failure(BasicInfo):
     receiving_date          = models.DateTimeField(blank=True,null=True)
 
     def __str__(self):
-        return f'{self.start_date.strftime("%Y-%m-%d")} - {self.details[1:20]}'
+        return f'{self.machine} - {self.details[1:20]}'
     
     def get_absolute_url(self):
         return reverse('maintenance:failure-detail', kwargs={'pk': self.pk})
@@ -237,17 +237,55 @@ class Failure(BasicInfo):
         return self.images.all().count()
 
     @property
-    def elapsed_time(self):
+    def repairing_time(self):
         # Return in minute
-        return get_execution_time_in_minutes(self.start_date,self.end_date)
-    elapsed_time.fget.short_description = 'Elapsed time (minute)'
+        if self.start_date and self.end_date :
+            return get_execution_time_in_minutes(self.start_date,self.end_date)
+        else:
+            # Job is on going
+            from datetime import datetime
+            from django.utils import timezone
+            tz = timezone.get_current_timezone()
+            today = timezone.now().astimezone(tz)#.date()
+            return get_execution_time_in_minutes(self.start_date,today)
+
+    repairing_time.fget.short_description = 'Repairing time (minute)'
 
 # Added on March 22,2025 --
     @property
     def lead_time(self):
         # Return in minute
-        return get_execution_time_in_minutes(self.receiving_date,self.end_date)
+        # MOdify on March 24,2025 - To fix in case No receiving date assigned.
+        if self.receiving_date :
+            if self.end_date :#if job is done.
+                return get_execution_time_in_minutes(self.receiving_date,self.end_date)
+            else:
+                # Job is on going
+                from datetime import datetime
+                from django.utils import timezone
+                tz = timezone.get_current_timezone()
+                today = timezone.now().astimezone(tz)#.date()
+                return get_execution_time_in_minutes(self.receiving_date,today)
+        else:
+            return self.elapsed_time
     lead_time.fget.short_description = 'Lead time (minute)'
+
+# Added on Apr 3,2025 --
+    @property
+    def waitting_time(self):
+        # Return in minute
+        # MOdify on March 24,2025 - To fix in case No receiving date assigned.
+        if self.receiving_date and self.start_date :
+            return get_execution_time_in_minutes(self.receiving_date,self.start_date)
+        else:
+            # Job is on going
+            from datetime import datetime
+            from django.utils import timezone
+            tz = timezone.get_current_timezone()
+            today = timezone.now().astimezone(tz)#.date()
+            return get_execution_time_in_minutes(self.receiving_date,today)
+        
+    waitting_time.fget.short_description = 'Waitting time (minute)'
 
     class Meta(BasicInfo.Meta):
         db_table = 'ma-failure'
