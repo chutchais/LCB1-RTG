@@ -42,8 +42,13 @@ def get_execution_time_in_minutes(start_datetime, finish_datetime):
     """
     if finish_datetime is None:
         return 0  # Return 0 if finish_datetime is not provided
-    
+    # Addded on Apr 4,2025 -- To fix error when Add new failure
+    if start_datetime is None :
+        return 0
+      
     # Calculate the difference between the two datetimes
+
+    
     duration = finish_datetime - start_datetime
     
     # Convert the duration to total minutes
