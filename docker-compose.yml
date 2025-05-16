@@ -101,6 +101,22 @@ services:
     ports:
         - ${NOTIFY_PORT}:3000 
 
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    ports:
+      - "1883:1883"      # MQTT
+      - "9001:9001"      # WebSocket (optional)
+    volumes:
+      # - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - main
+    build: ./mosquitto
+    restart: unless-stopped
+
+
 volumes:  
   redis_data:
   web-static:
@@ -108,6 +124,8 @@ volumes:
   pgdata:
   rtg:
     external : true
+  mosquitto_data:
+  mosquitto_log:
 
 
 networks:

@@ -30,7 +30,7 @@ RUN apt-get install python3
 RUN apt-get install libpq-dev
 
 
-RUN pip3 install psycopg2
+RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org psycopg2
 
 
 # # Add for ODBC on June 13,2023
@@ -64,13 +64,13 @@ ENV LIBRARY_PATH=/lib:/usr/lib
 
 # RUN apt-get install --no-cache --virtual .build-deps build-base linux-headers \
 #     && pip3 install Pillow==5.4.1
-RUN pip3 install Pillow==5.4.1
+RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org Pillow==5.4.1
 
 RUN apt-get install -y curl
 RUN apt-get install -y sudo
 # build-base unixodbc-dev unixodbc freetds-dev && pip3 install pyodbc
 
-RUN pip install ipython
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org ipython
 
 RUN apt-get install iputils-ping
 
@@ -87,16 +87,16 @@ ENV PYTHONUNBUFFERED=1
 
 COPY ./requirements.txt /usr/src/web
 
-RUN pip3 install --upgrade pip
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip
+RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --no-cache-dir -r requirements.txt
 
 #ENTRYPOINT ["python"]
 COPY . /usr/src/web
 
 COPY ./requirements.txt /usr/src/web
 
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
+RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip
+RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
 
 
 COPY . /usr/src/web
