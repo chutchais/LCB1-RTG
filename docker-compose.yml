@@ -116,6 +116,31 @@ services:
     build: ./mosquitto
     restart: unless-stopped
 
+  mqtt-client:
+    restart: always
+    build:
+      context: ./src  # Same as your Django project
+    networks:
+      - main
+    volumes:
+      - rtg:/staticfiles
+      - rtg:/media
+    command: python3 manage.py mqtt_subscriber  # Assuming you'll create this management command
+    container_name: rtg-mqtt-client
+    depends_on:
+      - web-server  # Wait for Django to be ready
+      - mosquitto   # Wait for Mosquitto to be ready
+    environment:
+      - REDIS_URL=redis://redis:${REDIS_PORT}/${RTG_READING_VALUE_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - MQTT_BROKER=mosquitto  # This uses Docker's internal networking
+      - MQTT_PORT=1883
+      # Add any other MQTT-related environment variables you need
+
 
 volumes:  
   redis_data:
