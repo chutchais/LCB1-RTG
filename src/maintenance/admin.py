@@ -181,9 +181,11 @@ class AccidentInline(admin.TabularInline):
 class MachineAdmin(admin.ModelAdmin):
 	search_fields = ['name','title']
 	list_filter = ['terminal','machine_type']
-	list_display = ('name','title','terminal','on_repair','on_preventive','created','user')
+	list_display = ('name','title','terminal','on_repair','on_preventive',
+				 'engine_hour','engine_move','engine_malfunction','created','user')
 
-	readonly_fields = ('created','updated','user','on_repair','on_preventive')
+	readonly_fields = ('created','updated','user','on_repair','on_preventive',
+						'engine_hour','engine_move','mqtt_updated','engine_malfunction')
 
 	inlines = [
         FailureInline,
@@ -197,6 +199,7 @@ class MachineAdmin(admin.ModelAdmin):
 
 	fieldsets = [
 		('Basic Information',{'fields': ['name','title','terminal','machine_type']}),
+		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction','mqtt_updated']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]
 	def save_model(self, request, obj, form, change):

@@ -15,6 +15,9 @@ from django.urls                import reverse
 import os
 import datetime
 
+# Added on May 18,2025
+from maintenance.mosquitto import get_mqtt_message
+
 
 # maintenance section
 TYPE_CHOICES = (
@@ -159,7 +162,29 @@ class Machine(BasicInfo):
         key = f'{today_tz.year}:{self.name}:STATUS'
         from maintenance.tasks import get_daily_data_all
         return get_daily_data_all(key)
-    
+
+    # Added on May 18,2025 -- To support get data from MQTT
+    @property
+    def engine_hour(self):
+        return get_mqtt_message(self.name,"hour")
+    engine_hour.fget.short_description = 'Total engine hour (hour)'
+
+    @property
+    def engine_move(self):
+        return get_mqtt_message(self.name,"move")
+    engine_move.fget.short_description = 'Total move (time)'
+
+    @property
+    def engine_malfunction(self):
+        return get_mqtt_message(self.name,"malfunction")
+    engine_malfunction.fget.short_description = 'Engine Malfunction'
+
+    @property
+    def mqtt_updated(self):
+        return get_mqtt_message(self.name,"updated")
+    mqtt_updated.fget.short_description = 'Last updated'
+
+
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine'
         ordering = ('name',)

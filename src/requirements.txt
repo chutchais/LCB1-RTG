@@ -25,3 +25,6 @@ xlsxwriter
 # Added on March 21,2025
 tablib[xlsx]
 python-snap7[cli]
+
+#Added on May 17,2025
+paho-mqtt
