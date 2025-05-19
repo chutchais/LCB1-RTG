@@ -83,16 +83,16 @@
             <thead>
             <tr class="table-primary">
                 <th style="text-align:center">EQ number</th>
-                <th style="text-align:center">On Repair</th>
-                <th style="text-align:center">On Preventive</th>
+                <th style="text-align:center">Engine hour</th>
+                <th style="text-align:center">Move</th>
                 <th style="text-align:center">Last 14 days status</th>
             </tr>
             </thead>
             {% for object in object_list %}
                       <tr>
                               <td style="text-align:center"><a href="{{object.name}}">{{object.name}}</a></td>
-                              <td style="text-align:left">{{object.on_repair}}</td>
-                              <td style="text-align:left">{{object.on_preventive}}</td>
+                              <td style="text-align:left">{{object.engine_hour|default_if_none:""}}</td>
+                              <td style="text-align:left">{{object.engine_move|default_if_none:""}}</td>
                               <td style="text-align:left">
 
                                 <div id="machine-{{object.name}}" value="{{object.status_data|safe}}"></div>
