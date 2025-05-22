@@ -79,6 +79,10 @@
                               <td style="text-align:left">
                                 {{object.details}}
                                 <p class="fst-italic text-primary">Root cause: {{object.rootcause|default_if_none:"N/A"}}</p>
+                                <!-- Added Telamatic -->
+                                 {% if object.engine_hour %}
+                                 <p><em>Hour : {{object.engine_hour}} , Move : {{object.engine_move}}</em></p>
+                                {% endif %}
                               </td>
                               <td style="text-align:center">{{object.start_date|date:"j M H:s"}}</td>
                               <!-- <td style="text-align:center">{{object.end_date|date:"j M H:s"}}</td> -->

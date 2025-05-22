@@ -163,7 +163,11 @@ const start_date ='{{start_date}}';
                           <td style="text-align:left">
                             {{obj.details}}
                             <p class="fst-italic text-primary">Root cause: {{obj.rootcause|default_if_none:"N/A"}}</p>
-                          </td>
+                             <!-- Added Telamatic -->
+                              {% if obj.engine_hour %}
+                                 <p><em>Hour : {{obj.engine_hour}} , Move : {{obj.engine_move}}</em></p>
+                              {% endif %}
+                                </td>
                           <td style="text-align:center">{{obj.start_date}}</td>
                           <!-- <td style="text-align:center">{{obj.end_date}}</td> -->
                           <td style="text-align:center">{{obj.image_count}}</td>
@@ -194,7 +198,13 @@ const start_date ='{{start_date}}';
                   <tr>
                           <td style="text-align:center">{{object.start_date}}</td>
                           <td style="text-align:center">{{object.end_date}}</td>
-                          <td style="text-align:left">{{object.details}}</td>
+                          <td style="text-align:left">
+                                <p>{{object.details}}</p>
+                             <!-- Added Telamatic -->
+                              {% if object.engine_hour %}
+                                 <p><em>Hour : {{object.engine_hour}} , Move : {{object.engine_move}}</em></p>
+                                {% endif %}
+                                </td>
                           <td style="text-align:center">{{object.period}} {{period_unit}}</td>
                           <td style="text-align:center">{{object.image_count}}</td>
                           <td style="text-align:center">{{object.status}}</td>

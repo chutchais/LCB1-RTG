@@ -134,6 +134,11 @@ class Machine(BasicInfo):
     user 			    = models.ForeignKey(settings.AUTH_USER_MODEL,
                             on_delete=models.CASCADE,
                             blank=True,null=True,related_name = 'ma_machines')
+    # Added on May 25,2025 -- To collect hour, move, and fault
+    engine_hour_next_pm = models.DecimalField(max_digits=10, 
+                                    decimal_places=2,default=0, blank=True,null=True) 
+    engine_move_next_pm = models.IntegerField(default=0)
+
     def __str__(self):
         return self.name
     
@@ -184,6 +189,14 @@ class Machine(BasicInfo):
         return get_mqtt_message(self.name,"updated")
     mqtt_updated.fget.short_description = 'Last updated'
 
+    @property
+    def is_overdue(self):
+        engine_hour = 0 if self.engine_hour is None else self.engine_hour
+        engine_move = 0 if self.engine_move is None else self.engine_move
+        # return True if (self.engine_hour_next_pm >= engine_hour or 
+        #                 self.engine_move_next_pm >= engine_move ) else False
+        return False
+    is_overdue.fget.short_description = 'Overdue'
 
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine'
@@ -246,6 +259,11 @@ class Failure(BasicInfo):
                                             max_length=10,choices=SHIFT_CHOICES,default='DAY')
     # Added on March 21,2025 -- To collect machine receiving date
     receiving_date          = models.DateTimeField(blank=True,null=True)
+    # Added on May 25,2025 -- To collect hour, move, and fault
+    engine_hour             = models.DecimalField(max_digits=10, 
+                                    decimal_places=2, default=0, blank=True,null=True) 
+    engine_move             = models.IntegerField(default=0)
+    engine_malfunction      = models.CharField(max_length=1,default='0')
 
     def __str__(self):
         return f'{self.machine} - {self.details[1:20]}'
@@ -377,6 +395,13 @@ class Preventive(BasicInfo):
     operation_date       = models.DateField(blank=True,null=True)
     operation_shift      = models.CharField(blank=True,null=True,
                                             max_length=10,choices=SHIFT_CHOICES,default='DAY')
+
+    # Added on May 25,2025 -- To collect hour, move, and fault
+    engine_hour             = models.DecimalField(max_digits=10, 
+                                    decimal_places=2, blank=True,null=True) 
+    engine_move             = models.IntegerField(default=0)
+    engine_malfunction      = models.CharField(max_length=1,default='0')
+
     def __str__(self):
         return f'{self.period} {self.period_unit}'
 

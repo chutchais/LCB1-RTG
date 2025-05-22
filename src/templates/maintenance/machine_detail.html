@@ -83,7 +83,16 @@ const start_date ='{{start_date}}';
             Move : {{object.engine_move}} ,
             <i>Update {{object.mqtt_updated}}</i>
         </div>
+      </div>
+
+      {% if object.engine_malfunction == '1' %}
+      <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#exclamation-triangle-fill"/></svg>
+        <div>
+          Engine Fault.
         </div>
+      </div>
+      {% endif %}
  
      <p class="fs-4 text-start">ประวัติอาการ 20 ครั้งล่าสุด ของ {{object.machine}}</p>
 
@@ -105,6 +114,10 @@ const start_date ='{{start_date}}';
                           <td style="text-align:left">
                             {{obj.details}}
                             <p class="fst-italic text-primary">Root cause: {{obj.rootcause|default_if_none:"N/A"}}</p>
+                            <!-- Added Telamatic -->
+                             {% if obj.engine_hour %}
+                            <p><em>Hour : {{obj.engine_hour}} , Move : {{obj.engine_move}}</em></p>
+                            {% endif %}
                           </td>
                           <td style="text-align:center">{{obj.start_date}}</td>
                           <!-- <td style="text-align:center">{{obj.end_date}}</td> -->
@@ -136,7 +149,13 @@ const start_date ='{{start_date}}';
                   <tr>
                           <td style="text-align:center">{{object.start_date}}</td>
                           <td style="text-align:center">{{object.end_date}}</td>
-                          <td style="text-align:left">{{object.details}}</td>
+                          <td style="text-align:left">
+                            <p>{{object.details}}</p>
+                             <!-- Added Telamatic -->
+                              {% if object.engine_hour %}
+                            <p><em>Hour : {{object.engine_hour}} , Move : {{object.engine_move}}</em></p>
+                              {% endif %}
+                          </td>
                           <td style="text-align:center">{{object.period}} {{period_unit}}</td>
                           <td style="text-align:center">{{object.image_count}}</td>
                           <td style="text-align:center">{{object.status}}</td>

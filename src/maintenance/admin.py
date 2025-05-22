@@ -16,6 +16,8 @@ from import_export.admin import ImportExportModelAdmin
 from import_export.admin import ImportExportActionModelAdmin
 from import_export.fields import Field
 
+from maintenance.mosquitto import get_mqtt_message
+
 class OperationDateListFilter(admin.SimpleListFilter):
 	# Human-readable title which will be displayed in the
 	# right admin sidebar just above the filter options.
@@ -182,7 +184,7 @@ class MachineAdmin(admin.ModelAdmin):
 	search_fields = ['name','title']
 	list_filter = ['terminal','machine_type']
 	list_display = ('name','title','terminal','on_repair','on_preventive',
-				 'engine_hour','engine_move','engine_malfunction','created','user')
+				 'engine_hour','engine_move','engine_malfunction','overdue','created','user')
 
 	readonly_fields = ('created','updated','user','on_repair','on_preventive',
 						'engine_hour','engine_move','mqtt_updated','engine_malfunction')
@@ -200,6 +202,7 @@ class MachineAdmin(admin.ModelAdmin):
 	fieldsets = [
 		('Basic Information',{'fields': ['name','title','terminal','machine_type']}),
 		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction','mqtt_updated']}),
+		('Preventive Maintenance Plan',{'fields': ['engine_hour_next_pm','engine_move_next_pm']}),
 		('System Information',{'fields':[('user','created'),'updated']})
 	]
 	def save_model(self, request, obj, form, change):
@@ -208,6 +211,11 @@ class MachineAdmin(admin.ModelAdmin):
 			# Only set added_by during the first save.
 			obj.user = request.user
 		super().save_model(request, obj, form, change)
+
+	def overdue(self, obj):
+		return True if obj.is_overdue else False
+	overdue.boolean = True
+	overdue.short_description = "PM Overdue"
 
 class FailureImageInline(admin.TabularInline):
 	model = FailureImage
@@ -271,7 +279,8 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count',
-					'operation_date','operation_shift','repairing_time','lead_time','waitting_time')
+					'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
+					'engine_hour','engine_move','engine_malfunction')
 	autocomplete_fields  = ['machine','vendor']
 	inlines = [
 		FailureImageInline,
@@ -289,6 +298,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 		('Plan Information',{'fields': ['receiving_date','start_date','status','end_date',
 								  'operation_date','operation_shift',
 								  'waitting_time','repairing_time','lead_time']}),
+		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction']}),
 		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
 		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
 		('System Information',{'fields':[('user','created'),'updated']})
@@ -307,6 +317,10 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 			# print(operation_date,operation_shift,obj.end_date)
 			obj.operation_date	=	operation_date
 			obj.operation_shift	=	operation_shift
+			# Added on May 22,2025 -- To record current telematic data
+			obj.engine_hour = 0 if get_mqtt_message(obj.machine.name,"hour") is None else get_mqtt_message(obj.machine.name,"hour")
+			obj.engine_move = 0 if get_mqtt_message(obj.machine.name,"move") is None else get_mqtt_message(obj.machine.name,"move")
+			obj.engine_malfunction = '0' if get_mqtt_message(obj.machine.name,"malfunction") is None else get_mqtt_message(obj.machine.name,"malfunction") 
 		super().save_model(request, obj, form, change)
 
 @admin.register(Defect)
