@@ -115,7 +115,7 @@ async def get():
     <body>
     <h1>Engine WebSocket Test</h1>
     <script>
-      let ws = new WebSocket("ws://localhost:8082/ws/engine");
+      let ws = new WebSocket("ws://10.24.50.96:8082/ws/engine");
       ws.onmessage = function(event) {
         console.log("Received: ", event.data);
         document.body.innerHTML += "<pre>" + event.data + "</pre>";
