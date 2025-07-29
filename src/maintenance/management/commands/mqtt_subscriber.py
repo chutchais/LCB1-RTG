@@ -26,6 +26,25 @@ class Command(BaseCommand):
                 print(f"📍 From client ID: {client_id}")
                 print(f"📦 Message: {msg.payload.decode()}")
                 save_mqtt_message(client_id,topic_parts[2],msg.payload.decode())
+                # Added on Sep 28,2025 -- To save to redis structure format
+                _, engine_name, data_type = topic_parts
+                value = msg.payload.decode()
+                # Data type conversion
+                if data_type == "hour":
+                    value = float(value)
+                elif data_type == "move":
+                    value = int(value)
+                # Save to Redis as a hash
+                import datetime, pytz
+                tz 			= pytz.timezone('Asia/Bangkok')
+                today_tz 	=   datetime.datetime.now(tz=tz)
+
+                redis_key = f"engine:{engine_name}"
+                db.hset(redis_key, mapping={
+                    data_type: value,
+                    "last_update": today_tz.now().isoformat()
+                })
+                print(f"📥 Saved {engine_name} {data_type} = {value}")
 
 
         client = mqtt.Client(client_id="mosquitto-client")

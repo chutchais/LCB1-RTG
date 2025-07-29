@@ -141,6 +141,27 @@ services:
       - MQTT_PORT=1883
       # Add any other MQTT-related environment variables you need
 
+  engine-api:
+    restart: always
+    build:
+      context: ./src/api/engine  # Same as your Django project
+    networks:
+      - main
+    # volumes:
+    #   - rtg:/staticfiles
+    #   - rtg:/media
+    command: uvicorn main_engine:app --reload --host 0.0.0.0 --port 8082
+    ports:
+      - 8082:8082  # Expose the API on port 8082
+    container_name: rtg-engine-api
+    depends_on:
+      - redis  # Wait for Redis to be ready
+      - mosquitto   # Wait for Mosquitto to be ready
+    environment:
+      - REDIS_URL=redis://redis:${REDIS_PORT}/${RTG_READING_VALUE_DB}
+      - REDIS_PORT=6379
+      - REDIS_READING_DB=2
+
 
 volumes:  
   redis_data:
