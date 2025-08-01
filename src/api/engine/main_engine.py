@@ -10,6 +10,12 @@ import os
 from redis import Redis
 from fastapi.responses import HTMLResponse
 
+from fastapi import Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+
 # Redis connection
 r = Redis(host="redis", db=int(os.environ.get('REDIS_READING_DB', 0)), port=int(os.environ.get('REDIS_PORT', 6379)), decode_responses=True)
 
@@ -17,6 +23,12 @@ r = Redis(host="redis", db=int(os.environ.get('REDIS_READING_DB', 0)), port=int(
 r.config_set("notify-keyspace-events", "Kh")
 
 app = FastAPI()
+
+# Serve static files (optional if you have JS/CSS)
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Templates setup
+templates = Jinja2Templates(directory="templates")
 
 # Allow WebSocket test from Postman, browser, etc.
 app.add_middleware(
@@ -26,6 +38,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Route to serve the HTML dashboard
+@app.get("/dashboard", response_class=HTMLResponse)
+async def get_dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 # # ---------------- REST API ----------------
 

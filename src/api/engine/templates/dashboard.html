@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Engine Status Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .group-section {
+      margin-bottom: 2rem;
+    }
+    .group-section h2 {
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+    .group-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .engine-card {
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      width: 180px;
+      transition: background-color 0.3s ease;
+    }
+    .engine-card.red {
+      background-color: #ffcccc !important;
+    }
+    table {
+      width: 100%;
+      font-size: 0.9rem;
+    }
+    td {
+      padding: 2px 0;
+    }
+    td:first-child {
+      font-weight: bold;
+    }
+    td:last-child {
+      text-align: right;
+    }
+
+    /* Blinking animation */
+    .blink-green {
+      animation: blink-green 1s step-start 2;
+      color: green;
+    }
+
+    @keyframes blink-green {
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Engine Status</h1>
+  <div id="groups-container"></div>
+
+  <script>
+
+    // 1. Initial fetch
+    fetch('http://10.24.50.96:8082/api/engines')
+      .then(res => res.json())
+      .then(data => {
+        for (const [engine, values] of Object.entries(data)) {
+          updateEngineCard(engine, values);
+        }
+      });
+    // 2. Live updates via WebSocket
+    const ws = new WebSocket("ws://10.24.50.96:8082/ws/engine");
+
+    const engineGroups = {};
+    function getGroupPrefix(name) {
+      return name.match(/^[A-Z]+/)[0]; // e.g., "RS01" → "RS"
+    }   
+
+    // ws.onmessage = (event) => {
+    //   const data = JSON.parse(event.data);
+    //   updateEngineCard(data.engine, data);
+    // };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      updateEngineCard(msg.engine, msg.data);
+    };
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established");
+    };
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+
+
+    function formatThaiDate(isoDate) {
+      const dt = new Date(isoDate);
+      const pad = n => n.toString().padStart(2, '0');
+      const year = dt.getFullYear();
+      const month = pad(dt.getMonth() + 1);
+      const day = pad(dt.getDate());
+      const hour = pad(dt.getHours());
+      const minute = pad(dt.getMinutes());
+      const second = pad(dt.getSeconds());
+      return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    }
+
+    function updateEngineCard(engine, data) {
+      const container = document.getElementById('groups-container');
+      const prefix = engine.match(/^[A-Z]+/)[0]; // RS01 -> RS
+      const isAlert = data.malfunction === '1' || data.malfunction === 1; // Check if malfunction is '1' or 1
+      const groupName = isAlert ? 'Status' : prefix;
+
+
+      // Create group if not exist
+      let group = document.getElementById(`group-${groupName}`);
+      if (!group) {
+        group = document.createElement('div');
+        group.id = `group-${groupName}`;
+        group.className = 'group-section';
+        group.innerHTML = `<h2>${groupName}</h2><div class="group-list" id="list-${groupName}"></div>`;
+        if (groupName === 'Status') {
+          container.prepend(group); // Always on top
+        } else {
+          container.appendChild(group);
+        }
+      }
+
+
+      const cardId = `engine-card-${engine}`;
+      let card = document.getElementById(cardId);
+      const cardHTML = `
+      <div class="engine-name" id="name-${engine}">${engine}</div>
+        <table>
+          <tr><td>Hour</td><td>${parseFloat(data.hour).toFixed(2)}</td></tr>
+          <tr><td>Move</td><td>${data.move}</td></tr>
+          <tr><td>Status</td><td>${isAlert ? 'Fault' : 'Normal'}</td></tr>
+          <tr><td>Time</td><td>${formatThaiDate(data.last_update)}</td></tr>
+        </table>
+      `;
+
+        const nameEl = document.getElementById(`name-${engine}`);
+        if (nameEl) {
+          nameEl.classList.add('blink-green');
+          setTimeout(() => {
+            nameEl.classList.remove('blink-green');
+          }, 3000); // remove after 1 second (adjust as needed)
+        }
+
+      if (!card) {
+        card = document.createElement('div');
+        card.id = cardId;
+        card.className = 'engine-card';
+        document.getElementById(`list-${groupName}`).appendChild(card);
+      } else {
+        const currentGroup = card.parentElement.parentElement;
+        if (currentGroup.id !== `group-${groupName}`) {
+          card.remove();
+          document.getElementById(`list-${groupName}`).appendChild(card);
+        }
+      }
+
+      card.innerHTML = cardHTML;
+      card.classList.toggle('red', isAlert);
+
+      // Clean up "Status" group if empty
+      if (!isAlert) {
+        const statusGroup = document.getElementById('group-Status');
+        if (statusGroup) {
+          const statusList = statusGroup.querySelector('.group-list');
+          const thisCard = statusList.querySelector(`#${cardId}`);
+          if (thisCard) {
+            thisCard.remove();
+          }
+          if (statusList.children.length === 0) {
+            statusGroup.remove();
+          }
+        }
+      }
+    }
+
+  </script>
+
+</body>
+</html>
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Engine Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .group {
+      margin-bottom: 30px;
+    }
+    .group-title {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+    }
+    .engine-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    .engine-card {
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 15px;
+      width: 220px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+      background-color: #f9f9f9;
+    }
+    .engine-card.red {
+      background-color: #ffe5e5;
+      border-color: #ff0000;
+    }
+    .engine-name {
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Engine Status Dashboard</h1>
+  <div id="groups-container"></div>
+
+  <script>
+    const groups = {};
+
+    function formatDate(isoString) {
+      const d = new Date(isoString);
+      return d.toLocaleString();
+    }
+
+    function createCard(engine, data) {
+      const card = document.createElement('div');
+      card.className = 'engine-card';
+      card.id = `card-${engine}`;
+
+      if (data.status === 1 || data.status === "1" || data.status === "running") {
+        card.classList.add('red');
+      }
+      const isAlert = data.malfunction === '1' || data.malfunction === 1; // Check if malfunction is '1' or 1
+      card.innerHTML = `
+        <div class="engine-name">${engine}</div>
+        <div id="status-${engine}">
+          Hour: ${parseFloat(data.hour ?? 0).toFixed(2)}<br>
+          Move: ${data.move ?? '-'}<br>
+          Status: ${isAlert ? 'Fault' : 'Normal'}<br>
+          Time: ${data.last_update ? formatDate(data.last_update) : '-'}
+        </div>
+      `;
+
+      return card;
+    }
+
+    function getGroupName(engine, status) {
+      if (status === 1 || status === "1") return "Status";
+      if (engine.startsWith("RS")) return "RS";
+      if (engine.startsWith("TR")) return "TR";
+      if (engine.startsWith("TOP")) return "TOP";
+      return "Others";
+    }
+
+    function ensureGroupExists(groupName, insertFirst = false) {
+      if (!groups[groupName]) {
+        const group = document.createElement('div');
+        group.className = 'group';
+        group.id = `group-${groupName}`;
+
+        const title = document.createElement('div');
+        title.className = 'group-title';
+        title.textContent = groupName;
+
+        const list = document.createElement('div');
+        list.className = 'engine-list';
+        list.id = `list-${groupName}`;
+
+        group.appendChild(title);
+        group.appendChild(list);
+
+        const container = document.getElementById('groups-container');
+        if (insertFirst) {
+          container.insertBefore(group, container.firstChild);
+        } else {
+          container.appendChild(group);
+        }
+
+        groups[groupName] = list;
+      }
+    }
+
+    function updateOrCreateCard(engine, data) {
+      const cardId = `card-${engine}`;
+      const card = document.getElementById(cardId);
+      // const groupName = getGroupName(engine, data.status);
+      // const isStatus = groupName === "Status";
+
+      // const container = document.getElementById('groups-container');
+      const prefix = engine.match(/^[A-Z]+/)[0]; // RS01 -> RS
+      const isAlert = data.malfunction === '1' || data.malfunction === 1; // Check if malfunction is '1' or 1
+      const groupName = isAlert ? 'Status' : prefix;
+      const isStatus = groupName === "Status";
+
+      ensureGroupExists(groupName, isStatus);
+
+      const newCard = createCard(engine, data);
+      if (card) {
+        card.replaceWith(newCard);
+      } else {
+        groups[groupName].appendChild(newCard);
+      }
+    }
+
+    // 1. Initial fetch
+    fetch('http://10.24.50.96:8082/api/engines')
+      .then(res => res.json())
+      .then(data => {
+        for (const [engine, values] of Object.entries(data)) {
+          updateOrCreateCard(engine, values);
+        }
+      });
+
+    // 2. Live updates via WebSocket
+    const ws = new WebSocket("ws://10.24.50.96:8082/ws/engine");
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      updateOrCreateCard(msg.engine, msg.data);
+    };
+  </script>
+</body>
+</html> -->
+
