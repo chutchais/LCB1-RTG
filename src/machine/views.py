@@ -672,9 +672,23 @@ def get_rtg_productivity_dataframe():
             final_table = pd.concat([weekly_table , today_table], ignore_index=True)
         else:
             final_table = weekly_table
+        
+        # Edit on Sep 1,2025 -- To fix '' value
+        # final_table = final_table.fillna('')
+        # final_table['Number of Move'] = final_table['Number of Move'].astype(int)
+        
+        # Clean up final_table values
+        for col in final_table.columns:
+            if pd.api.types.is_numeric_dtype(final_table[col]):
+                # Fill NaN/empty with 0 for numeric columns
+                final_table[col] = pd.to_numeric(final_table[col], errors='coerce').fillna(0)
+                # If you want integers instead of floats for whole-number columns
+                if col in ['Number of Move']:  
+                    final_table[col] = final_table[col].astype(int)
+            else:
+                # Fill NaN with '' for text/object columns
+                final_table[col] = final_table[col].fillna('')
 
-        final_table = final_table.fillna('')
-        final_table['Number of Move'] = final_table['Number of Move'].astype(int)
 
 
         # Added JUly 29,2024 -- To save final DF to Redis
