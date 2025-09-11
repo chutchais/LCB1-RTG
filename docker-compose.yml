@@ -110,11 +110,13 @@ services:
     volumes:
       # - ./mosquitto/config:/mosquitto/config
       - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
+      # Comment on Sep 11,2025  -- Disable logging to improve performance
+      # - mosquitto_log:/mosquitto/log
     networks:
       - main
     build: ./mosquitto
     restart: unless-stopped
+
 
   mqtt-client:
     restart: always
@@ -150,7 +152,12 @@ services:
     # volumes:
     #   - rtg:/staticfiles
     #   - rtg:/media
-    command: uvicorn main_engine:app --reload --host 0.0.0.0 --port 8082
+    # Modify on Sep 11,2025  -- Disable logging to improve performance
+    # command: uvicorn main_engine:app --reload --host 0.0.0.0 --port 8082
+    command: uvicorn main_engine:app --reload --host 0.0.0.0 --port 8082 --no-access-log --log-level critical
+
+
+
     ports:
       - 8082:8082  # Expose the API on port 8082
     container_name: rtg-engine-api

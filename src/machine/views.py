@@ -784,7 +784,12 @@ def send_rtg_productivity_report(to_email,send_email,server='192.168.1.15'):
     msg['Subject'] = f'RTG Productivity report : {today_tz.strftime("%d-%b-%Y %H:%M")}'  
     msg['From'] = send_email 
     msg['To'] = to_email 
-    msg.set_content(df_today.to_html(), subtype='html')  
+    # Added on Sep 4,2025  - To fix some time no DF return
+    if df_today is None or df_today.empty:
+        msg.set_content("<p>No productivity data available today.<br> Please check in attached file.</p>", subtype='html')
+    else:
+        msg.set_content(df_today.to_html(), subtype='html')
+    # msg.set_content(df_today.to_html(), subtype='html')  
 
     df_week.to_excel('rtg_productivity.xlsx')
 
