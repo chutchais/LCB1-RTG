@@ -144,6 +144,7 @@
         <table>
           <tr><td>Hour</td><td>${parseFloat(data.hour).toFixed(2)}</td></tr>
           <tr><td>Move</td><td>${data.move}</td></tr>
+          <tr><td>Battery</td><td>${data.batt_volt}</td></tr>
           <tr><td>Status</td><td>${isAlert ? 'Fault' : 'Normal'}</td></tr>
           <tr><td>Time</td><td>${formatThaiDate(data.last_update)}</td></tr>
         </table>
