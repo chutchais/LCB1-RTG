@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Metering Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --gray: #95a5a6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .header-content h1 {
+            font-size: 1.8rem;
+            white-space: nowrap;
+        }
+        
+        .search-container {
+            flex-grow: 1;
+            max-width: 400px;
+            margin: 0 20px;
+        }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            padding: 8px 15px;
+            transition: background-color 0.3s;
+        }
+        
+        .search-box:focus-within {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .search-box i {
+            color: rgba(255, 255, 255, 0.8);
+            margin-right: 10px;
+        }
+        
+        .search-box input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 0.9rem;
+            background: transparent;
+            color: white;
+        }
+        
+        .search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .status-indicators {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .online { background-color: var(--success); }
+        .offline { background-color: var(--danger); }
+        .standby { background-color: var(--warning); }
+        
+        .websocket-status {
+            background-color: var(--success);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            transition: background-color 0.3s;
+        }
+        
+        .websocket-status.disconnected {
+            background-color: var(--danger);
+        }
+        
+        .websocket-status.connecting {
+            background-color: var(--warning);
+        }
+        
+        .group-tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            background: white;
+            border-radius: 8px 8px 0 0;
+            padding: 0 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .group-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .group-tab.active {
+            border-bottom: 3px solid var(--secondary);
+            color: var(--secondary);
+        }
+        
+        .group-tab:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .table-container {
+            background-color: white;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .equipment-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .equipment-table th {
+            background-color: var(--light);
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            border-bottom: 1px solid #ddd;
+            white-space: nowrap;
+        }
+        
+        .equipment-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .equipment-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .equipment-table tr:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            text-align: center;
+            min-width: 80px;
+        }
+        
+        .status-operational { background-color: rgba(46, 204, 113, 0.2); color: var(--success); }
+        .status-standby { background-color: rgba(243, 156, 18, 0.2); color: var(--warning); }
+        .status-offline { background-color: rgba(231, 76, 60, 0.2); color: var(--danger); }
+        .status-problem { background-color: rgba(231, 76, 60, 0.9); color: white; }
+        
+        .last-update {
+            font-size: 0.8rem;
+            color: var(--gray);
+            white-space: nowrap;
+        }
+        
+        .battery-voltage {
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        /* Priority row styling for equipment with problems */
+        .priority-row {
+            background-color: rgba(231, 76, 60, 0.1) !important;
+            border-left: 4px solid var(--danger);
+        }
+        
+        .priority-row:hover {
+            background-color: rgba(231, 76, 60, 0.15) !important;
+        }
+        
+        /* Blinking animation for updated equipment */
+        @keyframes blink {
+            0% { background-color: rgba(52, 152, 219, 0.3); }
+            50% { background-color: rgba(52, 152, 219, 0.7); }
+            100% { background-color: rgba(52, 152, 219, 0.3); }
+        }
+        
+        .blinking {
+            animation: blink 0.5s ease-in-out 10; /* 10 iterations = 5 seconds */
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .loading i {
+            margin-right: 10px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 1200px) {
+            .dashboard-header {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .header-content {
+                flex-basis: 100%;
+                justify-content: space-between;
+            }
+            
+            .search-container {
+                max-width: none;
+                margin: 0;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .dashboard-header {
+                padding: 12px 15px;
+            }
+            
+            .header-content h1 {
+                font-size: 1.5rem;
+            }
+            
+            .header-controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .status-indicators {
+                order: 2;
+            }
+            
+            .websocket-status {
+                order: 1;
+            }
+            
+            .group-tabs {
+                overflow-x: auto;
+            }
+            
+            .equipment-table {
+                display: block;
+                overflow-x: auto;
+                font-size: 0.85rem;
+            }
+            
+            .equipment-table th,
+            .equipment-table td {
+                padding: 10px 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .search-container {
+                width: 100%;
+            }
+            
+            .status-indicators {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1>Equipment Metering Dashboard</h1>
+                
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-input" placeholder="Search by Equipment ID...">
+                    </div>
+                </div>
+                
+                <div class="header-controls">
+                    <div class="status-indicators">
+                        <div class="status-indicator">
+                            <div class="status-dot online"></div>
+                            <span>Operational</span>
+                        </div>
+                        <div class="status-indicator">
+                            <div class="status-dot standby"></div>
+                            <span>Standby</span>
+                        </div>
+                        <div class="status-indicator">
+                            <div class="status-dot offline"></div>
+                            <span>Offline</span>
+                        </div>
+                    </div>
+                    
+                    <div class="websocket-status connecting" id="websocket-status">
+                        <i class="fas fa-circle"></i>
+                        <span>Connecting...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="group-tabs" id="group-tabs">
+            <!-- Group tabs will be populated by JavaScript -->
+        </div>
+        
+        <div class="table-container">
+            <div id="table-content">
+                <div class="loading" id="loading-indicator">
+                    <i class="fas fa-spinner"></i>
+                    <span>Loading equipment data...</span>
+                </div>
+                
+                <table class="equipment-table" id="equipment-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Equipment ID</th>
+                            <th>Status</th>
+                            <th>Operating Hours</th>
+                            <th>Move Count</th>
+                            <th>Battery V</th>
+                            <th>Last Update</th>
+                        </tr>
+                    </thead>
+                    <tbody id="equipment-table-body">
+                        <!-- Equipment rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://10.24.50.96:8082/api/engines/';
+        const WS_URL = 'ws://10.24.50.96:8082/ws/engine';
+        
+        // Status thresholds in minutes
+        const STATUS_THRESHOLDS = {
+            OPERATIONAL: 30,    // Less than 5 minutes
+            STANDBY: 60,    // 5 minutes to 24 hours
+            OFFLINE: 60     // More than 24 hours
+        };
+        
+        // Global variables
+        let equipmentData = {};
+        let activeGroup = null;
+        let websocket = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        let searchTerm = '';
+        let statusUpdateInterval = null;
+
+        // Function to extract engine group name (remove numbers)
+        function getEngineGroup(engineId) {
+            return engineId.replace(/\d+/g, '');
+        }
+
+        // Function to determine equipment status based on last update time
+        function getEquipmentStatus(lastUpdate) {
+            const updateTime = new Date(lastUpdate);
+            const now = new Date();
+            const diffMinutes = (now - updateTime) / (1000 * 60);
+            
+            if (diffMinutes < STATUS_THRESHOLDS.OPERATIONAL) {
+                return 'operational';
+            } else if (diffMinutes < STATUS_THRESHOLDS.STANDBY) {
+                return 'standby';
+            } else {
+                return 'offline';
+            }
+        }
+
+        // Function to get human-friendly time difference
+        function getTimeAgo(lastUpdate) {
+            const now = new Date();
+            const updateTime = new Date(lastUpdate);
+            const diffMs = now - updateTime;
+            const diffSeconds = Math.floor(diffMs / 1000);
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            const diffHours = Math.floor(diffMinutes / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            if (diffDays > 0) {
+                const remainingHours = diffHours % 24;
+                if (remainingHours > 0) {
+                    return `${diffDays}d ${remainingHours}h ago`;
+                }
+                return `${diffDays}d ago`;
+            }
+            
+            if (diffHours > 0) {
+                const remainingMinutes = diffMinutes % 60;
+                if (remainingMinutes > 0) {
+                    return `${diffHours}h ${remainingMinutes}m ago`;
+                }
+                return `${diffHours}h ago`;
+            }
+            
+            if (diffMinutes > 0) {
+                return `${diffMinutes}m ago`;
+            }
+            
+            return 'Just now';
+        }
+
+        // Function to update all equipment statuses based on current time
+        function updateAllEquipmentStatus() {
+            let hasChanges = false;
+            
+            for (const group in equipmentData) {
+                equipmentData[group].forEach(equipment => {
+                    const oldStatus = equipment.status;
+                    const newStatus = getEquipmentStatus(equipment.lastUpdate);
+                    
+                    if (oldStatus !== newStatus) {
+                        equipment.status = newStatus;
+                        hasChanges = true;
+                        
+                        // Update the UI for this equipment
+                        updateEquipmentStatusUI(equipment);
+                    }
+                    
+                    // Always update the time display
+                    updateEquipmentTimeUI(equipment);
+                });
+            }
+            
+            if (hasChanges) {
+                // Re-sort and re-render if statuses changed
+                renderEquipmentTable();
+            }
+        }
+
+        // Function to update equipment status in UI
+        function updateEquipmentStatusUI(equipment) {
+            const equipmentRow = document.getElementById(`equipment-${equipment.id}`);
+            
+            if (equipmentRow) {
+                const statusCell = equipmentRow.cells[1];
+                const statusClass = `status-${equipment.status}`;
+                const statusText = equipment.status.charAt(0).toUpperCase() + equipment.status.slice(1);
+                
+                // Update problem status display
+                if (equipment.problemStatus && equipment.problemStatus.trim() !== '') {
+                    statusCell.innerHTML = `<span class="status-badge status-problem">${equipment.problemStatus}</span>`;
+                    equipmentRow.classList.add('priority-row');
+                } else {
+                    statusCell.innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
+                    equipmentRow.classList.remove('priority-row');
+                }
+            }
+        }
+
+        // Function to update equipment time in UI
+        function updateEquipmentTimeUI(equipment) {
+            const equipmentRow = document.getElementById(`equipment-${equipment.id}`);
+            
+            if (equipmentRow) {
+                const timeCell = equipmentRow.cells[5];
+                const timeAgo = getTimeAgo(equipment.lastUpdate);
+                timeCell.innerHTML = `<span class="last-update">${timeAgo}</span>`;
+            }
+        }
+
+        // Function to fetch initial data from API
+        async function fetchInitialData() {
+            try {
+                showLoading(true);
+                const response = await fetch(API_BASE_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                processInitialData(data);
+                showLoading(false);
+                initializeWebSocket();
+                
+                // Start the status update interval
+                startStatusUpdateInterval();
+            } catch (error) {
+                console.error('Error fetching initial data:', error);
+                showLoading(false);
+                showError('Failed to load equipment data. Please check the connection.');
+                
+                // Retry after 5 seconds
+                setTimeout(fetchInitialData, 5000);
+            }
+        }
+
+        // Function to start the status update interval
+        function startStatusUpdateInterval() {
+            // Clear existing interval if any
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+            }
+            
+            // Update status every 30 seconds
+            statusUpdateInterval = setInterval(updateAllEquipmentStatus, 30000);
+        }
+
+        // Function to process initial API data
+        function processInitialData(apiData) {
+            equipmentData = {};
+            
+            for (const [engineId, engineData] of Object.entries(apiData)) {
+                const group = getEngineGroup(engineId);
+                if (!equipmentData[group]) {
+                    equipmentData[group] = [];
+                }
+                
+                equipmentData[group].push({
+                    id: engineId,
+                    status: getEquipmentStatus(engineData.last_update),
+                    problemStatus: '', // Default to blank
+                    hours: engineData.hour,
+                    lastUpdate: engineData.last_update,
+                    moves: engineData.move,
+                    battery: engineData.batt_volt || 'N/A'
+                });
+            }
+            
+            renderGroupTabs();
+            renderEquipmentTable();
+        }
+
+        // Function to render group tabs
+        function renderGroupTabs() {
+            const container = document.getElementById('group-tabs');
+            container.innerHTML = '';
+            
+            // Add "All" tab
+            const allTab = document.createElement('div');
+            allTab.className = 'group-tab' + (activeGroup === null ? ' active' : '');
+            allTab.textContent = 'All';
+            allTab.addEventListener('click', () => {
+                setActiveGroup(null);
+            });
+            container.appendChild(allTab);
+            
+            // Add group tabs
+            for (const group in equipmentData) {
+                const groupTab = document.createElement('div');
+                groupTab.className = 'group-tab' + (activeGroup === group ? ' active' : '');
+                groupTab.textContent = group;
+                groupTab.addEventListener('click', () => {
+                    setActiveGroup(group);
+                });
+                container.appendChild(groupTab);
+            }
+        }
+
+        // Function to set active group
+        function setActiveGroup(group) {
+            activeGroup = group;
+            renderGroupTabs();
+            renderEquipmentTable();
+        }
+
+        // Function to sort equipment by priority and update date
+        function sortEquipment(equipmentList) {
+            return equipmentList.sort((a, b) => {
+                // First, sort by priority (equipment with problem status goes to top)
+                const aHasProblem = a.problemStatus && a.problemStatus.trim() !== '';
+                const bHasProblem = b.problemStatus && b.problemStatus.trim() !== '';
+                
+                if (aHasProblem && !bHasProblem) return -1;
+                if (!aHasProblem && bHasProblem) return 1;
+                
+                // Then sort by status priority
+                const statusPriority = {
+                    'operational': 1,
+                    'standby': 2,
+                    'offline': 3
+                };
+                
+                const aPriority = statusPriority[a.status] || 3;
+                const bPriority = statusPriority[b.status] || 3;
+                
+                if (aPriority !== bPriority) {
+                    return aPriority - bPriority;
+                }
+                
+                // Then sort by last update date (most recent first)
+                const dateA = new Date(a.lastUpdate);
+                const dateB = new Date(b.lastUpdate);
+                return dateB - dateA;
+            });
+        }
+
+        // Function to render equipment table
+        function renderEquipmentTable() {
+            const tableBody = document.getElementById('equipment-table-body');
+            tableBody.innerHTML = '';
+            
+            // Get equipment to display based on active group
+            let equipmentToDisplay = [];
+            
+            if (activeGroup) {
+                equipmentToDisplay = [...equipmentData[activeGroup]];
+            } else {
+                for (const group in equipmentData) {
+                    equipmentToDisplay = equipmentToDisplay.concat(equipmentData[group]);
+                }
+            }
+            
+            // Apply search filter
+            if (searchTerm) {
+                equipmentToDisplay = equipmentToDisplay.filter(equipment => 
+                    equipment.id.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            }
+            
+            // Sort equipment by priority and update date
+            equipmentToDisplay = sortEquipment(equipmentToDisplay);
+            
+            // Render equipment rows
+            equipmentToDisplay.forEach(equipment => {
+                const statusClass = `status-${equipment.status}`;
+                const statusText = equipment.status.charAt(0).toUpperCase() + equipment.status.slice(1);
+                const timeAgo = getTimeAgo(equipment.lastUpdate);
+                
+                const row = document.createElement('tr');
+                row.id = `equipment-${equipment.id}`;
+                
+                // Add priority class if equipment has problem status
+                if (equipment.problemStatus && equipment.problemStatus.trim() !== '') {
+                    row.classList.add('priority-row');
+                }
+                
+                row.innerHTML = `
+                    <td><strong>${equipment.id}</strong></td>
+                    <td>
+                        ${equipment.problemStatus && equipment.problemStatus.trim() !== '' 
+                            ? `<span class="status-badge status-problem">${equipment.problemStatus}</span>` 
+                            : `<span class="status-badge ${statusClass}">${statusText}</span>`
+                        }
+                    </td>
+                    <td>${equipment.hours}</td>
+                    <td>${equipment.moves}</td>
+                    <td class="battery-voltage">${equipment.battery}</td>
+                    <td class="last-update">${timeAgo}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Function to initialize WebSocket connection
+        function initializeWebSocket() {
+            try {
+                updateWebSocketStatus('connecting', 'Connecting...');
+                websocket = new WebSocket(WS_URL);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connection established');
+                    updateWebSocketStatus('connected', 'Connected');
+                    reconnectAttempts = 0;
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        processWebSocketData(data);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket connection closed');
+                    updateWebSocketStatus('disconnected', 'Disconnected');
+                    
+                    // Attempt to reconnect with exponential backoff
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                        console.log(`Attempting to reconnect in ${delay}ms...`);
+                        setTimeout(initializeWebSocket, delay);
+                        reconnectAttempts++;
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateWebSocketStatus('disconnected', 'Connection Error');
+                };
+                
+            } catch (error) {
+                console.error('Error initializing WebSocket:', error);
+                updateWebSocketStatus('disconnected', 'Connection Failed');
+            }
+        }
+
+        // Function to update WebSocket status indicator
+        function updateWebSocketStatus(status, message) {
+            const statusElement = document.getElementById('websocket-status');
+            statusElement.className = `websocket-status ${status}`;
+            statusElement.innerHTML = `<i class="fas fa-circle"></i><span>${message}</span>`;
+        }
+
+        // Function to process WebSocket data
+        function processWebSocketData(data) {
+            const group = getEngineGroup(data.engine);
+            
+            // Find the equipment in our data
+            if (equipmentData[group]) {
+                const equipmentIndex = equipmentData[group].findIndex(e => e.id === data.engine);
+                
+                if (equipmentIndex !== -1) {
+                    // Update the equipment data
+                    equipmentData[group][equipmentIndex].hours = data.data.hour;
+                    equipmentData[group][equipmentIndex].lastUpdate = data.data.last_update;
+                    equipmentData[group][equipmentIndex].moves = data.data.move;
+                    equipmentData[group][equipmentIndex].status = getEquipmentStatus(data.data.last_update);
+                    
+                    // Update battery voltage if available
+                    if (data.data.batt_volt) {
+                        equipmentData[group][equipmentIndex].battery = data.data.batt_volt;
+                    }
+                    
+                    // Update problem status if available
+                    if (data.data.problem_status !== undefined) {
+                        equipmentData[group][equipmentIndex].problemStatus = data.data.problem_status;
+                    }
+                    
+                    // Update the UI
+                    updateEquipmentUI(equipmentData[group][equipmentIndex]);
+                    
+                    // Show update notification
+                    showUpdateNotification(data.engine);
+                } else {
+                    // If equipment doesn't exist, add it
+                    equipmentData[group].push({
+                        id: data.engine,
+                        status: getEquipmentStatus(data.data.last_update),
+                        problemStatus: data.data.problem_status || '',
+                        hours: data.data.hour,
+                        lastUpdate: data.data.last_update,
+                        moves: data.data.move,
+                        battery: data.data.batt_volt || 'N/A'
+                    });
+                    
+                    // Re-render the equipment table and tabs
+                    renderGroupTabs();
+                    renderEquipmentTable();
+                }
+            } else {
+                // If group doesn't exist, create it
+                equipmentData[group] = [{
+                    id: data.engine,
+                    status: getEquipmentStatus(data.data.last_update),
+                    problemStatus: data.data.problem_status || '',
+                    hours: data.data.hour,
+                    lastUpdate: data.data.last_update,
+                    moves: data.data.move,
+                    battery: data.data.batt_volt || 'N/A'
+                }];
+                
+                // Re-render the equipment table and tabs
+                renderGroupTabs();
+                renderEquipmentTable();
+            }
+        }
+
+        // Function to update equipment UI with blinking effect
+        function updateEquipmentUI(equipment) {
+            const equipmentRow = document.getElementById(`equipment-${equipment.id}`);
+            
+            if (equipmentRow) {
+                // Update the equipment information
+                const cells = equipmentRow.cells;
+                
+                // Update status cell with problem status or normal status
+                if (equipment.problemStatus && equipment.problemStatus.trim() !== '') {
+                    cells[1].innerHTML = `<span class="status-badge status-problem">${equipment.problemStatus}</span>`;
+                    equipmentRow.classList.add('priority-row');
+                } else {
+                    const statusText = equipment.status.charAt(0).toUpperCase() + equipment.status.slice(1);
+                    const statusClass = `status-${equipment.status}`;
+                    cells[1].innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
+                    equipmentRow.classList.remove('priority-row');
+                }
+                
+                cells[2].textContent = equipment.hours; // Hours
+                cells[3].textContent = equipment.moves; // Moves
+                cells[4].textContent = equipment.battery; // Battery voltage
+                
+                // Update the last update time
+                const timeAgo = getTimeAgo(equipment.lastUpdate);
+                cells[5].innerHTML = `<span class="last-update">${timeAgo}</span>`;
+                
+                // Add blinking effect
+                equipmentRow.classList.add('blinking');
+                
+                // Remove blinking effect after 5 seconds
+                setTimeout(() => {
+                    equipmentRow.classList.remove('blinking');
+                }, 5000);
+            } else {
+                // If row doesn't exist (due to filtering), re-render the table
+                renderEquipmentTable();
+            }
+        }
+
+        // Function to show update notification
+        function showUpdateNotification(equipmentId) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background-color: var(--secondary);
+                color: white;
+                padding: 10px 15px;
+                border-radius: 5px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            notification.innerHTML = `
+                <i class="fas fa-sync-alt"></i>
+                <span>${equipmentId} updated</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Function to show/hide loading indicator
+        function showLoading(show) {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const equipmentTable = document.getElementById('equipment-table');
+            
+            if (show) {
+                loadingIndicator.style.display = 'flex';
+                equipmentTable.style.display = 'none';
+            } else {
+                loadingIndicator.style.display = 'none';
+                equipmentTable.style.display = 'table';
+            }
+        }
+
+        // Function to show error message
+        function showError(message) {
+            const tableContent = document.getElementById('table-content');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'loading';
+            errorDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>${message}</span>
+            `;
+            tableContent.appendChild(errorDiv);
+        }
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add search functionality
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value;
+                renderEquipmentTable();
+            });
+            
+            // Add CSS for animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Start by fetching initial data
+            fetchInitialData();
+        });
+
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+            }
+            if (websocket) {
+                websocket.close();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -43,7 +43,7 @@ app.add_middleware(
 # Route to serve the HTML dashboard
 @app.get("/dashboard", response_class=HTMLResponse)
 async def get_dashboard(request: Request):
-    return templates.TemplateResponse("dashboard2.html", {"request": request})
+    return templates.TemplateResponse("dashboard3.html", {"request": request})
 
 # Added on Oct 13,2025 -- TO show battery status on dashboard
 @app.get("/battery", response_class=HTMLResponse)
