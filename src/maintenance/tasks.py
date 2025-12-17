@@ -107,3 +107,35 @@ def get_daily_data_all(key:str):
 
 # Get the latest entry
 # latest_data = r.zrevrange(key, 0, 0, withscores=True)
+
+
+def send_engine_hour_report(to_email,send_email,server='192.168.1.15'):
+    import smtplib  
+    from email.message import EmailMessage
+
+    import datetime, pytz
+    tz 		    = pytz.timezone('Asia/Bangkok')
+    today_tz 	=   datetime.datetime.now(tz=tz)
+
+    # Run generate operation report
+    # df_week,df_today = get_rtg_productivity_dataframe()
+    
+    msg = EmailMessage()  
+    msg['Subject'] = f'Mobile Equipment Engine Hour Report : {today_tz.strftime("%d-%b-%Y %H:%M")}'  
+    msg['From'] = send_email 
+    msg['To'] = to_email
+
+    from maintenance.models import Machine
+    machines = Machine.objects.filter(machine_type__in=['TOPLIFT','RS']).order_by('name')    
+    content = "<h3>Mobile Equipment Engine Hour Report</h3>"
+    content += f"<p>Report Date : {today_tz.strftime('%d-%b-%Y %H:%M')}</p>"
+    content += "<table border='1' cellpadding='5' cellspacing='0'>"     
+    content += "<tr><th>Machine</th><th>Engine Hour</th><th>Move</th></tr>"
+    for mt in machines:
+        content += f"<tr><td>{mt.name}</td><td align='right'>{mt.engine_hour if mt.engine_hour else 0}</td><td align='right'>{mt.engine_move if mt.engine_move else 0}</td></tr>"
+    content += "</table>"
+    msg.add_alternative(content, subtype='html')
+
+    # ส่งอีเมล  
+    with smtplib.SMTP(server) as server:  
+        server.send_message(msg)  
