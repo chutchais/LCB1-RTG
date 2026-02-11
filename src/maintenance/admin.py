@@ -275,7 +275,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 	}
 	search_fields = ['machine__name','details','rootcause','repair_action']
 	list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
-	list_display = ('machine','details','receiving_date','start_date','end_date','status','category','image_count',
+	list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','category','image_count',
 				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count',
@@ -295,7 +295,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 
 	fieldsets = [
 		('Basic Information',{'fields': ['machine','details','category']}),
-		('Plan Information',{'fields': ['receiving_date','start_date','status','end_date',
+		('Plan Information',{'fields': [('receiving_date','expect_date'),'start_date','status','end_date',
 								  'operation_date','operation_shift',
 								  'waitting_time','repairing_time','lead_time']}),
 		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction']}),

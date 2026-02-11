@@ -80,7 +80,11 @@
                           <td style="text-align:center"><a href="{{r.get_absolute_url}}">{{r.machine}}</a></td>
                           <td style="text-align:left">{{r.details}}</td>
                           <td style="text-align:center">{{r.start_date|date:"j M H:s"}}</td>
-                          <td style="text-align:center">{{r.expect_date|date:"j M H:s"}}</td>
+                          <td style="text-align:center">{{r.expect_date|date:"j M H:s"}}
+                            <span class="text-muted">
+                                ({{ r.expect_date|naturaltime }})
+                            </span>
+                          </td>
                           <td style="text-align:center">On Repairing</td>
                   </tr>
         {% endfor %}
