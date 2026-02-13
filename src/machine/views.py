@@ -423,7 +423,7 @@ def get_operation_dataframe():
     # Added on JUly 19,2024 -- To handle with non-hybrid RTG
     remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
               'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
-              'RTG34','RTG35']
+              'RTG34','RTG35','RTG36','RTG37']
 
     # if dict is None :
     # Check Last record date on DataLogger
@@ -511,7 +511,7 @@ def get_data_by_start_date(start_date_00,today_report):
         # Added on JUly 19,2024 -- To handle with non-hybrid RTG
         remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
               'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
-              'RTG34','RTG35']
+              'RTG34','RTG35','RTG36','RTG37']
             # Modify on Aug 18,2024 -- To to add 'Crane On Minute' parameter ,remove 'Crane On Hour'
         dict_yesterday=list(DataLogger.objects.filter(
                 created__gte = start_date_00,item__name__in =[
@@ -623,7 +623,7 @@ def get_rtg_productivity_dataframe():
     # Added on JUly 19,2024 -- To handle with non-hybrid RTG
     remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
               'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
-              'RTG34','RTG35']
+              'RTG34','RTG35','RTG36','RTG37']
 
     # if dict is None :
     # Check Last record date on DataLogger
@@ -707,7 +707,7 @@ def get_rtg_productivity_by_start_date(start_date_00,today_report):
         # Added on JUly 19,2024 -- To handle with non-hybrid RTG
         remove_rtgs=['RTG16','RTG17','RTG18','RTG19','RTG20','RTG21','RTG22','RTG23','RTG24',
               'RTG25','RTG26','RTG27','RTG28','RTG29','RTG30','RTG31','RTG32','RTG33',
-              'RTG34','RTG35']
+              'RTG34','RTG35','RTG36','RTG37']
             # Modify on Aug 18,2024 -- To to add 'Crane On Minute' parameter ,remove 'Crane On Hour'
         # dict_yesterday=list(DataLogger.objects.filter(
         #         created__gte = start_date_00,item__name__in =[
