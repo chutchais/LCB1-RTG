@@ -215,6 +215,126 @@ SHIFT_CHOICES =(
     ("Night" , "Night")
     )
 
+class FailureCategory(BasicInfo):
+    """
+    Self-referencing model for unlimited hierarchy levels
+    Example:
+    - Engine
+      - Injector
+        - Broken
+    """
+    machine_type        = models.ForeignKey(MachineType,
+                            on_delete=models.CASCADE,
+                            blank=True, null=True,
+                            related_name='failure_categories')
+    
+    name                = models.CharField(max_length=100)
+    code                = models.CharField(max_length=50, blank=True, null=True)  # Increased max_length
+    description         = models.TextField(blank=True, null=True)
+    
+    parent              = models.ForeignKey('self',
+                            on_delete=models.CASCADE,
+                            blank=True, null=True,
+                            related_name='children')
+    
+    order               = models.PositiveIntegerField(default=0)
+    is_active           = models.BooleanField(default=True)
+    user                = models.ForeignKey(settings.AUTH_USER_MODEL,
+                            on_delete=models.SET_NULL,
+                            blank=True, null=True, related_name='failure_categories')
+    
+    # def __str__(self):
+    #     return self.get_full_path()
+    def __str__(self):
+        """Display with machine type prefix"""
+        machine_type_name = self.machine_type.name if self.machine_type else "N/A"
+        full_path = self.get_full_path()
+        return f"[{machine_type_name}] {full_path}"
+    
+    def get_full_path(self):
+        """Return full category path: Engine > Injector > Broken"""
+        if self.parent:
+            return f"{self.parent.get_full_path()} > {self.name}"
+        return self.name
+    
+    def get_level(self):
+        """Get hierarchy level (0 = root, 1 = child, etc.)"""
+        if self.parent:
+            return self.parent.get_level() + 1
+        return 0
+    
+    def get_root(self):
+        """Get root category"""
+        if self.parent:
+            return self.parent.get_root()
+        return self
+    
+    def get_ancestors(self):
+        """Get all parent categories up to root"""
+        ancestors = []
+        current = self.parent
+        while current:
+            ancestors.insert(0, current)
+            current = current.parent
+        return ancestors
+    
+    def is_leaf(self):
+        """Check if this is a leaf node (no children)"""
+        return not self.children.exists()
+    
+    # NEW: Auto-generate code
+    def generate_code(self):
+        """
+        Auto-generate code based on machine_type and parent hierarchy
+        Format: [MACHINETYPE]_[PARENTCODE]_[NAME]
+        Example: 
+        - RTG_ENGINE
+        - RTG_ENGINE_INJECTOR
+        - RTG_ENGINE_INJECTOR_BROKEN
+        """
+        if not self.machine_type:
+            return ""
+        
+        parts = []
+        
+        # Add machine type
+        parts.append(self.machine_type.name.upper())
+        
+        # Add parent codes recursively
+        if self.parent:
+            # Get parent's full code path (without machine_type prefix)
+            parent_code = self.parent.code
+            if parent_code:
+                # Remove machine_type prefix to avoid duplication
+                code_without_machine = parent_code.split('_', 1)[-1]  # Get everything after first underscore
+                parts.append(code_without_machine)
+        
+        # Add current name
+        parts.append(self.name.upper())
+        
+        return '_'.join(parts)
+    
+    def save(self, *args, **kwargs):
+        """Auto-generate code if not provided"""
+        if not self.code or self.code.strip() == '':
+            self.code = self.generate_code()
+        
+        # Ensure code is uppercase
+        if self.code:
+            self.code = self.code.upper()
+        
+        super().save(*args, **kwargs)
+
+    
+    class Meta(BasicInfo.Meta):
+        db_table = 'ma-failure-category'
+        ordering = ('machine_type', 'order', 'name')
+        unique_together = ('machine_type', 'parent', 'code')
+        verbose_name_plural = 'Failure Categories'
+        indexes = [
+            models.Index(fields=['machine_type', 'parent']),
+            models.Index(fields=['is_active']),
+        ]
 # Added on Dec 28,2024 -- To collect vendor
 class Vendor(BasicInfo):
     name                = models.CharField(max_length=50,primary_key=True)
@@ -264,6 +384,12 @@ class Failure(BasicInfo):
                                     decimal_places=2, default=0, blank=True,null=True) 
     engine_move             = models.IntegerField(default=0)
     engine_malfunction      = models.CharField(max_length=1,default='0')
+
+        # Added on Feb 27,2026 -- New hierarchical category field
+    failure_category    = models.ForeignKey(FailureCategory,
+                            on_delete=models.SET_NULL,
+                            blank=True, null=True, 
+                            related_name='failures')
 
     def __str__(self):
         return f'{self.machine} - {self.details[1:20]}'
@@ -329,6 +455,94 @@ class Failure(BasicInfo):
             return get_execution_time_in_minutes(self.receiving_date,today)
         
     waitting_time.fget.short_description = 'Waitting time (minute)'
+
+        # Added on Feb 27,2026 -- Category path properties for export
+    @property
+    def category_full_path(self):
+        """Get full category path for export"""
+        if self.failure_category:
+            return self.failure_category.get_full_path()
+        return ""
+
+    # Added on Feb 27,2026 -- Category path properties for export
+    @property
+    def category_full_path(self):
+        """Get full category path for export"""
+        if self.failure_category:
+            return self.failure_category.get_full_path()
+        return ""
+
+    @property
+    def category_level_0(self):
+        """Get root category (Level 0)"""
+        if self.failure_category:
+            return self.failure_category.get_root().name
+        return ""
+
+    @property
+    def category_level_1(self):
+        """Get Level 1 category (first child under root)"""
+        if self.failure_category:
+            ancestors = self.failure_category.get_ancestors()
+            # Level 0 is root, Level 1 is first child
+            if len(ancestors) == 0:
+                # This IS the root (no ancestors)
+                return ""
+            elif len(ancestors) == 1:
+                # This is Level 1 (direct child of root)
+                return self.failure_category.name
+            else:
+                # This is deeper, get the Level 1 ancestor
+                return ancestors[0].name
+        return ""
+
+    @property
+    def category_level_2(self):
+        """Get Level 2 category (second child under root)"""
+        if self.failure_category:
+            ancestors = self.failure_category.get_ancestors()
+            if len(ancestors) < 2:
+                # Not deep enough to have a Level 2
+                return ""
+            elif len(ancestors) == 2:
+                # This IS the Level 2
+                return self.failure_category.name
+            else:
+                # This is deeper, get the Level 2 ancestor
+                return ancestors[1].name
+        return ""
+
+    @property
+    def category_level_3(self):
+        """Get Level 3 category (third child under root)"""
+        if self.failure_category:
+            ancestors = self.failure_category.get_ancestors()
+            if len(ancestors) < 3:
+                # Not deep enough to have a Level 3
+                return ""
+            elif len(ancestors) == 3:
+                # This IS the Level 3
+                return self.failure_category.name
+            else:
+                # This is even deeper
+                return ancestors[2].name
+        return ""
+
+    @property
+    def category_level_4(self):
+        """Get Level 4 category (fourth child under root) - if exists"""
+        if self.failure_category:
+            ancestors = self.failure_category.get_ancestors()
+            if len(ancestors) < 4:
+                # Not deep enough to have a Level 4
+                return ""
+            elif len(ancestors) == 4:
+                # This IS the Level 4
+                return self.failure_category.name
+            else:
+                # This is even deeper
+                return ancestors[3].name
+        return ""
 
     class Meta(BasicInfo.Meta):
         db_table = 'ma-failure'
