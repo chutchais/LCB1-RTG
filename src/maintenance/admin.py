@@ -1,9 +1,11 @@
+from django.utils.html import format_html
+
 from django.contrib import admin
 
 # Register your models here.
 from .models import Section,MachineType,Machine,Failure,Defect, \
 				Preventive,Accident,AccidentImage,FailureImage,PreventiveImage, \
-				Vendor
+				Vendor,FailureCategory
 from django import forms
 from django.db import models
 from django.forms               import TextInput, Textarea
@@ -17,6 +19,10 @@ from import_export.admin import ImportExportActionModelAdmin
 from import_export.fields import Field
 
 from maintenance.mosquitto import get_mqtt_message
+
+# Add near the top with other imports
+from django import forms
+from django.forms import ModelChoiceField
 
 class OperationDateListFilter(admin.SimpleListFilter):
 	# Human-readable title which will be displayed in the
@@ -235,53 +241,208 @@ class DefectInline(admin.TabularInline):
 	# def get_queryset(self, request):
 	# 	qs = super(FailureInline, self).get_queryset(request)
 	# 	return qs.filter(status='OPEN')
+class FailureCategoryAdmin(admin.ModelAdmin):
+    """Admin interface for hierarchical failure categories"""
+    
+    list_display = ('category_display', 'machine_type', 'code', 'level', 'is_active', 'order')
+    list_filter = ('is_active', 'machine_type', 'parent')
+    search_fields = ('name', 'code', 'description')
+    ordering = ('machine_type', 'parent', 'order', 'name')
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('machine_type', 'name', 'code', 'parent', 'description')
+        }),
+        ('Display Settings', {
+            'fields': ('order', 'is_active')
+        }),
+        ('Metadata', {
+            'fields': ('user', 'created', 'updated'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ('created', 'updated', 'user')
+    
+    def category_display(self, obj):
+        """Display with indentation based on hierarchy level"""
+        level = obj.get_level()
+        indent = "├─ " * level if level > 0 else ""
+        return format_html('{}{}', indent, obj.name)
+    category_display.short_description = 'Category'
+    
+    def level(self, obj):
+        """Display hierarchy level"""
+        return obj.get_level()
+    level.short_description = 'Level'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.user = request.user
+        super().save_model(request, obj, form, change)
+    
+    def get_queryset(self, request):
+        """Optimize queryset to avoid N+1 queries"""
+        qs = super().get_queryset(request)
+        return qs.select_related('machine_type', 'parent', 'user')
+
+
+@admin.register(FailureCategory)
+class FailureCategoryAdminReg(FailureCategoryAdmin):
+    pass
 
 class FailureResource(resources.ModelResource):
-	# operation_date_field = Field(attribute='operation_date', column_name='operation_date')
-	waitting_time = Field()
-	repairing_time = Field()
-	lead_time	= Field()
-	
+    """Resource for importing/exporting Failure data with hierarchical categories"""
+    
+    waitting_time = Field()
+    repairing_time = Field()
+    lead_time = Field()
+    
+    # NEW: Add fields for complete category hierarchy
+    category_level_0 = Field(attribute='category_level_0', readonly=True)
+    category_level_1 = Field(attribute='category_level_1', readonly=True)
+    category_level_2 = Field(attribute='category_level_2', readonly=True)
+    category_level_3 = Field(attribute='category_level_3', readonly=True)
+    category_full_path = Field(attribute='category_full_path', readonly=True)
 
-	class Meta:
-		model = Failure
-		Fields = ('machine','receiving_date','start_date','end_date','repairing_time',
-				'lead_time','waitting_time','detail','category',
-		   		'rootcause','repair_action','operation_date','operation_shift','status',)
-		exclude  =('id','created','updated','created_year','created_month',
-			 'created_day','created_hour','created_week','expect_date',)
-		
-		widgets = {
+    class Meta:
+        model = Failure
+        fields = ('machine','receiving_date','start_date','end_date','repairing_time',
+                'lead_time','waitting_time','details', 
+                'category_level_0', 'category_level_1', 'category_level_2', 'category_level_3',
+                'category_full_path', 'category',
+                'rootcause','repair_action','operation_date','operation_shift','status',
+                'vendor','repair_cost','service_cost','user','created')
+        exclude  =('id','created_year','created_month',
+             'created_day','created_hour','created_week','expect_date',)
+        
+        widgets = {
             'operation_date': {'format': '%b %d, %Y'},
         }
-	
-	def dehydrate_repairing_time(self, failure):
-		return failure.repairing_time/60
-	
-	def dehydrate_lead_time(self, failure):
-		return failure.lead_time/60
+    
+    def dehydrate_repairing_time(self, failure):
+        return failure.repairing_time/60 if failure.repairing_time else 0
+    
+    def dehydrate_lead_time(self, failure):
+        return failure.lead_time/60 if failure.lead_time else 0
 
-	def dehydrate_waitting_time(self, failure):
-		return failure.waitting_time/60
-	# def dehydrate_operation_date(self, failure):
-	# 	return failure
+    def dehydrate_waitting_time(self, failure):
+        return failure.waitting_time/60 if failure.waitting_time else 0
 
+    def dehydrate_category_full_path(self, failure):
+        if failure.failure_category:
+            return failure.failure_category.get_full_path()
+        return ""
+
+    def dehydrate_category_level_0(self, failure):
+        if failure.failure_category:
+            root = failure.failure_category.get_root()
+            return root.name
+        return ""
+
+    def dehydrate_category_level_1(self, failure):
+        if failure.failure_category:
+            ancestors = failure.failure_category.get_ancestors()
+            if len(ancestors) >= 1:
+                return ancestors[0].name
+        return ""
+
+    def dehydrate_category_level_2(self, failure):
+        if failure.failure_category:
+            ancestors = failure.failure_category.get_ancestors()
+            if len(ancestors) >= 2:
+                return ancestors[1].name
+        return ""
+
+    def dehydrate_category_level_3(self, failure):
+        if failure.failure_category:
+            ancestors = failure.failure_category.get_ancestors()
+            if len(ancestors) >= 3:
+                return ancestors[2].name
+            elif len(ancestors) > 0:
+                return failure.failure_category.name
+        return ""
+# class FailureResource(resources.ModelResource):
+# 	# operation_date_field = Field(attribute='operation_date', column_name='operation_date')
+# 	waitting_time = Field()
+# 	repairing_time = Field()
+# 	lead_time	= Field()
+	
+
+# 	class Meta:
+# 		model = Failure
+# 		Fields = ('machine','receiving_date','start_date','end_date','repairing_time',
+# 				'lead_time','waitting_time','detail','category',
+# 		   		'rootcause','repair_action','operation_date','operation_shift','status',)
+# 		exclude  =('id','created','updated','created_year','created_month',
+# 			 'created_day','created_hour','created_week','expect_date',)
+		
+# 		widgets = {
+#             'operation_date': {'format': '%b %d, %Y'},
+#         }
+	
+# 	def dehydrate_repairing_time(self, failure):
+# 		return failure.repairing_time/60
+	
+# 	def dehydrate_lead_time(self, failure):
+# 		return failure.lead_time/60
+
+# 	def dehydrate_waitting_time(self, failure):
+# 		return failure.waitting_time/60
+# 	# def dehydrate_operation_date(self, failure):
+# 	# 	return failure
+
+# Add this BEFORE FailureAdmin class
+class FailureForm(forms.ModelForm):
+    """Custom form to filter failure_category by machine's machine_type"""
+    
+    failure_category = ModelChoiceField(
+        queryset=FailureCategory.objects.none(),
+        required=False,
+        label='Failure Category'
+    )
+    
+    class Meta:
+        model = Failure
+        fields = '__all__'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # If editing an existing failure, filter by its machine's type
+        if self.instance and self.instance.pk and self.instance.machine:
+            machine_type = self.instance.machine.machine_type
+            self.fields['failure_category'].queryset = FailureCategory.objects.filter(
+                machine_type=machine_type,
+                is_active=True
+            ).order_by('order', 'name')
+        else:
+            # If creating new failure, show all categories
+            self.fields['failure_category'].queryset = FailureCategory.objects.filter(
+                is_active=True
+            ).order_by('machine_type', 'order', 'name')
 
 @admin.register(Failure)
 class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.ModelAdmin):
+	
+
 	formfield_overrides = {
 	models.CharField: {'widget': TextInput(attrs={'size':'50'})},
 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
 	}
+
+
 	search_fields = ['machine__name','details','rootcause','repair_action']
-	list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
+	# list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
+	list_filter = [OperationDateListFilter,'operation_shift','status','failure_category__machine_type','machine__machine_type','vendor']
 	list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','category','image_count',
 				 'defect_count','user')
 
 	readonly_fields = ('created','updated','user','defect_count',
 					'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
 					'engine_hour','engine_move','engine_malfunction')
-	autocomplete_fields  = ['machine','vendor']
+	# autocomplete_fields  = ['machine','vendor']
+	autocomplete_fields  = ['machine','failure_category','vendor']
 	inlines = [
 		FailureImageInline,
         DefectInline,
@@ -294,7 +455,7 @@ class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.Mod
 	resource_class      = FailureResource
 
 	fieldsets = [
-		('Basic Information',{'fields': ['machine','details','category']}),
+		('Basic Information',{'fields': ['machine','failure_category','details','category']}),
 		('Plan Information',{'fields': [('receiving_date','expect_date'),'start_date','status','end_date',
 								  'operation_date','operation_shift',
 								  'waitting_time','repairing_time','lead_time']}),
