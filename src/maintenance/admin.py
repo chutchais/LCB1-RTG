@@ -244,6 +244,7 @@ class DefectInline(admin.TabularInline):
 class FailureCategoryAdmin(admin.ModelAdmin):
     """Admin interface for hierarchical failure categories"""
     
+    # Update list_display to show machine_type and code together
     list_display = ('category_display', 'machine_type', 'code', 'level', 'is_active', 'order')
     list_filter = ('is_active', 'machine_type', 'parent')
     search_fields = ('name', 'code', 'description')
@@ -251,7 +252,11 @@ class FailureCategoryAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('machine_type', 'name', 'code', 'parent', 'description')
+            'fields': ('machine_type', 'name', 'parent', 'description')
+        }),
+        ('Code (Auto-generated)', {
+            'fields': ('code',),
+            'description': 'Code is automatically generated based on machine type and parent category. Format: [MACHINETYPE]_[PARENTCODE]_[NAME]'
         }),
         ('Display Settings', {
             'fields': ('order', 'is_active')
@@ -265,10 +270,11 @@ class FailureCategoryAdmin(admin.ModelAdmin):
     readonly_fields = ('created', 'updated', 'user')
     
     def category_display(self, obj):
-        """Display with indentation based on hierarchy level"""
+        """Display with machine type and indentation"""
         level = obj.get_level()
         indent = "├─ " * level if level > 0 else ""
-        return format_html('{}{}', indent, obj.name)
+        machine_type_name = obj.machine_type.name if obj.machine_type else "N/A"
+        return format_html('{}[{}] {}', indent, machine_type_name, obj.name)
     category_display.short_description = 'Category'
     
     def level(self, obj):
@@ -279,6 +285,9 @@ class FailureCategoryAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change:
             obj.user = request.user
+        # Auto-generate code if empty
+        if not obj.code:
+            obj.code = obj.generate_code()
         super().save_model(request, obj, form, change)
     
     def get_queryset(self, request):
@@ -291,6 +300,7 @@ class FailureCategoryAdmin(admin.ModelAdmin):
 class FailureCategoryAdminReg(FailureCategoryAdmin):
     pass
 
+
 class FailureResource(resources.ModelResource):
     """Resource for importing/exporting Failure data with hierarchical categories"""
     
@@ -298,18 +308,19 @@ class FailureResource(resources.ModelResource):
     repairing_time = Field()
     lead_time = Field()
     
-    # NEW: Add fields for complete category hierarchy
+    # Category levels - now properly aligned
     category_level_0 = Field(attribute='category_level_0', readonly=True)
     category_level_1 = Field(attribute='category_level_1', readonly=True)
     category_level_2 = Field(attribute='category_level_2', readonly=True)
     category_level_3 = Field(attribute='category_level_3', readonly=True)
+    category_level_4 = Field(attribute='category_level_4', readonly=True)
     category_full_path = Field(attribute='category_full_path', readonly=True)
 
     class Meta:
         model = Failure
         fields = ('machine','receiving_date','start_date','end_date','repairing_time',
                 'lead_time','waitting_time','details', 
-                'category_level_0', 'category_level_1', 'category_level_2', 'category_level_3',
+                'category_level_0', 'category_level_1', 'category_level_2', 'category_level_3', 'category_level_4',
                 'category_full_path', 'category',
                 'rootcause','repair_action','operation_date','operation_shift','status',
                 'vendor','repair_cost','service_cost','user','created')
@@ -336,32 +347,20 @@ class FailureResource(resources.ModelResource):
 
     def dehydrate_category_level_0(self, failure):
         if failure.failure_category:
-            root = failure.failure_category.get_root()
-            return root.name
+            return failure.failure_category.get_root().name
         return ""
 
     def dehydrate_category_level_1(self, failure):
-        if failure.failure_category:
-            ancestors = failure.failure_category.get_ancestors()
-            if len(ancestors) >= 1:
-                return ancestors[0].name
-        return ""
+        return failure.category_level_1
 
     def dehydrate_category_level_2(self, failure):
-        if failure.failure_category:
-            ancestors = failure.failure_category.get_ancestors()
-            if len(ancestors) >= 2:
-                return ancestors[1].name
-        return ""
+        return failure.category_level_2
 
     def dehydrate_category_level_3(self, failure):
-        if failure.failure_category:
-            ancestors = failure.failure_category.get_ancestors()
-            if len(ancestors) >= 3:
-                return ancestors[2].name
-            elif len(ancestors) > 0:
-                return failure.failure_category.name
-        return ""
+        return failure.category_level_3
+    
+    def dehydrate_category_level_4(self, failure):
+        return failure.category_level_4
 # class FailureResource(resources.ModelResource):
 # 	# operation_date_field = Field(attribute='operation_date', column_name='operation_date')
 # 	waitting_time = Field()
@@ -422,68 +421,195 @@ class FailureForm(forms.ModelForm):
                 is_active=True
             ).order_by('machine_type', 'order', 'name')
 
-@admin.register(Failure)
-class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.ModelAdmin):
+# @admin.register(Failure)
+# class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.ModelAdmin):
 	
 
-	formfield_overrides = {
-	models.CharField: {'widget': TextInput(attrs={'size':'50'})},
-	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
-	}
+# 	formfield_overrides = {
+# 	models.CharField: {'widget': TextInput(attrs={'size':'50'})},
+# 	models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
+# 	}
 
 
-	search_fields = ['machine__name','details','rootcause','repair_action']
-	# list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
-	list_filter = [OperationDateListFilter,'operation_shift','status','failure_category__machine_type','machine__machine_type','vendor']
-	list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','category','image_count',
-				 'defect_count','user')
+# 	search_fields = ['machine__name','details','rootcause','repair_action']
+# 	# list_filter = [OperationDateListFilter,'operation_shift','status','category','machine__machine_type','vendor']
+# 	list_filter = [OperationDateListFilter,'status','machine__machine_type','failure_category__code',]
+# 	list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','category','image_count',
+# 				 'defect_count','user')
 
-	readonly_fields = ('created','updated','user','defect_count',
-					'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
-					'engine_hour','engine_move','engine_malfunction')
-	# autocomplete_fields  = ['machine','vendor']
-	autocomplete_fields  = ['machine','failure_category','vendor']
-	inlines = [
-		FailureImageInline,
-        DefectInline,
+# 	readonly_fields = ('created','updated','user','defect_count',
+# 					'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
+# 					'engine_hour','engine_move','engine_malfunction')
+# 	# autocomplete_fields  = ['machine','vendor']
+# 	autocomplete_fields  = ['machine','failure_category','vendor']
+# 	inlines = [
+# 		FailureImageInline,
+#         DefectInline,
+#     ]
+# 	save_as = True
+# 	save_as_continue = True
+# 	save_on_top =True
+# 	list_select_related = True
+
+# 	resource_class      = FailureResource
+
+# 	fieldsets = [
+# 		('Basic Information',{'fields': ['machine','failure_category','details','category']}),
+# 		('Plan Information',{'fields': [('receiving_date','expect_date'),'start_date','status','end_date',
+# 								  'operation_date','operation_shift',
+# 								  'waitting_time','repairing_time','lead_time']}),
+# 		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction']}),
+# 		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
+# 		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
+# 		('System Information',{'fields':[('user','created'),'updated']})
+# 	]
+# 	def save_model(self, request, obj, form, change):
+# 		# print(request.user)
+# 		if not change:
+# 			# Only set added_by during the first save.
+# 			obj.user = request.user
+# 		# if obj.end_date:
+# 		if obj.receiving_date :
+# 			# Timezone awareness
+# 			from django.utils import timezone
+# 			tz = timezone.get_current_timezone()
+# 			operation_date,operation_shift = get_day_or_night_with_date(obj.receiving_date.astimezone(tz))
+# 			# print(operation_date,operation_shift,obj.end_date)
+# 			obj.operation_date	=	operation_date
+# 			obj.operation_shift	=	operation_shift
+# 			# Added on May 22,2025 -- To record current telematic data
+# 			obj.engine_hour = 0 if get_mqtt_message(obj.machine.name,"hour") is None else get_mqtt_message(obj.machine.name,"hour")
+# 			obj.engine_move = 0 if get_mqtt_message(obj.machine.name,"move") is None else get_mqtt_message(obj.machine.name,"move")
+# 			obj.engine_malfunction = '0' if get_mqtt_message(obj.machine.name,"malfunction") is None else get_mqtt_message(obj.machine.name,"malfunction") 
+# 		super().save_model(request, obj, form, change)
+
+class FailureCategoryFilter(admin.SimpleListFilter):
+    """Custom filter for Failure Category based on selected Machine Type"""
+    
+    title = 'Failure Category'
+    parameter_name = 'failure_category'
+    
+    def lookups(self, request, model_admin):
+        """Return list of failure categories"""
+        return FailureCategory.objects.filter(
+            is_active=True
+        ).values_list('id', 'name')
+    
+    def queryset(self, request, queryset):
+        """Filter failures by selected category"""
+        if self.value():
+            return queryset.filter(failure_category_id=self.value())
+        return queryset
+
+
+class MachineTypeFilter(admin.SimpleListFilter):
+    """Custom filter for Machine Type"""
+    
+    title = 'Machine Type'
+    parameter_name = 'machine__machine_type'
+    
+    def lookups(self, request, model_admin):
+        """Return list of machine types"""
+        return MachineType.objects.values_list('name', 'title')
+    
+    def queryset(self, request, queryset):
+        """Filter failures by machine type"""
+        if self.value():
+            return queryset.filter(machine__machine_type__name=self.value())
+        return queryset
+
+
+@admin.register(Failure)
+class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.ModelAdmin):
+    form = FailureForm
+    
+    formfield_overrides = {
+        models.CharField: {'widget': TextInput(attrs={'size':'50'})},
+        models.TextField: {'widget': Textarea(attrs={'rows':3, 'cols':50})},
+    }
+    
+    search_fields = ['machine__name','details','rootcause','repair_action']
+    
+    # Updated list_filter with custom filters
+    # list_filter = [
+    #     OperationDateListFilter,
+    #     'status',
+    #     # MachineTypeFilter,  # Custom Machine Type filter
+    #     # FailureCategoryFilter,  # Custom Failure Category filter
+    #     failure_category
+    # ]
+    list_filter = [OperationDateListFilter,'status','machine__machine_type','failure_category__code',]
+    
+    
+    list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','image_count','defect_count','user')
+
+    readonly_fields = ('created','updated','user','defect_count',
+                    'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
+                    'engine_hour','engine_move','engine_malfunction')
+    
+    autocomplete_fields = ['machine','vendor']
+    
+    inlines = [FailureImageInline, DefectInline]
+    
+    save_as = True
+    save_as_continue = True
+    save_on_top = True
+    list_select_related = True
+
+    resource_class = FailureResource
+
+    fieldsets = [
+        ('Basic Information',{'fields': ['machine','failure_category','details']}),
+        ('Plan Information',{'fields': [('receiving_date','expect_date'),'start_date','status','end_date',
+                              'operation_date','operation_shift',
+                              'waitting_time','repairing_time','lead_time']}),
+        ('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction']}),
+        ('Failure Analysis',{'fields': ['rootcause','repair_action']}),
+        ('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
+        ('System Information',{'fields':[('user','created'),'updated']})
     ]
-	save_as = True
-	save_as_continue = True
-	save_on_top =True
-	list_select_related = True
-
-	resource_class      = FailureResource
-
-	fieldsets = [
-		('Basic Information',{'fields': ['machine','failure_category','details','category']}),
-		('Plan Information',{'fields': [('receiving_date','expect_date'),'start_date','status','end_date',
-								  'operation_date','operation_shift',
-								  'waitting_time','repairing_time','lead_time']}),
-		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction']}),
-		('Failure Analysis',{'fields': ['rootcause','repair_action']}),
-		('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
-		('System Information',{'fields':[('user','created'),'updated']})
-	]
-	def save_model(self, request, obj, form, change):
-		# print(request.user)
-		if not change:
-			# Only set added_by during the first save.
-			obj.user = request.user
-		# if obj.end_date:
-		if obj.receiving_date :
-			# Timezone awareness
-			from django.utils import timezone
-			tz = timezone.get_current_timezone()
-			operation_date,operation_shift = get_day_or_night_with_date(obj.receiving_date.astimezone(tz))
-			# print(operation_date,operation_shift,obj.end_date)
-			obj.operation_date	=	operation_date
-			obj.operation_shift	=	operation_shift
-			# Added on May 22,2025 -- To record current telematic data
-			obj.engine_hour = 0 if get_mqtt_message(obj.machine.name,"hour") is None else get_mqtt_message(obj.machine.name,"hour")
-			obj.engine_move = 0 if get_mqtt_message(obj.machine.name,"move") is None else get_mqtt_message(obj.machine.name,"move")
-			obj.engine_malfunction = '0' if get_mqtt_message(obj.machine.name,"malfunction") is None else get_mqtt_message(obj.machine.name,"malfunction") 
-		super().save_model(request, obj, form, change)
-
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.user = request.user
+        if obj.receiving_date :
+            from django.utils import timezone
+            tz = timezone.get_current_timezone()
+            operation_date,operation_shift = get_day_or_night_with_date(obj.receiving_date.astimezone(tz))
+            obj.operation_date = operation_date
+            obj.operation_shift = operation_shift
+            obj.engine_hour = 0 if get_mqtt_message(obj.machine.name,"hour") is None else get_mqtt_message(obj.machine.name,"hour")
+            obj.engine_move = 0 if get_mqtt_message(obj.machine.name,"move") is None else get_mqtt_message(obj.machine.name,"move")
+            obj.engine_malfunction = '0' if get_mqtt_message(obj.machine.name,"malfunction") is None else get_mqtt_message(obj.machine.name,"malfunction") 
+        super().save_model(request, obj, form, change)
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Filter failure_category by machine's machine_type"""
+        
+        if db_field.name == 'failure_category':
+            machine_id = request.GET.get('machine_id')
+            
+            if machine_id:
+                try:
+                    machine = Machine.objects.get(pk=machine_id)
+                    kwargs['queryset'] = FailureCategory.objects.filter(
+                        machine_type=machine.machine_type,
+                        is_active=True
+                    ).order_by('order', 'name')
+                except:
+                    pass
+            else:
+                kwargs['queryset'] = FailureCategory.objects.filter(
+                    is_active=True
+                ).order_by('machine_type', 'order', 'name')
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        qs = super().get_queryset(request)
+        return qs.select_related('machine', 'failure_category', 'vendor', 'user')
+    
 @admin.register(Defect)
 class DefectAdmin(admin.ModelAdmin):
 	formfield_overrides = {
