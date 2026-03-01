@@ -538,7 +538,7 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
     #     # FailureCategoryFilter,  # Custom Failure Category filter
     #     failure_category
     # ]
-    list_filter = [OperationDateListFilter,'status','machine__machine_type','failure_category__code',]
+    list_filter = [OperationDateListFilter,'status','category','machine__machine_type','failure_category__code',]
     
     
     list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','image_count','defect_count','user')
@@ -559,7 +559,7 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
     resource_class = FailureResource
 
     fieldsets = [
-        ('Basic Information',{'fields': ['machine','failure_category','details']}),
+        ('Basic Information',{'fields': ['machine','failure_category','details','category']}),
         ('Plan Information',{'fields': [('receiving_date','expect_date'),'start_date','status','end_date',
                               'operation_date','operation_shift',
                               'waitting_time','repairing_time','lead_time']}),
@@ -568,6 +568,7 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
         ('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
         ('System Information',{'fields':[('user','created'),'updated']})
     ]
+    
     
     def save_model(self, request, obj, form, change):
         if not change:
