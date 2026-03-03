@@ -519,6 +519,60 @@ class MachineTypeFilter(admin.SimpleListFilter):
         return queryset
 
 
+class FailureCategoryFilter(admin.SimpleListFilter):
+    """Combined filter for Failure Category - shows first level + not defined option"""
+    
+    title = 'Failure Category'
+    parameter_name = 'failure_category_filter'
+    
+    def lookups(self, request, model_admin):
+        """Return first level categories + not defined option"""
+        lookups_list = [
+            ('not_defined', '❌ Not Defined Yet'),
+        ]
+        
+        # Add all first level (root) categories
+        root_categories = FailureCategory.objects.filter(
+            parent__isnull=True,
+            is_active=True
+        ).order_by('machine_type', 'order', 'name')
+        
+        for cat in root_categories:
+            machine_type_name = cat.machine_type.name if cat.machine_type else "N/A"
+            display_name = f"[{machine_type_name}] {cat.name}"
+            lookups_list.append((str(cat.id), display_name))
+        
+        return lookups_list
+    
+    def queryset(self, request, queryset):
+        """Filter failures"""
+        if self.value() == 'not_defined':
+            # Show failures with no category defined
+            return queryset.filter(failure_category__isnull=True)
+        elif self.value():
+            # Show failures with selected root category and all its descendants
+            try:
+                root_cat_id = int(self.value())
+                root_cat = FailureCategory.objects.get(pk=root_cat_id)
+                
+                # Get all descendants of this root category
+                all_cat_ids = [root_cat.id]
+                
+                # Get all categories under this root
+                descendants = FailureCategory.objects.filter(
+                    is_active=True
+                )
+                
+                for cat in descendants:
+                    if cat.get_root().id == root_cat.id and cat.id != root_cat.id:
+                        all_cat_ids.append(cat.id)
+                
+                return queryset.filter(failure_category_id__in=all_cat_ids)
+            except (ValueError, FailureCategory.DoesNotExist):
+                return queryset
+        
+        return queryset
+
 @admin.register(Failure)
 class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.ModelAdmin):
     form = FailureForm
@@ -530,18 +584,24 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
     
     search_fields = ['machine__name','details','rootcause','repair_action']
     
-    # Updated list_filter with custom filters
+
+    # Simplified list_filter - combined into one
     # list_filter = [
     #     OperationDateListFilter,
+    #     'operation_shift',
     #     'status',
-    #     # MachineTypeFilter,  # Custom Machine Type filter
-    #     # FailureCategoryFilter,  # Custom Failure Category filter
-    #     failure_category
+    #     MachineTypeFilter,
+    #     FailureCategoryFilter,  # NEW: Combined filter
+    #     'vendor'
     # ]
-    list_filter = [OperationDateListFilter,'status','category','machine__machine_type','failure_category__code',]
+    list_filter = [OperationDateListFilter,
+                   'status','category','machine__machine_type',
+                           FailureCategoryFilter,]
     
     
-    list_display = ('machine','details','receiving_date','expect_date','start_date','end_date','status','image_count','defect_count','user')
+    list_display = ('machine','failure_category','details','receiving_date',
+                    'expect_date','start_date','end_date','status','image_count',
+                              'defect_count','user')
 
     readonly_fields = ('created','updated','user','defect_count',
                     'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
