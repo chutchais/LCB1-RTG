@@ -198,6 +198,37 @@ class Machine(BasicInfo):
         return False
     is_overdue.fget.short_description = 'Overdue'
 
+    # Added for PM Data Staleness Monitoring
+    def hours_since_last_update(self):
+        """Calculate hours elapsed since last MQTT update. Returns None if no data."""
+        import datetime, pytz
+        updated = self.mqtt_updated
+        if not updated:
+            return None
+        tz = pytz.timezone('Asia/Bangkok')
+        try:
+            last_update = datetime.datetime.strptime(updated, '%d-%b-%Y %H:%M')
+            last_update = tz.localize(last_update)
+            now = datetime.datetime.now(tz=tz)
+            delta = now - last_update
+            return delta.total_seconds() / 3600
+        except (ValueError, TypeError):
+            return None
+
+    def data_is_stale(self, threshold_hours=None):
+        """Check if MQTT data hasn't been updated within the threshold hours."""
+        from django.conf import settings as django_settings
+        if threshold_hours is None:
+            threshold_hours = getattr(django_settings, 'PM_DATA_STALENESS_THRESHOLD_HOURS', 2)
+        hours = self.hours_since_last_update()
+        if hours is None:
+            return True
+        return hours >= threshold_hours
+
+    def last_mqtt_update(self):
+        """Return formatted timestamp of last MQTT update."""
+        return self.mqtt_updated or 'N/A'
+
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine'
         ordering = ('name',)

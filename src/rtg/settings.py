@@ -168,6 +168,12 @@ Q_CLUSTER = {
 
 RTG_READING_VALUE_DB = os.environ.get('REDIS_READING_DB', 0)
 
+# PM Status Report Settings
+PM_DATA_STALENESS_THRESHOLD_HOURS = int(os.environ.get('PM_DATA_STALENESS_THRESHOLD_HOURS', 2))
+PM_REPORT_RECIPIENT_EMAIL = os.environ.get('PM_REPORT_RECIPIENT_EMAIL', '')
+PM_REPORT_SENDER_EMAIL = os.environ.get('PM_REPORT_SENDER_EMAIL', '')
+PM_REPORT_SCHEDULE_TIME = os.environ.get('PM_REPORT_SCHEDULE_TIME', '06:00')
+
 
 # Added on Nov 1,2022 -- TO support caches
 CACHES = {
