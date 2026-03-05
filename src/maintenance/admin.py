@@ -241,11 +241,47 @@ class DefectInline(admin.TabularInline):
 	# def get_queryset(self, request):
 	# 	qs = super(FailureInline, self).get_queryset(request)
 	# 	return qs.filter(status='OPEN')
+class LevelFilter(admin.SimpleListFilter):
+    """Custom filter for Failure Category hierarchy level"""
+    
+    title = 'Hierarchy Level'
+    parameter_name = 'level'
+    
+    def lookups(self, request, model_admin):
+        return (
+            ('0', 'Level 0 (Root)'),
+            ('1', 'Level 1'),
+            ('2', 'Level 2'),
+            ('3', 'Level 3'),
+            ('4', 'Level 4+'),
+        )
+    
+    def queryset(self, request, queryset):
+        if self.value() == '0':
+            # Root categories (no parent)
+            return queryset.filter(parent__isnull=True)
+        elif self.value() == '1':
+            # Level 1 (parent has no parent)
+            return queryset.filter(parent__parent__isnull=True, parent__isnull=False)
+        elif self.value() == '2':
+            # Level 2 (parent's parent has no parent)
+            return queryset.filter(parent__parent__parent__isnull=True, parent__parent__isnull=False)
+        elif self.value() == '3':
+            # Level 3
+            return queryset.filter(parent__parent__parent__parent__isnull=True, parent__parent__parent__isnull=False)
+        elif self.value() == '4':
+            # Level 4 and deeper
+            return queryset.filter(parent__parent__parent__parent__isnull=False)
+        
+        return queryset
+
+
 class FailureCategoryAdmin(admin.ModelAdmin):
     """Admin interface for hierarchical failure categories"""
     
+    # Add LevelFilter
     list_display = ('category_display', 'machine_type', 'code', 'level', 'is_active', 'order')
-    list_filter = ('is_active', 'machine_type')  # Remove 'parent' from here
+    list_filter = ('is_active', 'machine_type', LevelFilter)  # Added LevelFilter
     search_fields = ('name', 'code', 'description')
     ordering = ('machine_type', 'parent', 'order', 'name')
     
