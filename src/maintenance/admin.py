@@ -244,9 +244,8 @@ class DefectInline(admin.TabularInline):
 class FailureCategoryAdmin(admin.ModelAdmin):
     """Admin interface for hierarchical failure categories"""
     
-    # Update list_display to show machine_type and code together
     list_display = ('category_display', 'machine_type', 'code', 'level', 'is_active', 'order')
-    list_filter = ('is_active', 'machine_type', 'parent')
+    list_filter = ('is_active', 'machine_type')  # Remove 'parent' from here
     search_fields = ('name', 'code', 'description')
     ordering = ('machine_type', 'parent', 'order', 'name')
     
@@ -289,6 +288,18 @@ class FailureCategoryAdmin(admin.ModelAdmin):
         if not obj.code:
             obj.code = obj.generate_code()
         super().save_model(request, obj, form, change)
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Filter parent field to show only first-level categories (root level)"""
+        
+        if db_field.name == 'parent':
+            # Show only root categories (categories with no parent)
+            kwargs['queryset'] = FailureCategory.objects.filter(
+                parent__isnull=True,
+                is_active=True
+            ).order_by('machine_type', 'order', 'name')
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
     def get_queryset(self, request):
         """Optimize queryset to avoid N+1 queries"""
