@@ -2,6 +2,10 @@
 env
 src/db.sqlite3
 src/*.pyc
+src/**/*.pyc
+src/**/__pycache__/
+__pycache__/
+*.pyc
 src/machine/*.pyc
 src/machine/migrations/*.pyc
 src/machine/__pycache__/
