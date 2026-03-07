@@ -1,0 +1,105 @@
+{% extends "maintenance/reports/base_report.html" %}
+
+{% block title %}Custom Date Range Performance Report{% endblock %}
+
+{% block page_title %}Performance Metrics - Custom Date Range{% endblock %}
+
+{% block page_subtitle %}Period: {{ start_date }} to {{ end_date }}{% endblock %}
+
+{% block filters %}
+<div class="col-md-12">
+    <a href="/maintenance/reports/date-range/" class="btn btn-secondary">← Change Date Range</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Error:</strong> {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% elif has_data %}
+
+{% for mt in metrics.by_machine_type %}
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">{{ mt.machine_type }}</h5>
+    </div>
+    <div class="card-body">
+        <!-- KPI Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: #e74c3c;">{{ mt.metrics.mttr_hours }}h</div>
+                    <div class="metric-label">MTTR (Mean Time To Repair)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: #3498db;">{{ mt.metrics.mtbf_hours }}h</div>
+                    <div class="metric-label">MTBF (Mean Time Between Failures)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: #27ae60;">{{ mt.metrics.availability_percentage }}%</div>
+                    <div class="metric-label">Equipment Availability</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: #f39c12;">{{ mt.metrics.on_time_closure_rate }}%</div>
+                    <div class="metric-label">On-Time Closure Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Machines Table -->
+        <h6 class="mt-4">Individual Machine Metrics:</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Machine</th>
+                        <th>MTTR (hours)</th>
+                        <th>Failures Count</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for machine in mt.metrics.machines %}
+                    <tr onclick="window.location='/maintenance/reports/machine/{{ machine.name }}/?start_date={{ start_date }}&end_date={{ end_date }}';" style="cursor: pointer;">
+                        <td>
+                            <a href="/maintenance/reports/machine/{{ machine.name }}/" class="machine-link">
+                                {{ machine.name }}
+                            </a>
+                        </td>
+                        <td>{{ machine.mttr_hours }}</td>
+                        <td>{{ machine.failures_count }}</td>
+                        <td>
+                            {% if machine.availability == 'Available' %}
+                                <span class="badge bg-success">{{ machine.availability }}</span>
+                            {% else %}
+                                <span class="badge bg-warning">{{ machine.availability }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Summary -->
+        <div class="alert alert-info mt-3" role="alert">
+            <strong>Summary:</strong> Total Failures: {{ mt.metrics.total_failures }}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="alert alert-info">
+    <strong>No data available</strong> for the selected date range.
+</div>
+{% endif %}
+{% endblock %}

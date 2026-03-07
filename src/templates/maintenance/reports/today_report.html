@@ -1,0 +1,321 @@
+{% extends "maintenance/reports/base_report.html" %}
+
+{% block title %}Today's Failure Report{% endblock %}
+
+{% block page_title %}Today's Failure Report - {{ report_date }}{% endblock %}
+
+{% block page_subtitle %}Real-time failure analysis for {{ report_date }} - Section: {{ selected_section }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .machine-type-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+    .machine-type-card:hover {
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+        transform: translateY(-2px);
+    }
+    .card-header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .card-header-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        margin: 0;
+    }
+    .card-stats {
+        display: flex;
+        gap: 8px;
+        font-size: 0.8em;
+        flex-wrap: wrap;
+    }
+    .badge-stat {
+        padding: 3px 8px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.4);
+        white-space: nowrap;
+    }
+    .card-body-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .chart-wrapper {
+        width: 100%;
+    }
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+    .mini-chart-container {
+        position: relative;
+        height: 150px;
+    }
+    .category-table {
+        width: 100%;
+        font-size: 0.8em;
+        margin-top: 8px;
+    }
+    .category-table td {
+        padding: 6px;
+        border-bottom: 1px solid #eee;
+    }
+    .category-table th {
+        background-color: #f0f0f0;
+        padding: 6px;
+        font-weight: 600;
+        font-size: 0.75em;
+    }
+    .progress-mini {
+        height: 8px;
+        margin: 2px 0;
+    }
+    .machine-link-small {
+        color: #667eea;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.75em;
+    }
+    .machine-link-small:hover {
+        text-decoration: underline;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .kpi-card {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .kpi-value {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .kpi-label {
+        color: #666;
+        font-size: 0.8em;
+        margin-top: 5px;
+    }
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 15px;
+    }
+    @media (max-width: 1200px) {
+        .cards-grid {
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        }
+    }
+    @media (max-width: 768px) {
+        .cards-grid {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+    }
+    @media (max-width: 480px) {
+        .cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block filters %}
+<div class="col-md-4">
+    <label for="section" class="form-label">Section</label>
+    <select class="form-select" id="section" name="section" onchange="this.form.submit()">
+        {% for sect in sections %}
+        <option value="{{ sect }}" {% if selected_section == sect %}selected{% endif %}>{{ sect }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+
+<!-- KPI Summary -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-value">{{ total_failures }}</div>
+        <div class="kpi-label">Total Failures</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value">{{ avg_repair_hours }}h</div>
+        <div class="kpi-label">Avg Repair Time</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value">{{ report_data.machine_types|length }}</div>
+        <div class="kpi-label">Machine Types</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value">{{ report_date }}</div>
+        <div class="kpi-label">Report Date</div>
+    </div>
+</div>
+
+<!-- Machine Type Cards Grid (3 per row) -->
+<div class="cards-grid">
+    {% for mt_data in report_data.machine_types %}
+    <div class="machine-type-card">
+        <!-- Card Header -->
+        <div class="card-header-section">
+            <div class="card-header-title">{{ mt_data.machine_type }}</div>
+            <div class="card-stats">
+                <span class="badge-stat">
+                    🔴 {{ mt_data.status_breakdown.OPEN }}
+                </span>
+                <span class="badge-stat">
+                    🟢 {{ mt_data.status_breakdown.CLOSED }}
+                </span>
+                <span class="badge-stat">
+                    📊 {{ mt_data.total_failures }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Card Body -->
+        <div class="card-body-content">
+            <!-- Chart -->
+            <div class="chart-wrapper">
+                <div class="mini-chart-container">
+                    <canvas id="chart-{{ mt_data.machine_type }}"></canvas>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrapper">
+                <table class="category-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th style="width: 35px;">Cnt</th>
+                            <th style="width: 50px;">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in mt_data.by_category %}
+                        <tr>
+                            <td>
+                                <strong style="font-size: 0.8em;">{{ cat.category_level_0|truncatechars:12 }}</strong><br>
+                                <small style="color: #999; font-size: 0.7em;">
+                                    {% for machine in cat.machines %}
+                                    <a href="/maintenance/reports/machine/{{ machine.name }}/" class="machine-link-small">
+                                        {{ machine.name|truncatechars:10 }}
+                                    </a>
+                                    <span class="badge bg-info" style="font-size: 0.65em; padding: 1px 4px;">{{ machine.count }}</span>
+                                    {% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                </small>
+                            </td>
+                            <td style="text-align: center;">{{ cat.count }}</td>
+                            <td style="text-align: center; font-size: 0.75em;">
+                                <div class="progress progress-mini">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ cat.percentage }}%; background-color: #667eea;">
+                                    </div>
+                                </div>
+                                {{ cat.percentage }}%
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-warning" style="grid-column: 1/-1;">
+        No failures found for the selected section today.
+    </div>
+    {% endfor %}
+</div>
+
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script>
+    // Initialize charts for each machine type
+    {% for mt_data in report_data.machine_types %}
+    (function() {
+        const ctx = document.getElementById('chart-{{ mt_data.machine_type }}');
+        if (ctx) {
+            const labels = [
+                {% for cat in mt_data.by_category %}'{{ cat.category_level_0|truncatechars:12 }}',{% endfor %}
+            ];
+            const data = [
+                {% for cat in mt_data.by_category %}{{ cat.count }},{% endfor %}
+            ];
+            const colors = [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+            ];
+            const borderColors = [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+            ];
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Failures',
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    })();
+    {% endfor %}
+</script>
+{% endblock %}

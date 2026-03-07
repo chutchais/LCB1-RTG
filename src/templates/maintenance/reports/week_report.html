@@ -1,0 +1,514 @@
+{% extends "maintenance/reports/base_report.html" %}
+
+{% block title %}This Week's Failure Report{% endblock %}
+
+{% block page_title %}This Week's Failure Report ({{ period_start }} to {{ period_end }}){% endblock %}
+
+{% block page_subtitle %}Weekly failure trends and analysis - Section: {{ selected_section }}{% endblock %}
+
+{% block filters %}
+<div class="col-md-4">
+    <label for="section" class="form-label">Section</label>
+    <select class="form-select" id="section" name="section" onchange="this.form.submit()">
+        {% for sect in sections %}
+        <option value="{{ sect }}" {% if selected_section == sect %}selected{% endif %}>{{ sect }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .daily-detail-row {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .daily-detail-row:hover {
+        background-color: #f0f4ff !important;
+    }
+    .clickable-number {
+        color: #667eea;
+        font-weight: 600;
+        text-decoration: underline;
+    }
+    .modal-content {
+        border-radius: 12px;
+    }
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    .modal-header .btn-close {
+        filter: invert(1);
+    }
+    .failure-table-container {
+        overflow-x: auto;
+    }
+    .failure-status {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    .failure-status.open {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .failure-status.closed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .failure-category-badge {
+        display: inline-block;
+        background-color: #667eea;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    .machine-link-small {
+        color: #667eea;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .machine-link-small:hover {
+        text-decoration: underline;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .kpi-card {
+        text-align: center;
+        padding: 20px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .kpi-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .kpi-label {
+        color: #666;
+        font-size: 0.85em;
+        margin-top: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Summary -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-value">{{ total_failures }}</div>
+        <div class="kpi-label">Total Failures This Week</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value">{{ report_data.cumulative.avg_mttr_hours }}h</div>
+        <div class="kpi-label">Avg MTTR</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value">{{ period_start }}</div>
+        <div class="kpi-label">Period Start</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value">{{ period_end }}</div>
+        <div class="kpi-label">Period End</div>
+    </div>
+</div>
+
+<!-- Daily Trend Chart with Machine Type Series -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Daily Failure Trend by Machine Type</h5>
+    </div>
+    <div class="card-body">
+        <div class="chart-container">
+            <canvas id="dailyTrendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Category Breakdown -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Failures by Category (This Week) - With Percentages</h5>
+    </div>
+    <div class="card-body">
+        <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Details Table -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Daily Details - Click on Numbers to View Failure List</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead style="background-color: #f0f0f0;">
+                    <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th style="cursor: help;" title="Click to view failures">Total Failures</th>
+                        <th style="cursor: help;" title="Click to view failures">Day Shift</th>
+                        <th style="cursor: help;" title="Click to view failures">Night Shift</th>
+                        <th>Top Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in daily_data %}
+                    <tr class="daily-detail-row">
+                        <td><strong>{{ day.date }}</strong></td>
+                        <td>{{ day.day_name }}</td>
+                        <td>
+                            <span class="clickable-number" onclick="showDailyFailures('{{ day.date }}', 'all')">
+                                {{ day.total_failures }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="clickable-number" onclick="showDailyFailures('{{ day.date }}', 'Day')">
+                                {{ day.by_shift.Day }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="clickable-number" onclick="showDailyFailures('{{ day.date }}', 'Night')">
+                                {{ day.by_shift.Night }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if day.by_category %}
+                                <span class="badge bg-info">{{ day.by_category.0.category_level_0 }}</span>
+                                ({{ day.by_category.0.count }})
+                            {% else %}
+                                <span class="badge bg-secondary">No Failures</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Failure Details Modal -->
+<div class="modal fade" id="failureModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="failureModalTitle">Failure Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="failureModalBody">
+                Loading...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Get section from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const selectedSection = urlParams.get('section') || '';
+
+    // Get data from template
+    const dates = {{ daily_dates|safe }};
+    const seriesData = {{ daily_series_data|safe }};
+    const machineTypeNames = {{ machine_type_names|safe }};
+
+    // Colors for each machine type
+    const colors = [
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(255, 159, 64, 1)',
+        'rgba(199, 199, 199, 1)',
+        'rgba(83, 102, 255, 1)',
+    ];
+
+    const bgColors = [
+        'rgba(255, 99, 132, 0.1)',
+        'rgba(54, 162, 235, 0.1)',
+        'rgba(255, 206, 86, 0.1)',
+        'rgba(75, 192, 192, 0.1)',
+        'rgba(153, 102, 255, 0.1)',
+        'rgba(255, 159, 64, 0.1)',
+        'rgba(199, 199, 199, 0.1)',
+        'rgba(83, 102, 255, 0.1)',
+    ];
+
+    // Daily Trend Line Chart with Multiple Series (One for each Machine Type)
+    const dailyCtx = document.getElementById('dailyTrendChart').getContext('2d');
+
+    const datasets = [];
+    machineTypeNames.forEach((mtName, index) => {
+        datasets.push({
+            label: mtName,
+            data: seriesData[mtName],
+            borderColor: colors[index % colors.length],
+            backgroundColor: bgColors[index % bgColors.length],
+            tension: 0.4,
+            fill: false,
+            pointRadius: 5,
+            pointBackgroundColor: colors[index % colors.length],
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverRadius: 7
+        });
+    });
+
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    title: {
+                        display: true,
+                        text: 'Number of Failures'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: true
+                }
+            }
+        }
+    });
+
+    // Category Distribution Doughnut Chart with Always-Visible Labels
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categories = [
+        {% for cat in report_data.cumulative.by_category %}'{{ cat.category_level_0 }}',{% endfor %}
+    ];
+    const categoryCounts = [
+        {% for cat in report_data.cumulative.by_category %}{{ cat.count }},{% endfor %}
+    ];
+
+    // Calculate percentages
+    const totalFailures = categoryCounts.reduce((a, b) => a + b, 0);
+    const categoryPercentages = categoryCounts.map(count => ((count / totalFailures) * 100).toFixed(1));
+
+    // Plugin to display labels and percentages on the doughnut
+    const doughnutLabelsPlugin = {
+        id: 'doughnutLabels',
+        afterDatasetsDraw(chart) {
+            const {ctx, data, chartArea: {left, top, width, height}} = chart;
+            chart.getDatasetMeta(0).data.forEach((point, index) => {
+                const {x, y} = point.tooltipPosition();
+                
+                const label = data.labels[index];
+                const value = data.datasets[0].data[index];
+                const percentage = categoryPercentages[index];
+                
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.fillText(`${percentage}%`, x, y - 10);
+                ctx.font = '12px Arial';
+                ctx.fillText(`(${value})`, x, y + 10);
+            });
+        }
+    };
+
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: categories,
+            datasets: [{
+                data: categoryCounts,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.6)',
+                    'rgba(54, 162, 235, 0.6)',
+                    'rgba(255, 206, 86, 0.6)',
+                    'rgba(75, 192, 192, 0.6)',
+                    'rgba(153, 102, 255, 0.6)',
+                    'rgba(255, 159, 64, 0.6)',
+                    'rgba(199, 199, 199, 0.6)',
+                    'rgba(83, 102, 255, 0.6)',
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)',
+                    'rgba(199, 199, 199, 1)',
+                    'rgba(83, 102, 255, 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const percentage = categoryPercentages[context.dataIndex] || 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [doughnutLabelsPlugin]
+    });
+
+    // Show daily failures modal with real data - FILTERED BY SECTION
+    function showDailyFailures(date, shift) {
+        const modal = new bootstrap.Modal(document.getElementById('failureModal'));
+        const title = document.getElementById('failureModalTitle');
+        const body = document.getElementById('failureModalBody');
+
+        let shiftLabel = 'All Shifts';
+        if (shift === 'Day') shiftLabel = 'Day Shift';
+        if (shift === 'Night') shiftLabel = 'Night Shift';
+
+        title.textContent = `Failures - ${date} (${shiftLabel})`;
+        body.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+        // Fetch real failure data from API - WITH SECTION FILTER
+        let apiUrl = `/maintenance/api/report/daily-failures/${date}/?shift=${shift}`;
+        
+        // Add section parameter if it exists
+        if (selectedSection) {
+            apiUrl += `&section=${selectedSection}`;
+        }
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                let htmlContent = '';
+
+                if (!data.failures || data.failures.length === 0) {
+                    htmlContent = '<div class="alert alert-warning">No failures found for this date and shift.</div>';
+                } else {
+                    let sectionLabel = selectedSection ? ` (${selectedSection})` : '';
+                    htmlContent = `
+                        <div class="alert alert-info mb-3">
+                            <strong>Date:</strong> ${data.date}<br>
+                            <strong>Total Failures:</strong> ${data.total_count}${sectionLabel}
+                        </div>
+                        <div class="failure-table-container">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead style="background-color: #f0f0f0; position: sticky; top: 0;">
+                                    <tr>
+                                        <th>Machine</th>
+                                        <th>Details</th>
+                                        <th>Category Level 0</th>
+                                        <th>Failure Category</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    data.failures.forEach((failure, index) => {
+                        const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
+                        htmlContent += `
+                            <tr>
+                                <td>
+                                    <a href="/maintenance/reports/machine/${failure.machine_name}/" class="machine-link-small" target="_blank">
+                                        <strong>${failure.machine_name}</strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    <small>${failure.details}</small>
+                                </td>
+                                <td>
+                                    <span class="failure-category-badge">${failure.category_level_0}</span>
+                                </td>
+                                <td>
+                                    <small>${failure.failure_category}</small>
+                                </td>
+                                <td>
+                                    <span class="failure-status ${statusClass}">${failure.status}</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    htmlContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="alert alert-success mt-3">
+                            <strong>Total Failures on ${data.date}:</strong> ${data.total_count} failure(s)
+                        </div>
+                    `;
+                }
+
+                body.innerHTML = htmlContent;
+                modal.show();
+            })
+            .catch(error => {
+                body.innerHTML = '<div class="alert alert-danger">Error loading failure data: ' + error.message + '</div>';
+                modal.show();
+            });
+    }
+</script>
+{% endblock %}

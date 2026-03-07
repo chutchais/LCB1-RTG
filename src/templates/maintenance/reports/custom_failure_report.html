@@ -1,0 +1,407 @@
+{% extends "maintenance/reports/base_report.html" %}
+
+{% block title %}Custom Date Range Failure Report{% endblock %}
+
+{% block page_title %}Failure Report - Custom Date Range{% endblock %}
+
+{% block page_subtitle %}Period: {{ start_date }} to {{ end_date }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .compact-card {
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+    .compact-card-header {
+        padding: 12px 15px;
+        background-color: #667eea;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 6px 6px 0 0;
+    }
+    .compact-card-header:hover {
+        background-color: #764ba2;
+    }
+    .compact-card-header .stats {
+        font-size: 0.9em;
+        margin-left: 15px;
+    }
+    .collapse-icon {
+        font-size: 1.2em;
+        transition: transform 0.3s;
+    }
+    .collapse-icon.collapsed {
+        transform: rotate(-90deg);
+    }
+    .compact-card-body {
+        padding: 15px;
+        background-color: #f9f9f9;
+        display: none;
+        border-radius: 0 0 6px 6px;
+    }
+    .compact-card-body.show {
+        display: block;
+    }
+    .mini-chart-container {
+        position: relative;
+        height: 200px;
+        margin-bottom: 15px;
+    }
+    .category-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+        font-size: 0.9em;
+    }
+    .category-row:last-child {
+        border-bottom: none;
+    }
+    .category-name {
+        flex: 1;
+        font-weight: 500;
+    }
+    .category-count {
+        width: 60px;
+        text-align: center;
+    }
+    .category-percentage {
+        width: 80px;
+    }
+    .progress-mini {
+        height: 12px;
+        margin: 4px 0;
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        margin: 2px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    .machine-list {
+        font-size: 0.85em;
+        margin-top: 5px;
+    }
+    .machine-link-small {
+        color: #667eea;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .machine-link-small:hover {
+        text-decoration: underline;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .kpi-card-small {
+        text-align: center;
+        padding: 15px;
+        border-radius: 6px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .kpi-value-small {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .kpi-label-small {
+        color: #666;
+        font-size: 0.8em;
+        margin-top: 5px;
+    }
+    .tab-buttons {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.3s;
+    }
+    .tab-btn.active {
+        background-color: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .back-button-section {
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block filters %}
+<div class="col-md-12">
+    <a href="/maintenance/reports/date-range/" class="btn btn-secondary">← Change Date Range</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <strong>Error:</strong> {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% elif has_data %}
+
+<div class="kpi-grid">
+    <div class="kpi-card-small">
+        <div class="kpi-value-small">{{ total_failures }}</div>
+        <div class="kpi-label-small">Total Failures</div>
+    </div>
+    <div class="kpi-card-small">
+        <div class="kpi-value-small">{{ avg_repair_hours }}h</div>
+        <div class="kpi-label-small">Avg Repair Time</div>
+    </div>
+    <div class="kpi-card-small">
+        <div class="kpi-value-small">{{ report_data.machine_types|length }}</div>
+        <div class="kpi-label-small">Machine Types</div>
+    </div>
+    <div class="kpi-card-small">
+        <div class="kpi-value-small">{{ start_date }} / {{ end_date }}</div>
+        <div class="kpi-label-small">Period</div>
+    </div>
+</div>
+
+<!-- Compact Collapsible Cards for Machine Types -->
+<div class="tab-buttons">
+    <button class="tab-btn active" onclick="showAllCards()">Show All</button>
+    <button class="tab-btn" onclick="expandAllCards()">Expand All</button>
+    <button class="tab-btn" onclick="collapseAllCards()">Collapse All</button>
+</div>
+
+{% for mt_data in report_data.machine_types %}
+<div class="compact-card">
+    <div class="compact-card-header" onclick="toggleCard(this)">
+        <div style="display: flex; align-items: center; flex: 1;">
+            <span class="collapse-icon">▼</span>
+            <strong style="margin-left: 10px;">{{ mt_data.machine_type }}</strong>
+            <span class="stats">
+                <span class="badge bg-danger">{{ mt_data.status_breakdown.OPEN }} Open</span>
+                <span class="badge bg-success">{{ mt_data.status_breakdown.CLOSED }} Closed</span>
+            </span>
+        </div>
+        <span style="background: rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 4px;">
+            {{ mt_data.total_failures }} failures
+        </span>
+    </div>
+
+    <div class="compact-card-body">
+        <!-- Mini Chart Tab -->
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab(this, 'chart-{{ mt_data.machine_type }}')">Chart</button>
+            <button class="tab-btn" onclick="switchTab(this, 'table-{{ mt_data.machine_type }}')">Details</button>
+        </div>
+
+        <!-- Chart View -->
+        <div id="chart-{{ mt_data.machine_type }}" class="tab-content active">
+            <div class="mini-chart-container">
+                <canvas id="canvas-{{ mt_data.machine_type }}"></canvas>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div id="table-{{ mt_data.machine_type }}" class="tab-content">
+            <div style="overflow-x: auto;">
+                <table class="table table-sm table-hover" style="margin-bottom: 0; background: none; box-shadow: none;">
+                    <thead style="background-color: #f0f0f0;">
+                        <tr>
+                            <th style="padding: 8px; font-size: 0.85em;">Category</th>
+                            <th style="padding: 8px; font-size: 0.85em; text-align: center; width: 50px;">Count</th>
+                            <th style="padding: 8px; font-size: 0.85em; text-align: center; width: 100px;">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in mt_data.by_category %}
+                        <tr>
+                            <td style="padding: 8px; font-size: 0.85em;">
+                                <strong>{{ cat.category_level_0 }}</strong><br>
+                                <small style="color: #666;">
+                                    {% for machine in cat.machines %}
+                                    <a href="/maintenance/reports/machine/{{ machine.name }}/" class="machine-link-small">{{ machine.name }}</a>
+                                    <span class="badge bg-info" style="font-size: 0.7em;">{{ machine.count }}</span>
+                                    {% if not forloop.last %} • {% endif %}
+                                    {% endfor %}
+                                </small>
+                            </td>
+                            <td style="padding: 8px; text-align: center; font-size: 0.85em;">{{ cat.count }}</td>
+                            <td style="padding: 8px; text-align: center; font-size: 0.85em;">
+                                <div class="progress progress-mini">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ cat.percentage }}%; background-color: #667eea;">
+                                    </div>
+                                </div>
+                                {{ cat.percentage }}%
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="alert alert-info">
+    <strong>No data available</strong> for the selected date range.
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script>
+    // Toggle card expansion
+    function toggleCard(header) {
+        const body = header.nextElementSibling;
+        const icon = header.querySelector('.collapse-icon');
+        
+        body.classList.toggle('show');
+        icon.classList.toggle('collapsed');
+    }
+
+    // Expand all cards
+    function expandAllCards() {
+        document.querySelectorAll('.compact-card-header').forEach(header => {
+            const body = header.nextElementSibling;
+            const icon = header.querySelector('.collapse-icon');
+            body.classList.add('show');
+            icon.classList.remove('collapsed');
+        });
+    }
+
+    // Collapse all cards
+    function collapseAllCards() {
+        document.querySelectorAll('.compact-card-header').forEach(header => {
+            const body = header.nextElementSibling;
+            const icon = header.querySelector('.collapse-icon');
+            body.classList.remove('show');
+            icon.classList.add('collapsed');
+        });
+    }
+
+    // Show all cards (default state)
+    function showAllCards() {
+        collapseAllCards();
+    }
+
+    // Switch between tabs
+    function switchTab(button, contentId) {
+        // Remove active class from all buttons in this group
+        button.parentElement.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+        
+        // Hide all tab contents in parent card
+        const parent = button.closest('.compact-card-body');
+        parent.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // Show selected tab content
+        document.getElementById(contentId).classList.add('active');
+        
+        // Trigger chart redraw if it exists
+        setTimeout(() => {
+            const canvas = document.getElementById('canvas-' + contentId.substring(6));
+            if (canvas && window.Chart && canvas.chart) {
+                canvas.chart.resize();
+            }
+        }, 100);
+    }
+
+    // Initialize charts
+    {% for mt_data in report_data.machine_types %}
+    (function() {
+        const ctx = document.getElementById('canvas-{{ mt_data.machine_type }}');
+        if (ctx) {
+            const labels = [
+                {% for cat in mt_data.by_category %}'{{ cat.category_level_0|truncatechars:20 }}',{% endfor %}
+            ];
+            const data = [
+                {% for cat in mt_data.by_category %}{{ cat.count }},{% endfor %}
+            ];
+            const colors = [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)',
+                'rgba(199, 199, 199, 0.6)',
+                'rgba(83, 102, 255, 0.6)',
+            ];
+            const borderColors = [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(199, 199, 199, 1)',
+                'rgba(83, 102, 255, 1)',
+            ];
+
+            ctx.chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Failures',
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    })();
+    {% endfor %}
+</script>
+{% endblock %}

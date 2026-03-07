@@ -1,0 +1,194 @@
+{% extends "maintenance/reports/base_report.html" %}
+
+{% block title %}{{ machine_name }} - Failure History{% endblock %}
+
+{% block page_title %}{{ machine_name }} - Detailed Analysis{% endblock %}
+
+{% block page_subtitle %}Machine Type: {{ machine_data.machine_type }}{% endblock %}
+
+{% block filters %}{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% else %}
+
+<!-- Performance Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value">{{ machine_data.performance_metrics.mttr_hours }}h</div>
+            <div class="metric-label">Average MTTR</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value">{{ machine_data.performance_metrics.total_failures_in_period }}</div>
+            <div class="metric-label">Failures (Last {{ days }} days)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value">{{ machine_data.performance_metrics.failures_this_week }}</div>
+            <div class="metric-label">Failures This Week</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value">
+                {% if machine_data.performance_metrics.status_breakdown.OPEN %}
+                    <span style="color: #e74c3c;">{{ machine_data.performance_metrics.status_breakdown.OPEN }}</span>
+                {% else %}
+                    <span style="color: #27ae60;">✓ Good</span>
+                {% endif %}
+            </div>
+            <div class="metric-label">Open Issues</div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Breakdown Chart -->
+{% if machine_data.category_breakdown %}
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Failure Categories Distribution</h5>
+    </div>
+    <div class="card-body">
+        <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Failures Table -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Recent Failure History (Last {{ days }} Days)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Details</th>
+                        <th>MTTR (h)</th>
+                        <th>Lead Time (h)</th>
+                        <th>Status</th>
+                        <th>Technician</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for failure in machine_data.recent_failures %}
+                    <tr>
+                        <td>{{ failure.start_date }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ failure.category }}</span>
+                        </td>
+                        <td>
+                            <small>{{ failure.details }}</small>
+                        </td>
+                        <td>{{ failure.repairing_time_hours }}</td>
+                        <td>{{ failure.lead_time_hours }}</td>
+                        <td>
+                            {% if failure.status == 'OPEN' %}
+                                <span class="badge bg-danger">OPEN</span>
+                            {% else %}
+                                <span class="badge bg-success">CLOSED</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ failure.technician }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No failures recorded in this period</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Root Cause Analysis -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Recent Issues Analysis</h5>
+    </div>
+    <div class="card-body">
+        {% for failure in machine_data.recent_failures %}
+        {% if failure.rootcause or failure.repair_action %}
+        <div class="accordion" id="failureAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ failure.id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#collapse{{ failure.id }}">
+                        {{ failure.start_date }} - {{ failure.category }}
+                    </button>
+                </h2>
+                <div id="collapse{{ failure.id }}" class="accordion-collapse collapse" 
+                     data-bs-parent="#failureAccordion">
+                    <div class="accordion-body">
+                        <p><strong>Details:</strong> {{ failure.details }}</p>
+                        <p><strong>Root Cause:</strong> {{ failure.rootcause }}</p>
+                        <p><strong>Repair Action:</strong> {{ failure.repair_action }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    // Category Distribution Chart
+    {% if machine_data.category_breakdown %}
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categories = [
+        {% for cat in machine_data.category_breakdown %}'{{ cat.category_level_0 }}',{% endfor %}
+    ];
+    const categoryCounts = [
+        {% for cat in machine_data.category_breakdown %}{{ cat.count }},{% endfor %}
+    ];
+
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: categories,
+            datasets: [{
+                data: categoryCounts,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.6)',
+                    'rgba(54, 162, 235, 0.6)',
+                    'rgba(255, 206, 86, 0.6)',
+                    'rgba(75, 192, 192, 0.6)',
+                    'rgba(153, 102, 255, 0.6)',
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+
+{% endif %}
+{% endblock %}
