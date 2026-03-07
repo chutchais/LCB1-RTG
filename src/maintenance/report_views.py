@@ -5,6 +5,11 @@ from django.http import JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from datetime import datetime, timedelta
 import json
+
+# Import Models
+from .models import Failure, Section, MachineType, Machine  
+
+
 from .report_utils import (
     get_today_failures_by_type,
     get_week_failures_by_type,
@@ -19,7 +24,9 @@ from .report_utils import (
     get_failures_by_date_range,
     get_performance_metrics_by_date_range,
     get_failures_by_date_shift_and_type,
-    get_failures_by_date_and_shift
+    get_failures_by_date_and_shift,
+    get_today_start_end,  # Add this
+    get_week_start_end,   # Add this
 )
 
 # ==================== Date Range Selection ====================
@@ -355,6 +362,93 @@ class WeekFailureReportView(LoginRequiredMixin, TemplateView):
         context['daily_dates'] = json.dumps(daily_dates)
         context['daily_series_data'] = json.dumps(daily_series_data)
         context['machine_type_names'] = json.dumps(machine_type_names)
+        context['daily_data'] = report_data['daily_data']
+        
+        return context
+
+class WeekFailureReportView(LoginRequiredMixin, TemplateView):
+    """Display this week's failure report with trends"""
+    template_name = 'maintenance/reports/week_report.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        section = self.request.GET.get('section', None)
+        
+        # If no section selected, redirect to select one
+        if not section:
+            sections = get_all_sections()
+            if sections.exists():
+                section = sections.first()
+            else:
+                context['error'] = 'No sections available'
+                return context
+        
+        report_data = get_week_failures_by_section(section)
+        
+        context['report_data'] = report_data
+        context['period_start'] = report_data['period_start']
+        context['period_end'] = report_data['period_end']
+        context['total_failures'] = report_data['cumulative']['total_failures']
+        context['sections'] = get_all_sections()
+        context['selected_section'] = section
+        
+        # Prepare data for charts - with machine type series (skip if no failures)
+        daily_dates = [d['date'] for d in report_data['daily_data']]
+        machine_type_names = report_data['machine_type_names']
+        
+        # Filter out machine types with no failures
+        machine_types_with_failures = []
+        for mt_name in machine_type_names:
+            total_for_mt = sum(d['by_machine_type'].get(mt_name, 0) for d in report_data['daily_data'])
+            if total_for_mt > 0:  # Only include if there are failures
+                machine_types_with_failures.append(mt_name)
+        
+        # Build series data for each machine type (only those with failures)
+        daily_series_data = {}
+        for mt_name in machine_types_with_failures:
+            daily_series_data[mt_name] = [d['by_machine_type'].get(mt_name, 0) for d in report_data['daily_data']]
+        
+        # Prepare Pareto data for each machine type (only those with failures)
+        week_start, week_end = get_week_start_end()
+        pareto_data = {}
+        
+        for mt_name in machine_types_with_failures:
+            failures = Failure.objects.filter(
+                start_date__range=[week_start, week_end],
+                machine__machine_type__section__name=section,
+                machine__machine_type__name=mt_name
+            ).select_related('machine__machine_type')
+            
+            # Count by category
+            category_counts = {}
+            for failure in failures:
+                cat = failure.category_level_0 or 'Uncategorized'
+                category_counts[cat] = category_counts.get(cat, 0) + 1
+            
+            # Sort by count descending
+            sorted_cats = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+            
+            # Calculate cumulative percentage
+            total = sum(count for _, count in sorted_cats)
+            cumulative = 0
+            pareto_items = []
+            
+            for cat, count in sorted_cats:
+                cumulative += count
+                percentage = (cumulative / total * 100) if total > 0 else 0
+                pareto_items.append({
+                    'category': cat,
+                    'count': count,
+                    'cumulative_percentage': round(percentage, 1)
+                })
+            
+            pareto_data[mt_name] = pareto_items
+        
+        context['daily_dates'] = json.dumps(daily_dates)
+        context['daily_series_data'] = json.dumps(daily_series_data)
+        context['machine_type_names'] = json.dumps(machine_types_with_failures)  # Use filtered list
+        context['pareto_data'] = json.dumps(pareto_data)
         context['daily_data'] = report_data['daily_data']
         
         return context

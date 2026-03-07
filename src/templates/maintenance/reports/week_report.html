@@ -6,6 +6,18 @@
 
 {% block page_subtitle %}Weekly failure trends and analysis - Section: {{ selected_section }}{% endblock %}
 
+{% block download_section %}
+<div class="download-section">
+    <span class="download-label">📥 Export Data:</span>
+    <a href="/maintenance/reports/download/week-excel/?section={{ selected_section }}" class="btn-download" title="Download as Excel (with formatting)">
+        <strong>📊</strong> Excel
+    </a>
+    <a href="/maintenance/reports/download/week-csv/?section={{ selected_section }}" class="btn-download" style="background-color: #3498db; border-color: #3498db;" title="Download as CSV">
+        <strong>📋</strong> CSV
+    </a>
+</div>
+{% endblock %}
+
 {% block filters %}
 <div class="col-md-4">
     <label for="section" class="form-label">Section</label>
@@ -99,6 +111,41 @@
         font-size: 0.85em;
         margin-top: 8px;
     }
+    .pareto-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .pareto-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 15px;
+        transition: all 0.3s;
+    }
+    .pareto-card:hover {
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+        transform: translateY(-2px);
+    }
+    .pareto-card-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 12px;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 8px;
+    }
+    .pareto-mini-chart {
+        position: relative;
+        height: 180px;
+        margin-bottom: 10px;
+    }
+    @media (max-width: 768px) {
+        .pareto-cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -135,14 +182,21 @@
     </div>
 </div>
 
-<!-- Category Breakdown -->
+<!-- Pareto Charts by Machine Type -->
 <div class="report-card">
     <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Failures by Category (This Week) - With Percentages</h5>
+        <h5 class="mb-0">Pareto Chart - Failures by Category per Machine Type</h5>
     </div>
     <div class="card-body">
-        <div class="chart-container">
-            <canvas id="categoryChart"></canvas>
+        <div class="pareto-cards-grid">
+            {% for mt_name in report_data.machine_type_names %}
+            <div class="pareto-card">
+                <div class="pareto-card-title">{{ mt_name }}</div>
+                <div class="pareto-mini-chart">
+                    <canvas id="pareto-chart-{{ mt_name }}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -233,8 +287,9 @@
     const dates = {{ daily_dates|safe }};
     const seriesData = {{ daily_series_data|safe }};
     const machineTypeNames = {{ machine_type_names|safe }};
+    const paretoData = {{ pareto_data|safe }};
 
-    // Colors for each machine type
+    // Colors for charts
     const colors = [
         'rgba(255, 99, 132, 1)',
         'rgba(54, 162, 235, 1)',
@@ -257,7 +312,7 @@
         'rgba(83, 102, 255, 0.1)',
     ];
 
-    // Daily Trend Line Chart with Multiple Series (One for each Machine Type)
+    // Daily Trend Line Chart with Multiple Series
     const dailyCtx = document.getElementById('dailyTrendChart').getContext('2d');
 
     const datasets = [];
@@ -300,12 +355,6 @@
                         display: true,
                         text: 'Number of Failures'
                     }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Date'
-                    }
                 }
             },
             plugins: {
@@ -316,109 +365,132 @@
                         usePointStyle: true,
                         padding: 15
                     }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: 'rgba(255,255,255,0.2)',
-                    borderWidth: 1,
-                    padding: 12,
-                    displayColors: true
                 }
             }
         }
     });
 
-    // Category Distribution Doughnut Chart with Always-Visible Labels
-    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const categories = [
-        {% for cat in report_data.cumulative.by_category %}'{{ cat.category_level_0 }}',{% endfor %}
-    ];
-    const categoryCounts = [
-        {% for cat in report_data.cumulative.by_category %}{{ cat.count }},{% endfor %}
-    ];
-
-    // Calculate percentages
-    const totalFailures = categoryCounts.reduce((a, b) => a + b, 0);
-    const categoryPercentages = categoryCounts.map(count => ((count / totalFailures) * 100).toFixed(1));
-
-    // Plugin to display labels and percentages on the doughnut
-    const doughnutLabelsPlugin = {
-        id: 'doughnutLabels',
-        afterDatasetsDraw(chart) {
-            const {ctx, data, chartArea: {left, top, width, height}} = chart;
-            chart.getDatasetMeta(0).data.forEach((point, index) => {
-                const {x, y} = point.tooltipPosition();
-                
-                const label = data.labels[index];
-                const value = data.datasets[0].data[index];
-                const percentage = categoryPercentages[index];
-                
-                ctx.fillStyle = '#000';
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                
-                ctx.fillText(`${percentage}%`, x, y - 10);
-                ctx.font = '12px Arial';
-                ctx.fillText(`(${value})`, x, y + 10);
-            });
+    // Create Pareto Charts for each Machine Type
+    machineTypeNames.forEach((mtName, mtIndex) => {
+        const paretoCtx = document.getElementById(`pareto-chart-${mtName}`).getContext('2d');
+        const mtParetoData = paretoData[mtName] || [];
+        
+        if (mtParetoData.length === 0) {
+            paretoCtx.canvas.parentElement.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No data available</p>';
+            return;
         }
-    };
-
-    new Chart(categoryCtx, {
-        type: 'doughnut',
-        data: {
-            labels: categories,
-            datasets: [{
-                data: categoryCounts,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.6)',
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                    'rgba(153, 102, 255, 0.6)',
-                    'rgba(255, 159, 64, 0.6)',
-                    'rgba(199, 199, 199, 0.6)',
-                    'rgba(83, 102, 255, 0.6)',
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(153, 102, 255, 1)',
-                    'rgba(255, 159, 64, 1)',
-                    'rgba(199, 199, 199, 1)',
-                    'rgba(83, 102, 255, 1)',
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right'
+        
+        const categories = mtParetoData.map(item => item.category);
+        const counts = mtParetoData.map(item => item.count);
+        const cumulativePercentages = mtParetoData.map(item => item.cumulative_percentage);
+        
+        new Chart(paretoCtx, {
+            type: 'bar',
+            data: {
+                labels: categories,
+                datasets: [
+                    {
+                        label: 'Failures',
+                        data: counts,
+                        backgroundColor: colors[mtIndex % colors.length],
+                        borderColor: colors[mtIndex % colors.length],
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        label: 'Cumulative %',
+                        data: cumulativePercentages,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        yAxisID: 'y1',
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        tension: 0.4,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'x',
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Count',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 9
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Cumulative %',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            font: {
+                                size: 9
+                            }
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const percentage = categoryPercentages[context.dataIndex] || 0;
-                            return `${label}: ${value} (${percentage}%)`;
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.dataset.yAxisID === 'y1') {
+                                    label += context.parsed.y.toFixed(1) + '%';
+                                } else {
+                                    label += context.parsed.y;
+                                }
+                                return label;
+                            }
                         }
                     }
                 }
             }
-        },
-        plugins: [doughnutLabelsPlugin]
+        });
     });
 
-    // Show daily failures modal with real data - FILTERED BY SECTION
+    // Show daily failures modal
     function showDailyFailures(date, shift) {
         const modal = new bootstrap.Modal(document.getElementById('failureModal'));
         const title = document.getElementById('failureModalTitle');
@@ -431,10 +503,8 @@
         title.textContent = `Failures - ${date} (${shiftLabel})`;
         body.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
-        // Fetch real failure data from API - WITH SECTION FILTER
         let apiUrl = `/maintenance/api/report/daily-failures/${date}/?shift=${shift}`;
         
-        // Add section parameter if it exists
         if (selectedSection) {
             apiUrl += `&section=${selectedSection}`;
         }
@@ -467,7 +537,7 @@
                                 <tbody>
                     `;
                     
-                    data.failures.forEach((failure, index) => {
+                    data.failures.forEach((failure) => {
                         const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
                         htmlContent += `
                             <tr>

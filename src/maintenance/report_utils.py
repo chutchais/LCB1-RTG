@@ -939,3 +939,26 @@ def get_week_failures_by_section(section_name):
         'machine_type_names': machine_type_names  # Add this for frontend
     }
 
+
+def get_timezone():
+    """Get Bangkok timezone"""
+    return pytz.timezone('Asia/Bangkok')
+
+def get_today_start_end():
+    """Get today's start and end datetime"""
+    tz = get_timezone()
+    today = datetime.now(tz=tz)
+    today_start = datetime.combine(today.date(), time.min).replace(tzinfo=tz)
+    today_end = datetime.combine(today.date(), time.max).replace(tzinfo=tz)
+    return today_start, today_end
+
+def get_week_start_end():
+    """Get this week's start and end datetime"""
+    tz = get_timezone()
+    today = datetime.now(tz=tz).date()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    
+    week_start_dt = datetime.combine(week_start, time.min).replace(tzinfo=tz)
+    week_end_dt = datetime.combine(week_end, time.max).replace(tzinfo=tz)
+    return week_start_dt, week_end_dt
