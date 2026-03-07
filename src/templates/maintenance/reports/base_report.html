@@ -14,6 +14,31 @@
         }
         .navbar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0.5rem 0 !important;
+        }
+        .navbar-brand {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .nav-link {
+            font-size: 0.9rem;
+            padding: 0.3rem 0.8rem !important;
+        }
+        .report-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        .report-header h1 {
+            font-size: 1.8rem;
+            margin: 0;
+            font-weight: 600;
+        }
+        .report-header p {
+            font-size: 0.9rem;
+            margin: 5px 0 0 0;
+            opacity: 0.95;
         }
         .report-card {
             border: none;
@@ -21,11 +46,12 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        .report-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px 0;
-            margin-bottom: 30px;
+        .report-card .card-header {
+            padding: 12px 15px;
+            font-size: 0.95rem;
+        }
+        .report-card .card-body {
+            padding: 15px;
         }
         .metric-card {
             text-align: center;
@@ -47,10 +73,20 @@
         }
         .filter-section {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .filter-section .form-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .filter-section .form-select,
+        .filter-section .form-control {
+            font-size: 0.9rem;
+            padding: 0.4rem 0.75rem;
         }
         .chart-container {
             position: relative;
@@ -62,10 +98,17 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
         }
-        th {
+        table th {
             background-color: #667eea !important;
             color: white !important;
+            padding: 10px 8px;
+            font-size: 0.85rem;
+        }
+        table td {
+            padding: 10px 8px;
+            font-size: 0.85rem;
         }
         tr:hover {
             background-color: #f5f5f5;
@@ -82,10 +125,57 @@
         .btn-primary {
             background-color: #667eea;
             border-color: #667eea;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
         }
         .btn-primary:hover {
             background-color: #764ba2;
             border-color: #764ba2;
+        }
+        .download-section {
+            background-color: #f0f4ff;
+            border: 1px solid #667eea;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .download-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+            margin-right: 5px;
+        }
+        .btn-download {
+            background-color: #27ae60;
+            border-color: #27ae60;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+        .btn-download:hover {
+            background-color: #229954;
+            border-color: #229954;
+            color: white;
+            text-decoration: none;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+        footer {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            padding: 15px 0;
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -94,49 +184,50 @@
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="/maintenance/">
-                <strong>📊 Failure Analysis System</strong>
+                <strong>📊 Failure Analysis</strong>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-    <ul class="navbar-nav ms-auto">
-        <li class="nav-item">
-            <a class="nav-link" href="/maintenance/reports/today/">Today's Report</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="/maintenance/reports/week/">Week's Report</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="/maintenance/reports/metrics/">Performance Metrics</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="/maintenance/reports/date-range/">📅 Custom Date Range</a>
-        </li>
-    </ul>
-</div>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/maintenance/reports/today/">Today</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/maintenance/reports/week/">Week</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/maintenance/reports/metrics/">Metrics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/maintenance/reports/date-range/">📅 Date Range</a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
     <div class="report-header">
         <div class="container">
             <h1>{% block page_title %}Failure Analysis Report{% endblock %}</h1>
-            <p class="lead">{% block page_subtitle %}Comprehensive maintenance performance analysis{% endblock %}</p>
+            <p>{% block page_subtitle %}Comprehensive maintenance performance analysis{% endblock %}</p>
         </div>
     </div>
 
     <div class="container">
         <!-- Filters -->
         <div class="filter-section">
-            <form method="get" class="row g-3">
+            <form method="get" class="row g-2">
                 {% block filters %}
                 <div class="col-md-4">
                     <label for="machine_type" class="form-label">Machine Type</label>
                     <select class="form-select" id="machine_type" name="machine_type">
                         <option value="">All Types</option>
-                        {% for mt in machine_types %}
-                        <option value="{{ mt }}" {% if selected_machine_type == mt %}selected{% endif %}>{{ mt }}</option>
-                        {% endfor %}
+                        <option value="RTG" {% if selected_machine_type == 'RTG' %}selected{% endif %}>RTG</option>
+                        <option value="CRANE" {% if selected_machine_type == 'CRANE' %}selected{% endif %}>Crane</option>
+                        <option value="HUSTLER" {% if selected_machine_type == 'HUSTLER' %}selected{% endif %}>Hustler</option>
+                        <option value="TRAILER" {% if selected_machine_type == 'TRAILER' %}selected{% endif %}>Trailer</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -147,13 +238,16 @@
             </form>
         </div>
 
+        <!-- Download Section -->
+        {% block download_section %}{% endblock %}
+
         <!-- Main Content -->
         {% block content %}{% endblock %}
     </div>
 
-    <footer class="bg-light py-4 mt-5">
-        <div class="container text-center">
-            <p class="text-muted">© 2026 Failure Analysis System | Last Updated: {% now "Y-m-d H:i" %}</p>
+    <footer class="bg-light">
+        <div class="container text-center text-muted">
+            <p>© 2026 Failure Analysis System | Last Updated: {% now "Y-m-d H:i" %}</p>
         </div>
     </footer>
 

@@ -6,17 +6,7 @@
 
 {% block page_subtitle %}Weekly failure trends and analysis - Section: {{ selected_section }}{% endblock %}
 
-{% block download_section %}
-<div class="download-section">
-    <span class="download-label">📥 Export Data:</span>
-    <a href="/maintenance/reports/download/week-excel/?section={{ selected_section }}" class="btn-download" title="Download as Excel (with formatting)">
-        <strong>📊</strong> Excel
-    </a>
-    <a href="/maintenance/reports/download/week-csv/?section={{ selected_section }}" class="btn-download" style="background-color: #3498db; border-color: #3498db;" title="Download as CSV">
-        <strong>📋</strong> CSV
-    </a>
-</div>
-{% endblock %}
+
 
 {% block filters %}
 <div class="col-md-4">
@@ -170,7 +160,7 @@
     </div>
 </div>
 
-<!-- Daily Trend Chart with Machine Type Series -->
+<!-- Daily Trend Chart with Machine Type Series (Stacked Bar) -->
 <div class="report-card">
     <div class="card-header bg-primary text-white">
         <h5 class="mb-0">Daily Failure Trend by Machine Type</h5>
@@ -291,6 +281,17 @@
 
     // Colors for charts
     const colors = [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+    ];
+
+    const borderColors = [
         'rgba(255, 99, 132, 1)',
         'rgba(54, 162, 235, 1)',
         'rgba(255, 206, 86, 1)',
@@ -301,18 +302,7 @@
         'rgba(83, 102, 255, 1)',
     ];
 
-    const bgColors = [
-        'rgba(255, 99, 132, 0.1)',
-        'rgba(54, 162, 235, 0.1)',
-        'rgba(255, 206, 86, 0.1)',
-        'rgba(75, 192, 192, 0.1)',
-        'rgba(153, 102, 255, 0.1)',
-        'rgba(255, 159, 64, 0.1)',
-        'rgba(199, 199, 199, 0.1)',
-        'rgba(83, 102, 255, 0.1)',
-    ];
-
-    // Daily Trend Line Chart with Multiple Series
+    // Daily Trend Stacked Bar Chart with Machine Types
     const dailyCtx = document.getElementById('dailyTrendChart').getContext('2d');
 
     const datasets = [];
@@ -320,20 +310,14 @@
         datasets.push({
             label: mtName,
             data: seriesData[mtName],
-            borderColor: colors[index % colors.length],
-            backgroundColor: bgColors[index % bgColors.length],
-            tension: 0.4,
-            fill: false,
-            pointRadius: 5,
-            pointBackgroundColor: colors[index % colors.length],
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverRadius: 7
+            backgroundColor: colors[index % colors.length],
+            borderColor: borderColors[index % borderColors.length],
+            borderWidth: 1
         });
     });
 
     new Chart(dailyCtx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: dates,
             datasets: datasets
@@ -341,12 +325,17 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            indexAxis: 'x',
             scales: {
+                x: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
                 y: {
+                    stacked: true,
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1
@@ -362,8 +351,34 @@
                     display: true,
                     position: 'top',
                     labels: {
-                        usePointStyle: true,
-                        padding: 15
+                        usePointStyle: false,
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed.y;
+                            return label;
+                        },
+                        afterLabel: function(context) {
+                            // Calculate total at this x position
+                            let total = 0;
+                            context.chart.data.datasets.forEach(dataset => {
+                                const value = dataset.data[context.dataIndex];
+                                if (typeof value !== 'undefined') {
+                                    total += value;
+                                }
+                            });
+                            return 'Total: ' + total;
+                        }
                     }
                 }
             }
@@ -393,7 +408,7 @@
                         label: 'Failures',
                         data: counts,
                         backgroundColor: colors[mtIndex % colors.length],
-                        borderColor: colors[mtIndex % colors.length],
+                        borderColor: borderColors[mtIndex % borderColors.length],
                         borderWidth: 1,
                         yAxisID: 'y',
                         order: 2
@@ -501,7 +516,7 @@
         if (shift === 'Night') shiftLabel = 'Night Shift';
 
         title.textContent = `Failures - ${date} (${shiftLabel})`;
-        body.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        body.innerHTML = '<div class="text-center"><div class="spinner-bell" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
         let apiUrl = `/maintenance/api/report/daily-failures/${date}/?shift=${shift}`;
         
