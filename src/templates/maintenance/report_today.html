@@ -1,0 +1,330 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Today's Failure Report</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { padding-top: 20px; }
+    .card { margin-bottom: 20px; }
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover { background-color: #f0f8ff; }
+    #drilldown-panel { display: none; }
+    .badge-category { font-size: 0.75em; }
+  </style>
+</head>
+<body>
+<div class="container-fluid">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>📋 Today's Failure Report &nbsp;<small class="text-muted fs-6" id="report-date">{{ today }}</small></h2>
+    <div>
+      <a href="{% url 'maintenance:index' %}" class="btn btn-sm btn-outline-secondary me-1">Main</a>
+      <a href="{% url 'maintenance:report-week' %}" class="btn btn-sm btn-outline-primary me-1">Week Report</a>
+      <a href="{% url 'maintenance:report-metrics' %}" class="btn btn-sm btn-outline-success">Performance</a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card">
+    <div class="card-body py-2">
+      <form class="row g-2 align-items-end" id="filter-form">
+        <div class="col-auto">
+          <label class="form-label mb-0">Machine Type</label>
+          <select class="form-select form-select-sm" id="filter-machine-type" name="machine_type">
+            <option value="">All</option>
+            {% for mt in machine_types %}
+            <option value="{{ mt.name }}">{{ mt.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <label class="form-label mb-0">Shift</label>
+          <select class="form-select form-select-sm" id="filter-shift" name="shift">
+            <option value="">All</option>
+            <option value="Day">Day</option>
+            <option value="Night">Night</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-sm btn-primary" onclick="loadData()">Apply</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">Reset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="row" id="summary-cards">
+    <div class="col-md-3">
+      <div class="card text-white bg-danger">
+        <div class="card-body text-center">
+          <h3 id="total-count">–</h3>
+          <p class="mb-0">Total Failures Today</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-warning">
+        <div class="card-body text-center">
+          <h3 id="open-count">–</h3>
+          <p class="mb-0">Open</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-success">
+        <div class="card-body text-center">
+          <h3 id="closed-count">–</h3>
+          <p class="mb-0">Closed</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-info">
+        <div class="card-body text-center">
+          <h3 id="mt-count">–</h3>
+          <p class="mb-0">Machine Types Affected</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Bar chart by machine type / category -->
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header">Failures by Machine Type &amp; Category</div>
+        <div class="card-body">
+          <canvas id="chart-by-type" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+    <!-- Category pie -->
+    <div class="col-md-5">
+      <div class="card">
+        <div class="card-header">Failures by Category</div>
+        <div class="card-body">
+          <canvas id="chart-category" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Machine type breakdown table (click row → drilldown) -->
+  <div class="card">
+    <div class="card-header">Machine Type Breakdown <small class="text-muted">(click a machine name to drilldown)</small></div>
+    <div class="card-body p-0">
+      <table class="table table-bordered table-sm mb-0" id="mt-table">
+        <thead class="table-primary">
+          <tr>
+            <th>Machine Type</th>
+            <th class="text-center">Total Failures</th>
+            <th>Top Machines</th>
+          </tr>
+        </thead>
+        <tbody id="mt-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Drilldown panel -->
+  <div class="card border-primary" id="drilldown-panel">
+    <div class="card-header bg-primary text-white d-flex justify-content-between">
+      <span id="drilldown-title">Machine Detail</span>
+      <button type="button" class="btn-close btn-close-white" onclick="closeDrilldown()"></button>
+    </div>
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <div class="card text-center">
+            <div class="card-body">
+              <h4 id="dd-total">–</h4><p class="mb-0">Total Failures</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card text-center">
+            <div class="card-body">
+              <h4 id="dd-mttr">–</h4><p class="mb-0">Avg Repair Time (min)</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card text-center">
+            <div class="card-body">
+              <h4 id="dd-closed">–</h4><p class="mb-0">Closed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <canvas id="dd-category-chart" height="100" class="mb-3"></canvas>
+      <table class="table table-sm table-hover" id="dd-table">
+        <thead class="table-secondary">
+          <tr>
+            <th>Start Date</th>
+            <th>Details</th>
+            <th>Category</th>
+            <th>Shift</th>
+            <th>Status</th>
+            <th>Repair (min)</th>
+          </tr>
+        </thead>
+        <tbody id="dd-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_URL = "{% url 'maintenance:api-report-today' %}";
+const MACHINE_API = "{% url 'maintenance:api-report-machine' 'PLACEHOLDER' %}".replace('PLACEHOLDER/', '');
+let chartByType = null, chartCategory = null, ddCategoryChart = null;
+let currentData = null;
+
+const COLORS = [
+  '#dc3545','#fd7e14','#ffc107','#20c997','#0d6efd','#6610f2',
+  '#6f42c1','#d63384','#0dcaf0','#198754'
+];
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(str)));
+  return d.innerHTML;
+}
+
+function resetFilters() {
+  document.getElementById('filter-machine-type').value = '';
+  document.getElementById('filter-shift').value = '';
+  loadData();
+}
+
+function buildQuery() {
+  const mt = document.getElementById('filter-machine-type').value;
+  const sh = document.getElementById('filter-shift').value;
+  const params = new URLSearchParams();
+  if (mt) params.set('machine_type', mt);
+  if (sh) params.set('shift', sh);
+  return params.toString() ? '?' + params.toString() : '';
+}
+
+function loadData() {
+  fetch(API_URL + buildQuery())
+    .then(r => r.json())
+    .then(data => {
+      currentData = data;
+      renderSummary(data);
+      renderCharts(data);
+      renderTable(data);
+      closeDrilldown();
+    });
+}
+
+function renderSummary(data) {
+  document.getElementById('total-count').textContent = data.total_failures;
+  const open   = data.records.filter(r => r.status === 'OPEN').length;
+  const closed = data.records.filter(r => r.status === 'CLOSED').length;
+  document.getElementById('open-count').textContent   = open;
+  document.getElementById('closed-count').textContent = closed;
+  document.getElementById('mt-count').textContent     = data.by_machine_type.length;
+}
+
+function renderCharts(data) {
+  // Bar chart by machine type
+  const mtLabels = data.by_machine_type.map(d => d.machine_type);
+  const mtValues = data.by_machine_type.map(d => d.count);
+  const ctx1 = document.getElementById('chart-by-type').getContext('2d');
+  if (chartByType) chartByType.destroy();
+  chartByType = new Chart(ctx1, {
+    type: 'bar',
+    data: { labels: mtLabels, datasets: [{ label: 'Failures', data: mtValues, backgroundColor: COLORS }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  // Pie chart by category
+  const catLabels = data.by_category.map(d => d.category);
+  const catValues = data.by_category.map(d => d.count);
+  const ctx2 = document.getElementById('chart-category').getContext('2d');
+  if (chartCategory) chartCategory.destroy();
+  chartCategory = new Chart(ctx2, {
+    type: 'doughnut',
+    data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: COLORS }] },
+    options: { responsive: true }
+  });
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('mt-tbody');
+  tbody.innerHTML = '';
+  data.by_machine_type.forEach(mt => {
+    const machineLinks = mt.machines.slice(0, 5).map(m =>
+      `<a href="#" class="badge bg-secondary me-1 badge-category text-decoration-none"
+          onclick="loadMachine(${JSON.stringify(m.name)}); return false;">${escHtml(m.name)} (${m.count})</a>`
+    ).join('');
+    const more = mt.machines.length > 5 ? `<small class="text-muted">+${mt.machines.length-5} more</small>` : '';
+    tbody.innerHTML += `<tr>
+      <td><strong>${mt.machine_type}</strong></td>
+      <td class="text-center"><span class="badge bg-danger fs-6">${mt.count}</span></td>
+      <td>${machineLinks}${more}</td>
+    </tr>`;
+  });
+}
+
+function loadMachine(name) {
+  fetch(MACHINE_API + encodeURIComponent(name) + '/')
+    .then(r => r.json())
+    .then(data => renderDrilldown(name, data));
+}
+
+function renderDrilldown(name, data) {
+  document.getElementById('drilldown-title').textContent = `Machine: ${name}  (${data.machine_type})`;
+  document.getElementById('dd-total').textContent   = data.total_failures;
+  document.getElementById('dd-closed').textContent  = data.metrics.closed_failures;
+  document.getElementById('dd-mttr').textContent    = data.metrics.mttr || '–';
+
+  // Category bar chart in drilldown
+  const ctx = document.getElementById('dd-category-chart').getContext('2d');
+  if (ddCategoryChart) ddCategoryChart.destroy();
+  ddCategoryChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.by_category.map(d => d.category),
+      datasets: [{ label: 'Failures', data: data.by_category.map(d => d.count), backgroundColor: COLORS }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  // Records table
+  const tbody = document.getElementById('dd-tbody');
+  tbody.innerHTML = '';
+  data.records.forEach(r => {
+    const statusBadge = r.status === 'OPEN'
+      ? `<span class="badge bg-warning text-dark">OPEN</span>`
+      : `<span class="badge bg-success">CLOSED</span>`;
+    tbody.innerHTML += `<tr>
+      <td>${escHtml(r.start_date)}</td>
+      <td>${escHtml(r.details)}</td>
+      <td><span class="badge bg-info text-dark">${escHtml(r.category_level_0)}</span></td>
+      <td>${escHtml(r.operation_shift)}</td>
+      <td>${statusBadge}</td>
+      <td>${r.repairing_time !== null ? escHtml(r.repairing_time) : '–'}</td>
+    </tr>`;
+  });
+
+  document.getElementById('drilldown-panel').style.display = 'block';
+  document.getElementById('drilldown-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeDrilldown() {
+  document.getElementById('drilldown-panel').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>

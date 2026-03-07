@@ -43,28 +43,29 @@ urlpatterns = [
     path('', index, name='index'),
     path('failures/', FailureListView.as_view(), name='failure-list'),
     path('failures/<pk>', FailureDetailView.as_view(), name='failure-detail'),
-    path('<section>', by_equipment, name='detail'),
     path('machines/', MachineListView.as_view(), name='machine-list'),
     path('machines/<pk>', MachineDetailView.as_view(), name='machine-detail'),
     path('machinetype/<pk>', MachineTypeDetailView.as_view(), name='machinetype-detail'),
-    
+
     # Report paths
     path('reports/today/', TodayFailureReportView.as_view(), name='report-today'),
     path('reports/week/', WeekFailureReportView.as_view(), name='report-week'),
     path('reports/metrics/', PerformanceMetricsView.as_view(), name='report-metrics'),
     path('reports/machine/<str:machine_name>/', MachineDetailReportView.as_view(), name='report-machine'),
-    
-    # NEW: Date range selection
+
+    # Date range selection
     path('reports/date-range/', ReportDateRangeView.as_view(), name='report-date-range'),
     path('reports/custom-failures/', CustomDateRangeFailureReportView.as_view(), name='report-custom-failures'),
     path('reports/custom-performance/', CustomDateRangePerformanceView.as_view(), name='report-custom-performance'),
-    
+
     # API paths
     path('api/report/today/', TodayFailureReportAPIView.as_view(), name='api-report-today'),
     path('api/report/week/', WeekFailureReportAPIView.as_view(), name='api-report-week'),
     path('api/performance/', PerformanceMetricsAPIView.as_view(), name='api-performance'),
     path('api/report/machine/<str:machine_name>/', MachineDetailAPIView.as_view(), name='api-machine-detail'),
+    path('api/report/machine/<str:machine_name>/', MachineDetailAPIView.as_view(), name='api-report-machine'),
     path('api/report/custom-failures/', CustomDateRangeFailureAPIView.as_view(), name='api-custom-failures'),
     path('api/report/custom-performance/', CustomDateRangePerformanceAPIView.as_view(), name='api-custom-performance'),
     path('api/report/daily-failures/<str:date>/', DailyFailureDetailsAPIView.as_view(), name='api-daily-failures'),
+    path('<section>', by_equipment, name='detail'),
 ]
