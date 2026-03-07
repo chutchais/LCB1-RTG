@@ -461,12 +461,12 @@ class FailureForm(forms.ModelForm):
             self.fields['failure_category'].queryset = FailureCategory.objects.filter(
                 machine_type=machine_type,
                 is_active=True
-            ).order_by('order', 'name')
+            ).order_by('-parent', 'order', 'name')
         else:
             # If creating new failure, show all categories
             self.fields['failure_category'].queryset = FailureCategory.objects.filter(
                 is_active=True
-            ).order_by('machine_type', 'order', 'name')
+            ).order_by('machine_type', '-parent', 'order', 'name')
 
 # @admin.register(Failure)
 # class FailureAdmin(ImportExportModelAdmin,ImportExportActionModelAdmin,admin.ModelAdmin):
