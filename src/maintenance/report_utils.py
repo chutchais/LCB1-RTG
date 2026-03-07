@@ -7,6 +7,10 @@ import pytz
 from django.db.models import Count, Avg, Q, F, Sum, Case, When, DecimalField
 from .models import Failure, Machine, MachineType, FailureCategory,Section
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def get_timezone():
     """Get Bangkok timezone"""
     return pytz.timezone('Asia/Bangkok')
@@ -962,3 +966,94 @@ def get_week_start_end():
     week_start_dt = datetime.combine(week_start, time.min).replace(tzinfo=tz)
     week_end_dt = datetime.combine(week_end, time.max).replace(tzinfo=tz)
     return week_start_dt, week_end_dt
+
+
+def get_failures_by_date_shift_section(date_str, shift='all', section=None):
+    """Get failures by date, shift, and section with proper logging"""
+    from datetime import datetime, time
+    
+    try:
+        logger.info(f"Getting failures for date={date_str}, shift={shift}, section={section}")
+        
+        tz = get_timezone()
+        
+        # Parse date
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        date_start = datetime.combine(date_obj, time.min).replace(tzinfo=tz)
+        date_end = datetime.combine(date_obj, time.max).replace(tzinfo=tz)
+        
+        logger.info(f"Date range: {date_start} to {date_end}")
+        
+        # Build base query
+        queryset = Failure.objects.filter(
+            start_date__range=[date_start, date_end]
+        ).select_related(
+            'machine', 
+            'machine__machine_type', 
+            'machine__machine_type__section',
+            'failure_category', 
+            'user'
+        ).order_by('machine__name', 'start_date')  # Order by machine name, then datetime
+        
+        logger.info(f"Total failures in date range: {queryset.count()}")
+        
+        # Filter by section if provided
+        if section:
+            queryset = queryset.filter(machine__machine_type__section__name=section)
+            logger.info(f"After section filter '{section}': {queryset.count()}")
+        
+        # Filter by shift - check which field name is used
+        if shift and shift != 'all':
+            # Try both shift and operation_shift field names
+            try:
+                queryset = queryset.filter(shift=shift)
+                logger.info(f"Filtered by shift='{shift}': {queryset.count()}")
+            except:
+                queryset = queryset.filter(operation_shift=shift)
+                logger.info(f"Filtered by operation_shift='{shift}': {queryset.count()}")
+        
+        failures = list(queryset)
+        logger.info(f"Final failures count: {len(failures)}")
+        
+        result = {
+            'date': date_str,
+            'shift': shift,
+            'section': section or 'All Sections',
+            'total_count': len(failures),
+            'failures': []
+        }
+        
+        for failure in failures:
+            try:
+                repairing_time = failure.repairing_time or 0
+            except:
+                repairing_time = 0
+            
+            result['failures'].append({
+                'id': failure.id,
+                'machine_name': failure.machine.name if failure.machine else 'Unknown',
+                'details': failure.details or '',
+                'category_level_0': failure.category_level_0 or 'Uncategorized',
+                'failure_category': failure.category_level_1 or (failure.get_failure_category_display() if hasattr(failure, 'get_failure_category_display') else ''),
+                'status': failure.status,
+                'rootcause': failure.rootcause or '',
+                'repair_action': failure.repair_action or '',
+                'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+                'repairing_time_hours': round(repairing_time / 60, 2) if repairing_time else 0,
+                'user': failure.user.username if failure.user else 'N/A',
+                'shift': failure.shift if hasattr(failure, 'shift') and failure.shift else (failure.operation_shift if hasattr(failure, 'operation_shift') else 'Unknown')
+            })
+        
+        logger.info(f"Returning {len(result['failures'])} failures ordered by machine name and datetime")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Error getting failures by date/shift/section: {str(e)}", exc_info=True)
+        return {
+            'date': date_str,
+            'shift': shift,
+            'section': section or 'All Sections',
+            'total_count': 0,
+            'failures': [],
+            'error': str(e)
+        }

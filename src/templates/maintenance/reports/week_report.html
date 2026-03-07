@@ -6,8 +6,6 @@
 
 {% block page_subtitle %}Weekly failure trends and analysis - Section: {{ selected_section }}{% endblock %}
 
-
-
 {% block filters %}
 <div class="col-md-4">
     <label for="section" class="form-label">Section</label>
@@ -74,6 +72,7 @@
         color: #667eea;
         text-decoration: none;
         cursor: pointer;
+        font-weight: 500;
     }
     .machine-link-small:hover {
         text-decoration: underline;
@@ -131,9 +130,88 @@
         height: 180px;
         margin-bottom: 10px;
     }
+    .failure-modal-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    .failure-modal-table thead {
+        background-color: #667eea;
+        color: white;
+    }
+    .failure-modal-table th {
+        padding: 12px 10px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9em;
+        border: 1px solid #ddd;
+    }
+    .failure-modal-table td {
+        padding: 12px 10px;
+        border: 1px solid #ddd;
+        vertical-align: top;
+        font-size: 0.9em;
+    }
+    .failure-modal-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .failure-modal-table tbody tr:hover {
+        background-color: #f0f4ff;
+    }
+    .machine-datetime-cell {
+        font-weight: 600;
+        color: #333;
+    }
+    .machine-name {
+        display: block;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .machine-name:hover {
+        text-decoration: underline;
+    }
+    .machine-datetime {
+        font-size: 0.85em;
+        color: #999;
+    }
+    .details-text {
+        color: #555;
+        line-height: 1.5;
+    }
+    .rootcause-label {
+        color: #856404;
+        font-weight: 600;
+        font-size: 0.85em;
+        margin-top: 6px;
+    }
+    .rootcause-text {
+        color: #333;
+        font-size: 0.85em;
+        line-height: 1.4;
+    }
+    .action-label {
+        color: #0c5460;
+        font-weight: 600;
+        font-size: 0.85em;
+        margin-top: 6px;
+    }
+    .action-text {
+        color: #333;
+        font-size: 0.85em;
+        line-height: 1.4;
+    }
     @media (max-width: 768px) {
         .pareto-cards-grid {
             grid-template-columns: 1fr;
+        }
+        .failure-modal-table {
+            font-size: 0.85em;
+        }
+        .failure-modal-table th,
+        .failure-modal-table td {
+            padding: 8px 6px;
         }
     }
 </style>
@@ -369,7 +447,6 @@
                             return label;
                         },
                         afterLabel: function(context) {
-                            // Calculate total at this x position
                             let total = 0;
                             context.chart.data.datasets.forEach(dataset => {
                                 const value = dataset.data[context.dataIndex];
@@ -516,59 +593,77 @@
         if (shift === 'Night') shiftLabel = 'Night Shift';
 
         title.textContent = `Failures - ${date} (${shiftLabel})`;
-        body.innerHTML = '<div class="text-center"><div class="spinner-bell" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        body.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
         let apiUrl = `/maintenance/api/report/daily-failures/${date}/?shift=${shift}`;
         
+        // Always include section parameter
         if (selectedSection) {
-            apiUrl += `&section=${selectedSection}`;
+            apiUrl += `&section=${encodeURIComponent(selectedSection)}`;
         }
+        
+        console.log('API URL:', apiUrl);
         
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
+                console.log('API Response:', data);
+                
                 let htmlContent = '';
 
                 if (!data.failures || data.failures.length === 0) {
                     htmlContent = '<div class="alert alert-warning">No failures found for this date and shift.</div>';
                 } else {
-                    let sectionLabel = selectedSection ? ` (${selectedSection})` : '';
+                    let sectionLabel = data.section ? ` (${data.section})` : '';
                     htmlContent = `
                         <div class="alert alert-info mb-3">
-                            <strong>Date:</strong> ${data.date}<br>
-                            <strong>Total Failures:</strong> ${data.total_count}${sectionLabel}
+                            <strong>📅 Date:</strong> ${data.date} | 
+                            <strong>📊 Total Failures:</strong> ${data.total_count}${sectionLabel}
                         </div>
                         <div class="failure-table-container">
-                            <table class="table table-striped table-hover table-sm">
-                                <thead style="background-color: #f0f0f0; position: sticky; top: 0;">
+                            <table class="failure-modal-table">
+                                <thead>
                                     <tr>
-                                        <th>Machine</th>
-                                        <th>Details</th>
-                                        <th>Category Level 0</th>
-                                        <th>Failure Category</th>
-                                        <th>Status</th>
+                                        <th style="width: 15%;">Machine & Time</th>
+                                        <th style="width: 10%;">Category</th>
+                                        <th style="width: 15%;">Failure Type</th>
+                                        <th style="width: 25%;">Details</th>
+                                        <th style="width: 30%;">Root Cause & Action</th>
+                                        <th style="width: 5%;">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                     `;
                     
-                    data.failures.forEach((failure) => {
+                    data.failures.forEach((failure, index) => {
                         const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
+                        const rootcauseHtml = failure.rootcause ? 
+                            `<div class="rootcause-label">🔍 Root Cause:</div><div class="rootcause-text">${failure.rootcause}</div>` : '';
+                        const actionHtml = failure.repair_action ? 
+                            `<div class="action-label" style="margin-top: 8px;">🔧 Action:</div><div class="action-text">${failure.repair_action}</div>` : '';
+                        const rootcauseAction = rootcauseHtml || actionHtml ? `${rootcauseHtml}${actionHtml}` : '<em>No details</em>';
+                        
                         htmlContent += `
                             <tr>
-                                <td>
-                                    <a href="/maintenance/reports/machine/${failure.machine_name}/" class="machine-link-small" target="_blank">
-                                        <strong>${failure.machine_name}</strong>
+                                <td class="machine-datetime-cell">
+                                    <a href="/maintenance/reports/machine/${failure.machine_name}/" class="machine-name" target="_blank">
+                                        ${failure.machine_name}
                                     </a>
-                                </td>
-                                <td>
-                                    <small>${failure.details}</small>
+                                    <div class="machine-datetime">
+                                        ⏰ ${failure.start_date}
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="failure-category-badge">${failure.category_level_0}</span>
                                 </td>
+                                <td class="details-text">
+                                    ${failure.failure_category || '<em>N/A</em>'}
+                                </td>
+                                <td class="details-text">
+                                    ${failure.details || '<em>No details</em>'}
+                                </td>
                                 <td>
-                                    <small>${failure.failure_category}</small>
+                                    ${rootcauseAction}
                                 </td>
                                 <td>
                                     <span class="failure-status ${statusClass}">${failure.status}</span>
@@ -582,7 +677,7 @@
                             </table>
                         </div>
                         <div class="alert alert-success mt-3">
-                            <strong>Total Failures on ${data.date}:</strong> ${data.total_count} failure(s)
+                            <strong>✅ Total Failures on ${data.date}:</strong> ${data.total_count} failure(s)
                         </div>
                     `;
                 }
@@ -591,6 +686,7 @@
                 modal.show();
             })
             .catch(error => {
+                console.error('Fetch error:', error);
                 body.innerHTML = '<div class="alert alert-danger">Error loading failure data: ' + error.message + '</div>';
                 modal.show();
             });

@@ -27,6 +27,7 @@ from .report_utils import (
     get_failures_by_date_and_shift,
     get_today_start_end,  # Add this
     get_week_start_end,   # Add this
+    get_failures_by_date_shift_section
 )
 
 # ==================== Date Range Selection ====================
@@ -278,20 +279,18 @@ class CustomDateRangePerformanceAPIView(LoginRequiredMixin, View):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
-# Add this view class
 class DailyFailureDetailsAPIView(LoginRequiredMixin, View):
     """API endpoint for daily failure details"""
     
     def get(self, request, date):
         shift = request.GET.get('shift', 'all')
-        machine_type = request.GET.get('machine_type', None)
+        section = request.GET.get('section', None)  # Add section parameter
         
         try:
-            failures_data = get_failures_by_date_shift_and_type(date, shift, machine_type)
+            failures_data = get_failures_by_date_shift_section(date, shift, section)
             return JsonResponse(failures_data, safe=False)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
-
 
 class TodayFailureReportView(LoginRequiredMixin, TemplateView):
     """Display today's failure report with bar chart"""
