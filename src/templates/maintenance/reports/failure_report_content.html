@@ -1,0 +1,95 @@
+<!-- Summary Section -->
+<!-- Summary Section -->
+<div class="summary-section">
+    <h5 style="color: #667eea; margin-bottom: 15px;">📊 Report Summary</h5>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-value" id="totalFailuresDisplay">{{ total_failures }}</div>
+            <div class="kpi-label">Total Failures</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="avgMTTRDisplay">{{ avg_mttr_hours }}h</div>
+            <div class="kpi-label">Avg MTTR</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="dateRangeDisplay">{{ period_display }}</div>
+            <div class="kpi-label">{{ date_label }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value" id="sectionDisplay">{{ selected_section }}</div>
+            <div class="kpi-label">Section</div>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Trend Chart with Machine Type Series (Stacked Bar) -->
+
+<!-- Daily Trend Chart with Machine Type Series (Stacked Bar) -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Daily Failure Trend by Machine Type</h5>
+    </div>
+    <div class="card-body">
+        <div class="chart-container">
+            <canvas id="dailyTrendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Pareto Charts by Machine Type -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Pareto Chart - Failures by Category per Machine Type</h5>
+    </div>
+    <div class="card-body">
+        <div class="pareto-cards-grid" id="paretoChartsContainer">
+            <!-- Pareto charts will be added here dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Daily Details Table -->
+<div class="report-card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Daily Details - Click on Numbers to View Failure List</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead style="background-color: #f0f0f0;">
+                    <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th style="cursor: help;" title="Click to view failures">Total Failures</th>
+                        <th style="cursor: help;" title="Click to view failures">Day Shift</th>
+                        <th style="cursor: help;" title="Click to view failures">Night Shift</th>
+                        <th>Top Category</th>
+                    </tr>
+                </thead>
+                <tbody id="dailyDetailsTableBody">
+                    <tr>
+                        <td colspan="6" class="text-center text-muted" id="noDataMessage">No data available</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Failure Details Modal -->
+<div class="modal fade" id="failureModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="failureModalTitle">Failure Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="failureModalBody">
+                Loading...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

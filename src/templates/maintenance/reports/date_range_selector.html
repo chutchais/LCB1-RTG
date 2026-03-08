@@ -1,533 +1,375 @@
+{% extends "maintenance/reports/base_report.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report Date Range Selector</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .selector-container {
-            max-width: 800px;
-            width: 100%;
-            margin: 0 auto;
-        }
-        .card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-        }
-        .card-header h1 {
-            margin: 0;
-            font-size: 2em;
-        }
-        .card-header p {
-            margin: 10px 0 0 0;
-            opacity: 0.9;
-        }
-        .card-body {
-            padding: 40px;
-        }
-        .preset-section {
-            margin-bottom: 40px;
-        }
-        .preset-section h5 {
-            color: #667eea;
-            font-weight: 600;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-        }
-        .preset-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-        .preset-btn {
-            padding: 15px;
-            text-align: center;
-            border: 2px solid #e0e0e0;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
-            color: #333;
-            font-size: 0.95em;
-        }
-        .preset-btn:hover {
-            border-color: #667eea;
-            background-color: #f5f5ff;
-            transform: translateY(-2px);
-        }
-        .divider {
-            border: none;
-            border-top: 2px dashed #ddd;
-            margin: 30px 0;
-        }
-        .custom-section h5 {
-            color: #667eea;
-            font-weight: 600;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        .form-control {
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 12px;
-            font-size: 1em;
-            transition: border-color 0.3s;
-        }
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .report-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        .btn-custom {
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .btn-report {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .btn-report:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-            color: white;
-            text-decoration: none;
-        }
-        .btn-report:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .info-box {
-            background-color: #f0f4ff;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            color: #333;
-        }
-        .warning-box {
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            color: #333;
-            display: none;
-        }
-        .warning-box.show {
-            display: block;
-        }
-        .error-box {
-            background-color: #f8d7da;
-            border-left: 4px solid #dc3545;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            color: #333;
-            display: none;
-        }
-        .error-box.show {
-            display: block;
-        }
-        .selected-dates {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-            display: none;
-        }
-        .selected-dates.show {
-            display: block;
-        }
-        .selected-date-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .day-counter {
-            background-color: #e7f3ff;
-            border: 1px solid #b3d9ff;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 10px;
-            font-weight: 600;
-            text-align: center;
-        }
-        .day-counter.valid {
-            color: #27ae60;
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-        }
-        .day-counter.warning {
-            color: #f39c12;
-            background-color: #fff3cd;
-            border-color: #ffeaa7;
-        }
-        .day-counter.invalid {
-            color: #e74c3c;
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-        }
-    </style>
-</head>
-<body>
-    <div class="selector-container">
-        <div class="card">
-            <div class="card-header">
-                <h1>📅 Report Date Range Selector</h1>
-                <p>Select a date range to view failure analysis and performance metrics</p>
-            </div>
-            <div class="card-body">
-                <!-- Info Box -->
-                <div class="info-box">
-                    <strong>💡 Tip:</strong> Maximum date range is <strong>65 days</strong> to ensure optimal performance. Use quick presets for common date ranges, or select a custom range below.
-                </div>
 
-                <!-- Warning Box -->
-                <div class="warning-box" id="warningBox" role="alert">
-                    <strong>⚠️ Warning:</strong> <span id="warningMessage"></span>
-                </div>
+{% block title %}Custom Date Range Report{% endblock %}
 
-                <!-- Error Box -->
-                <div class="error-box" id="errorBox" role="alert">
-                    <strong>❌ Error:</strong> <span id="errorMessage"></span>
-                </div>
+{% block page_title %}Custom Date Range Failure Report{% endblock %}
 
-                <!-- Quick Presets -->
-                <div class="preset-section">
-                    <h5>Quick Presets</h5>
-                    <div class="preset-buttons">
-                        <button class="preset-btn" onclick="selectPreset('{{ yesterday }}', '{{ today }}', 'Yesterday')">
-                            📆 Yesterday
-                        </button>
-                        <button class="preset-btn" onclick="selectPreset('{{ today }}', '{{ today }}', 'Today')">
-                            📆 Today
-                        </button>
-                        <button class="preset-btn" onclick="selectPreset('{{ week_start }}', '{{ week_end }}', 'This Week')">
-                            📊 This Week
-                        </button>
-                        <button class="preset-btn" onclick="selectPreset('{{ month_start }}', '{{ month_end }}', 'This Month')">
-                            📋 This Month
-                        </button>
-                        <button class="preset-btn" onclick="selectLastWeek()">
-                            📊 Last Week
-                        </button>
-                        <button class="preset-btn" onclick="selectLastMonth()">
-                            📋 Last Month
-                        </button>
-                        <button class="preset-btn" onclick="selectPreset('{{ year_start }}', '{{ today }}', 'Last 65 Days')">
-                            📈 Last 65 Days
-                        </button>
-                    </div>
-                </div>
+{% block page_subtitle %}Analyze failures across custom date ranges{% endblock %}
 
-                <hr class="divider">
 
-                <!-- Custom Date Range -->
-                <div class="custom-section">
-                    <h5>Custom Date Range</h5>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="startDate">Start Date</label>
-                            <input type="date" id="startDate" class="form-control" value="{{ today }}" onchange="validateDateRange()">
-                        </div>
-                        <div class="form-group">
-                            <label for="endDate">End Date</label>
-                            <input type="date" id="endDate" class="form-control" value="{{ today }}" onchange="validateDateRange()">
-                        </div>
-                    </div>
-
-                    <!-- Day Counter -->
-                    <div class="day-counter valid" id="dayCounter">
-                        Days selected: <span id="dayCount">0</span> / 65 days
-                    </div>
-
-                    <div class="form-group">
-                        <label for="machineType">Machine Type (Optional)</label>
-                        <select id="machineType" class="form-control">
-                            <option value="">All Machine Types</option>
-                            {% for mt in machine_types %}
-                            <option value="{{ mt }}">{{ mt }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Selected Dates Display -->
-                    <div class="selected-dates" id="selectedDates">
-                        <div class="selected-date-item">
-                            <span><strong>Start Date:</strong></span>
-                            <span id="displayStartDate"></span>
-                        </div>
-                        <div class="selected-date-item">
-                            <span><strong>End Date:</strong></span>
-                            <span id="displayEndDate"></span>
-                        </div>
-                        <div class="selected-date-item">
-                            <span><strong>Days:</strong></span>
-                            <span id="displayDays"></span>
-                        </div>
-                        <div class="selected-date-item">
-                            <span><strong>Machine Type:</strong></span>
-                            <span id="displayMachineType">All Types</span>
-                        </div>
-                    </div>
-
-                    <!-- Report Buttons -->
-                    <div class="report-buttons">
-                        <button class="btn-custom btn-report" id="failureReportBtn" onclick="generateFailureReport()" disabled>
-                            📊 Failure Report
-                        </button>
-                        <button class="btn-custom btn-report" id="performanceReportBtn" onclick="generatePerformanceReport()" disabled>
-                            📈 Performance Metrics
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Navigation Links -->
-                <hr class="divider">
-                <div style="text-align: center; padding-top: 20px;">
-                    <a href="/maintenance/reports/today/" class="btn btn-outline-primary" style="margin-right: 10px;">
-                        ← Back to Today's Report
-                    </a>
-                    <a href="/maintenance/" class="btn btn-outline-secondary">
-                        ← Back to Maintenance
-                    </a>
-                </div>
-            </div>
-        </div>
+{% block filters %}
+<div class="row g-3">
+    <div class="col-md-2">
+        <label for="start_date" class="form-label">Start Date</label>
+        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
     </div>
+    <div class="col-md-2">
+        <label for="end_date" class="form-label">End Date</label>
+        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+    </div>
+    <div class="col-md-2">
+        <label for="section" class="form-label">Section</label>
+        <select class="form-select" id="section" name="section">
+            <option value="">All Sections</option>
+            {% if sections %}
+                {% for sect in sections %}
+                <option value="{{ sect }}" {% if selected_section == sect %}selected{% endif %}>{{ sect }}</option>
+                {% endfor %}
+            {% else %}
+                <option value="">No sections available</option>
+            {% endif %}
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">&nbsp;</label>
+        <button type="button" class="btn btn-primary w-100" onclick="generateReport()">Generate Report</button>
+    </div>
+</div>
+{% endblock %}
 
-    <script>
-        const MAX_DAYS = 65;
-        const MIN_DATE = new Date();
-        MIN_DATE.setDate(MIN_DATE.getDate() - MAX_DAYS);
+{% block extra_css %}
+<style>
+    .daily-detail-row {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .daily-detail-row:hover {
+        background-color: #f0f4ff !important;
+    }
+    .clickable-number {
+        color: #667eea;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    .modal-content {
+        border-radius: 12px;
+    }
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    .modal-header .btn-close {
+        filter: invert(1);
+    }
+    .failure-table-container {
+        overflow-x: auto;
+    }
+    .failure-status {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    .failure-status.open {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .failure-status.closed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .failure-category-badge {
+        display: inline-block;
+        background-color: #667eea;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    .machine-link-small {
+        color: #667eea;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    .machine-link-small:hover {
+        text-decoration: underline;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .kpi-card {
+        text-align: center;
+        padding: 12px 8px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .kpi-value {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 4px;
+    }
+    .kpi-label {
+        color: #666;
+        font-size: 0.75em;
+        margin-top: 4px;
+        line-height: 1.2;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 30px;
+    }
+    .pareto-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .pareto-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 15px;
+        transition: all 0.3s;
+    }
+    .pareto-card:hover {
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+        transform: translateY(-2px);
+    }
+    .pareto-card-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 12px;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 8px;
+    }
+    .pareto-mini-chart {
+        position: relative;
+        height: 180px;
+        margin-bottom: 10px;
+    }
+    .failure-modal-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    .failure-modal-table thead {
+        background-color: #667eea;
+        color: white;
+    }
+    .failure-modal-table th {
+        padding: 12px 10px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9em;
+        border: 1px solid #ddd;
+    }
+    .failure-modal-table td {
+        padding: 12px 10px;
+        border: 1px solid #ddd;
+        vertical-align: top;
+        font-size: 0.9em;
+    }
+    .failure-modal-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .failure-modal-table tbody tr:hover {
+        background-color: #f0f4ff;
+    }
+    .machine-datetime-cell {
+        font-weight: 600;
+        color: #333;
+    }
+    .machine-name {
+        display: block;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .machine-name:hover {
+        text-decoration: underline;
+    }
+    .machine-datetime {
+        font-size: 0.85em;
+        color: #999;
+    }
+    .details-text {
+        color: #555;
+        line-height: 1.5;
+    }
+    .rootcause-label {
+        color: #856404;
+        font-weight: 600;
+        font-size: 0.85em;
+        margin-top: 6px;
+    }
+    .rootcause-text {
+        color: #333;
+        font-size: 0.85em;
+        line-height: 1.4;
+    }
+    .action-label {
+        color: #0c5460;
+        font-weight: 600;
+        font-size: 0.85em;
+        margin-top: 6px;
+    }
+    .action-text {
+        color: #333;
+        font-size: 0.85em;
+        line-height: 1.4;
+    }
+    .summary-section {
+        background: white;
+        padding: 12px 12px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .summary-section h5 {
+        margin-bottom: 10px !important;
+        font-size: 0.95em !important;
+    }
+    @media (max-width: 768px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .failure-modal-table {
+            font-size: 0.85em;
+        }
+        .failure-modal-table th,
+        .failure-modal-table td {
+            padding: 8px 6px;
+        }
+        .pareto-cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
 
-        function selectPreset(startDate, endDate, label) {
-            document.getElementById('startDate').value = startDate;
-            document.getElementById('endDate').value = endDate;
-            validateDateRange();
+{% block content %}
+<div id="reportContainer" class="report-container">
+    {% include "maintenance/reports/failure_report_content.html" %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/failure_report_shared.js' %}"></script>
+<script>
+    // Set default date range to current week and limit to 60 days
+    function setDefaultDates() {
+        const today = new Date();
+        
+        // Get current week start (Monday)
+        const currentDay = today.getDay();
+        const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1); // Adjust when day is Sunday
+        const weekStart = new Date(today.setDate(diff));
+        
+        // Get current week end (Sunday)
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        // Calculate min date (60 days ago)
+        const minDate = new Date(today);
+        minDate.setDate(minDate.getDate() - 60);
+        
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        document.getElementById('start_date').valueAsDate = weekStart;
+        document.getElementById('end_date').valueAsDate = weekEnd;
+        document.getElementById('start_date').min = formatDate(minDate);
+        document.getElementById('end_date').max = formatDate(new Date());
+        document.getElementById('start_date').max = formatDate(new Date());
+        
+        console.log('Date range set to:', formatDate(weekStart), 'to', formatDate(weekEnd));
+        console.log('Min date allowed:', formatDate(minDate));
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!document.getElementById('start_date').value) {
+            setDefaultDates();
+        }
+    });
+
+    function generateReport() {
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        selectedSection = document.getElementById('section').value;
+
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates');
+            return;
         }
 
-        function selectLastWeek() {
-            const today = new Date();
-            const endDate = new Date(today);
-            endDate.setDate(today.getDate() - 1); // Yesterday
-            
-            const startDate = new Date(endDate);
-            startDate.setDate(endDate.getDate() - 6); // 7 days ago
+        // Validate date range (max 60 days)
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
-            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
-            validateDateRange();
+        if (diffDays > 60) {
+            alert('Date range cannot exceed 60 days. Current range: ' + diffDays + ' days');
+            return;
         }
 
-        function selectLastMonth() {
-            const today = new Date();
-            const endDate = new Date(today);
-            endDate.setDate(today.getDate() - 1); // Yesterday
-            
-            const startDate = new Date(endDate);
-            startDate.setMonth(endDate.getMonth() - 1); // 1 month ago
-
-            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
-            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
-            validateDateRange();
+        if (start > end) {
+            alert('Start date cannot be after end date');
+            return;
         }
 
-        function calculateDaysBetween(startDate, endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const diffTime = Math.abs(end - start);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays + 1; // Include both start and end dates
+        // Show loading state
+        document.getElementById('reportContainer').classList.add('active');
+        document.getElementById('dailyDetailsTableBody').innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Loading report...</td></tr>';
+
+        // Build API URL
+        let apiUrl = `/maintenance/api/report/custom-failures-with-charts/?start_date=${startDate}&end_date=${endDate}`;
+        if (selectedSection) {
+            apiUrl += `&section=${encodeURIComponent(selectedSection)}`;
         }
 
-        function validateDateRange() {
-            const startDateInput = document.getElementById('startDate').value;
-            const endDateInput = document.getElementById('endDate').value;
-            const warningBox = document.getElementById('warningBox');
-            const errorBox = document.getElementById('errorBox');
-            const failureReportBtn = document.getElementById('failureReportBtn');
-            const performanceReportBtn = document.getElementById('performanceReportBtn');
-            const dayCounter = document.getElementById('dayCounter');
-            const dayCount = document.getElementById('dayCount');
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                console.log('API Response:', data);
+                const summaryData = {
+                    dateRange: startDate + ' to ' + endDate,
+                    section: selectedSection || 'All'
+                };
+                displaySharedReport(data, summaryData);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('dailyDetailsTableBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading data: ${error.message}</td></tr>`;
+            });
+    }
 
-            // Clear alerts
-            warningBox.classList.remove('show');
-            errorBox.classList.remove('show');
-
-            if (!startDateInput || !endDateInput) {
-                failureReportBtn.disabled = true;
-                performanceReportBtn.disabled = true;
-                return;
-            }
-
-            // Validate date order
-            if (startDateInput > endDateInput) {
-                errorBox.classList.add('show');
-                document.getElementById('errorMessage').textContent = 'Start date must be before or equal to end date.';
-                failureReportBtn.disabled = true;
-                performanceReportBtn.disabled = true;
-                return;
-            }
-
-            // Calculate days
-            const days = calculateDaysBetween(startDateInput, endDateInput);
-            dayCount.textContent = days;
-
-            // Validate against max days
-            if (days > MAX_DAYS) {
-                errorBox.classList.add('show');
-                document.getElementById('errorMessage').textContent = `Date range exceeds maximum of ${MAX_DAYS} days. Current range: ${days} days.`;
-                dayCounter.classList.remove('valid', 'warning');
-                dayCounter.classList.add('invalid');
-                failureReportBtn.disabled = true;
-                performanceReportBtn.disabled = true;
-                return;
-            }
-
-            // Warning if close to max
-            if (days > MAX_DAYS * 0.8) {
-                warningBox.classList.add('show');
-                document.getElementById('warningMessage').textContent = `You are using ${days} of ${MAX_DAYS} available days. Large date ranges may take longer to load.`;
-                dayCounter.classList.remove('valid');
-                dayCounter.classList.add('warning');
-            } else {
-                dayCounter.classList.remove('warning');
-                dayCounter.classList.add('valid');
-            }
-
-            // Enable buttons if valid
-            failureReportBtn.disabled = false;
-            performanceReportBtn.disabled = false;
-
-            // Update display
-            updateDisplay(days);
+    // Allow Enter key to generate report
+    document.getElementById('end_date').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            generateReport();
         }
-
-        function updateDisplay(days) {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const machineType = document.getElementById('machineType').value;
-
-            document.getElementById('displayStartDate').textContent = startDate;
-            document.getElementById('displayEndDate').textContent = endDate;
-            document.getElementById('displayDays').textContent = `${days} days`;
-            document.getElementById('displayMachineType').textContent = machineType || 'All Types';
-            document.getElementById('selectedDates').classList.add('show');
-        }
-
-        function generateFailureReport() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const machineType = document.getElementById('machineType').value;
-
-            if (!startDate || !endDate) {
-                alert('Please select both start and end dates');
-                return;
-            }
-
-            const days = calculateDaysBetween(startDate, endDate);
-            if (days > MAX_DAYS) {
-                alert(`Date range exceeds maximum of ${MAX_DAYS} days.`);
-                return;
-            }
-
-            let url = `/maintenance/reports/custom-failures/?start_date=${startDate}&end_date=${endDate}`;
-            if (machineType) {
-                url += `&machine_type=${machineType}`;
-            }
-            window.location.href = url;
-        }
-
-        function generatePerformanceReport() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const machineType = document.getElementById('machineType').value;
-
-            if (!startDate || !endDate) {
-                alert('Please select both start and end dates');
-                return;
-            }
-
-            const days = calculateDaysBetween(startDate, endDate);
-            if (days > MAX_DAYS) {
-                alert(`Date range exceeds maximum of ${MAX_DAYS} days.`);
-                return;
-            }
-
-            let url = `/maintenance/reports/custom-performance/?start_date=${startDate}&end_date=${endDate}`;
-            if (machineType) {
-                url += `&machine_type=${machineType}`;
-            }
-            window.location.href = url;
-        }
-
-        // Set date constraints
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = document.getElementById('startDate').value;
-            const minDate = new Date();
-            minDate.setDate(minDate.getDate() - MAX_DAYS);
-            
-            const minDateStr = minDate.toISOString().split('T')[0];
-            
-            document.getElementById('startDate').max = today;
-            document.getElementById('startDate').min = minDateStr;
-            
-            document.getElementById('endDate').max = today;
-            document.getElementById('endDate').min = minDateStr;
-            
-            validateDateRange();
-        });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}

@@ -31,7 +31,9 @@ from .report_views import (
     MachineDetailAPIView,
     CustomDateRangeFailureAPIView,
     CustomDateRangePerformanceAPIView,
-    DailyFailureDetailsAPIView
+    DailyFailureDetailsAPIView,
+    DailyFailuresRangeAPIView,
+    CustomFailuresWithChartsAPIView
 )
 from .views import (
     index, by_equipment, FailureListView, FailureDetailView,
@@ -68,4 +70,6 @@ urlpatterns = [
     path('api/report/custom-performance/', CustomDateRangePerformanceAPIView.as_view(), name='api-custom-performance'),
     path('api/report/daily-failures/<str:date>/', DailyFailureDetailsAPIView.as_view(), name='api-daily-failures'),
     path('<section>', by_equipment, name='detail'),
+    path('api/report/daily-failures-range/', DailyFailuresRangeAPIView.as_view(), name='api-daily-failures-range'),
+    path('api/report/custom-failures-with-charts/', CustomFailuresWithChartsAPIView.as_view(), name='api-custom-failures-with-charts'),
 ]

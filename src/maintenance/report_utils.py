@@ -839,12 +839,15 @@ def get_today_failures_by_section(section_name):
 
 def get_week_failures_by_section(section_name):
     """Get this week's failures for a specific section"""
+    from datetime import datetime, time, timedelta
+    from collections import defaultdict
+    
     week_start, week_end = get_week_start_end()
     
     queryset = Failure.objects.filter(
         start_date__range=[week_start, week_end],
         machine__machine_type__section__name=section_name
-    ).select_related('machine', 'machine__machine_type', 'failure_category')
+    ).select_related('machine', 'machine__machine_type', 'failure_category', 'user').order_by('machine__name', 'start_date')
     
     all_failures = list(queryset)
     
@@ -853,8 +856,9 @@ def get_week_failures_by_section(section_name):
     machine_types_in_section = section_obj.ma_machine_types.all().order_by('name')
     machine_type_names = [mt.name for mt in machine_types_in_section]
     
-    # Get daily breakdown
-    daily_data = []
+    # Build daily_data as dict for charts
+    daily_data_dict = {}
+    daily_details = []
     current_date = week_start.date()
     
     while current_date <= week_end.date():
@@ -873,6 +877,8 @@ def get_week_failures_by_section(section_name):
             if mt in machine_type_dict:
                 machine_type_dict[mt] += 1
         
+        daily_data_dict[current_date.strftime('%Y-%m-%d')] = machine_type_dict
+        
         # Build category breakdown
         category_dict = {}
         for failure in day_failures:
@@ -881,19 +887,68 @@ def get_week_failures_by_section(section_name):
                 category_dict[cat] = 0
             category_dict[cat] += 1
         
-        daily_data.append({
+        daily_details.append({
             'date': current_date.strftime('%Y-%m-%d'),
             'day_name': current_date.strftime('%A'),
             'total_failures': len(day_failures),
             'by_category': [{'category_level_0': k, 'count': v} for k, v in sorted(category_dict.items(), key=lambda x: x[1], reverse=True)],
             'by_shift': {
-                'Day': sum(1 for f in day_failures if f.operation_shift == 'Day'),
-                'Night': sum(1 for f in day_failures if f.operation_shift == 'Night'),
+                'Day': sum(1 for f in day_failures if hasattr(f, 'operation_shift') and f.operation_shift == 'Day'),
+                'Night': sum(1 for f in day_failures if hasattr(f, 'operation_shift') and f.operation_shift == 'Night'),
             },
-            'by_machine_type': machine_type_dict  # Changed from list to dict
+            'by_machine_type': machine_type_dict
         })
         
         current_date += timedelta(days=1)
+    
+    # Build pareto data
+    pareto_data = {}
+    for mt_name in machine_type_names:
+        mt_failures = [f for f in all_failures if f.machine and f.machine.machine_type and f.machine.machine_type.name == mt_name]
+        
+        # Count by category
+        category_counts = defaultdict(int)
+        for failure in mt_failures:
+            category = failure.category_level_0 or 'Uncategorized'
+            category_counts[category] += 1
+        
+        # Sort and calculate cumulative
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        total_count = sum(count for _, count in sorted_categories)
+        
+        pareto_list = []
+        cumulative = 0
+        for category, count in sorted_categories:
+            cumulative += count
+            cumulative_pct = (cumulative / total_count * 100) if total_count > 0 else 0
+            pareto_list.append({
+                'category': category,
+                'count': count,
+                'cumulative_percentage': cumulative_pct
+            })
+        
+        pareto_data[mt_name] = pareto_list
+    
+    # Build failures list
+    failures_list = []
+    for failure in all_failures:
+        try:
+            repairing_time = failure.repairing_time or 0
+        except:
+            repairing_time = 0
+        
+        failures_list.append({
+            'id': failure.id,
+            'machine_name': failure.machine.name if failure.machine else 'Unknown',
+            'details': failure.details or '',
+            'category_level_0': failure.category_level_0 or 'Uncategorized',
+            'failure_category': failure.category_level_1 or '',
+            'status': failure.status,
+            'rootcause': failure.rootcause or '',
+            'repair_action': failure.repair_action or '',
+            'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+            'repairing_time_hours': round(repairing_time / 60, 2) if repairing_time else 0,
+        })
     
     # Cumulative stats
     category_dict = {}
@@ -926,10 +981,10 @@ def get_week_failures_by_section(section_name):
         'total_failures': len(all_failures),
         'by_category': [{'category_level_0': k, 'count': v} for k, v in sorted(category_dict.items(), key=lambda x: x[1], reverse=True)],
         'by_machine_type': machine_type_dict,
-        'machine_type_names': machine_type_names,  # Add this for frontend
+        'machine_type_names': machine_type_names,
         'by_shift': {
-            'Day': sum(1 for f in all_failures if f.operation_shift == 'Day'),
-            'Night': sum(1 for f in all_failures if f.operation_shift == 'Night'),
+            'Day': sum(1 for f in all_failures if hasattr(f, 'operation_shift') and f.operation_shift == 'Day'),
+            'Night': sum(1 for f in all_failures if hasattr(f, 'operation_shift') and f.operation_shift == 'Night'),
         },
         'avg_mttr_hours': round(avg_mttr, 2)
     }
@@ -938,10 +993,120 @@ def get_week_failures_by_section(section_name):
         'period_start': week_start.strftime('%Y-%m-%d'),
         'period_end': week_end.strftime('%Y-%m-%d'),
         'section': section_name,
-        'daily_data': daily_data,
-        'cumulative': cumulative,
-        'machine_type_names': machine_type_names  # Add this for frontend
+        'total_failures': len(all_failures),
+        'avg_mttr_hours': round(avg_mttr, 2),
+        'daily_data': daily_data_dict,  # Dict for chart
+        'daily_details': daily_details,  # Old format for compatibility
+        'machine_type_names': machine_type_names,
+        'pareto_data': pareto_data,
+        'failures': failures_list,
+        'cumulative': cumulative
     }
+# def get_week_failures_by_section(section_name):
+#     """Get this week's failures for a specific section"""
+#     week_start, week_end = get_week_start_end()
+    
+#     queryset = Failure.objects.filter(
+#         start_date__range=[week_start, week_end],
+#         machine__machine_type__section__name=section_name
+#     ).select_related('machine', 'machine__machine_type', 'failure_category')
+    
+#     all_failures = list(queryset)
+    
+#     # Get all machine types in this section for consistent series
+#     section_obj = Section.objects.get(name=section_name)
+#     machine_types_in_section = section_obj.ma_machine_types.all().order_by('name')
+#     machine_type_names = [mt.name for mt in machine_types_in_section]
+    
+#     # Get daily breakdown
+#     daily_data = []
+#     current_date = week_start.date()
+    
+#     while current_date <= week_end.date():
+#         day_start = datetime.combine(current_date, time.min).replace(tzinfo=get_timezone())
+#         day_end = datetime.combine(current_date, time.max).replace(tzinfo=get_timezone())
+        
+#         day_failures = [f for f in all_failures if day_start <= f.start_date <= day_end]
+        
+#         # Build machine type breakdown for this day
+#         machine_type_dict = {}
+#         for mt_name in machine_type_names:
+#             machine_type_dict[mt_name] = 0
+        
+#         for failure in day_failures:
+#             mt = failure.machine.machine_type.name if failure.machine.machine_type else 'Unknown'
+#             if mt in machine_type_dict:
+#                 machine_type_dict[mt] += 1
+        
+#         # Build category breakdown
+#         category_dict = {}
+#         for failure in day_failures:
+#             cat = failure.category_level_0 or 'Uncategorized'
+#             if cat not in category_dict:
+#                 category_dict[cat] = 0
+#             category_dict[cat] += 1
+        
+#         daily_data.append({
+#             'date': current_date.strftime('%Y-%m-%d'),
+#             'day_name': current_date.strftime('%A'),
+#             'total_failures': len(day_failures),
+#             'by_category': [{'category_level_0': k, 'count': v} for k, v in sorted(category_dict.items(), key=lambda x: x[1], reverse=True)],
+#             'by_shift': {
+#                 'Day': sum(1 for f in day_failures if f.operation_shift == 'Day'),
+#                 'Night': sum(1 for f in day_failures if f.operation_shift == 'Night'),
+#             },
+#             'by_machine_type': machine_type_dict  # Changed from list to dict
+#         })
+        
+#         current_date += timedelta(days=1)
+    
+#     # Cumulative stats
+#     category_dict = {}
+#     machine_type_dict = {}
+#     repair_times = []
+    
+#     for mt_name in machine_type_names:
+#         machine_type_dict[mt_name] = 0
+    
+#     for failure in all_failures:
+#         cat = failure.category_level_0 or 'Uncategorized'
+#         if cat not in category_dict:
+#             category_dict[cat] = 0
+#         category_dict[cat] += 1
+        
+#         mt = failure.machine.machine_type.name if failure.machine.machine_type else 'Unknown'
+#         if mt in machine_type_dict:
+#             machine_type_dict[mt] += 1
+        
+#         try:
+#             rt = failure.repairing_time
+#             if rt:
+#                 repair_times.append(rt)
+#         except:
+#             pass
+    
+#     avg_mttr = sum(repair_times) / len(repair_times) / 60 if repair_times else 0
+    
+#     cumulative = {
+#         'total_failures': len(all_failures),
+#         'by_category': [{'category_level_0': k, 'count': v} for k, v in sorted(category_dict.items(), key=lambda x: x[1], reverse=True)],
+#         'by_machine_type': machine_type_dict,
+#         'machine_type_names': machine_type_names,  # Add this for frontend
+#         'by_shift': {
+#             'Day': sum(1 for f in all_failures if f.operation_shift == 'Day'),
+#             'Night': sum(1 for f in all_failures if f.operation_shift == 'Night'),
+#         },
+#         'avg_mttr_hours': round(avg_mttr, 2)
+#     }
+    
+#     return {
+#         'period_start': week_start.strftime('%Y-%m-%d'),
+#         'period_end': week_end.strftime('%Y-%m-%d'),
+#         'section': section_name,
+#         'daily_data': daily_data,
+#         'cumulative': cumulative,
+#         'machine_type_names': machine_type_names  # Add this for frontend
+#     }
 
 
 def get_timezone():
@@ -1054,6 +1219,235 @@ def get_failures_by_date_shift_section(date_str, shift='all', section=None):
             'shift': shift,
             'section': section or 'All Sections',
             'total_count': 0,
+            'failures': [],
+            'error': str(e)
+        }
+
+def get_failures_by_date_range_section(start_date_str, end_date_str, section=None):
+    """Get failures by date range and section"""
+    from datetime import datetime, time
+    
+    try:
+        logger.info(f"Getting failures for range {start_date_str} to {end_date_str}, section={section}")
+        
+        tz = get_timezone()
+        
+        # Parse dates
+        start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        
+        range_start = datetime.combine(start_date_obj, time.min).replace(tzinfo=tz)
+        range_end = datetime.combine(end_date_obj, time.max).replace(tzinfo=tz)
+        
+        logger.info(f"Date range: {range_start} to {range_end}")
+        
+        # Build query
+        queryset = Failure.objects.filter(
+            start_date__range=[range_start, range_end]
+        ).select_related(
+            'machine', 
+            'machine__machine_type', 
+            'machine__machine_type__section',
+            'failure_category', 
+            'user'
+        ).order_by('machine__name', 'start_date')
+        
+        logger.info(f"Total failures in date range: {queryset.count()}")
+        
+        # Filter by section if provided
+        if section:
+            queryset = queryset.filter(machine__machine_type__section__name=section)
+            logger.info(f"After section filter '{section}': {queryset.count()}")
+        
+        failures = list(queryset)
+        
+        # Calculate metrics
+        total_mttr = 0
+        for failure in failures:
+            if failure.repairing_time:
+                total_mttr += failure.repairing_time
+        
+        avg_mttr_hours = (total_mttr / len(failures) / 60) if failures else 0
+        
+        result = {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'section': section or 'All Sections',
+            'total_count': len(failures),
+            'avg_mttr_hours': round(avg_mttr_hours, 2),
+            'failures': []
+        }
+        
+        for failure in failures:
+            try:
+                repairing_time = failure.repairing_time or 0
+            except:
+                repairing_time = 0
+            
+            result['failures'].append({
+                'id': failure.id,
+                'machine_name': failure.machine.name if failure.machine else 'Unknown',
+                'details': failure.details or '',
+                'category_level_0': failure.category_level_0 or 'Uncategorized',
+                'failure_category': failure.category_level_1 or (failure.get_failure_category_display() if hasattr(failure, 'get_failure_category_display') else ''),
+                'status': failure.status,
+                'rootcause': failure.rootcause or '',
+                'repair_action': failure.repair_action or '',
+                'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+                'repairing_time_hours': round(repairing_time / 60, 2) if repairing_time else 0,
+                'user': failure.user.username if failure.user else 'N/A',
+            })
+        
+        logger.info(f"Returning {len(result['failures'])} failures")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Error getting failures by date range/section: {str(e)}", exc_info=True)
+        return {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'section': section or 'All Sections',
+            'total_count': 0,
+            'avg_mttr_hours': 0,
+            'failures': [],
+            'error': str(e)
+        }
+
+def get_failures_by_date_range_with_charts(start_date_str, end_date_str, section=None):
+    """Get failures by date range with chart data (daily trend and pareto)"""
+    from datetime import datetime, time
+    from collections import defaultdict
+    
+    try:
+        logger.info(f"Getting failures with charts for range {start_date_str} to {end_date_str}, section={section}")
+        
+        tz = get_timezone()
+        
+        # Parse dates
+        start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        
+        range_start = datetime.combine(start_date_obj, time.min).replace(tzinfo=tz)
+        range_end = datetime.combine(end_date_obj, time.max).replace(tzinfo=tz)
+        
+        # Build query
+        queryset = Failure.objects.filter(
+            start_date__range=[range_start, range_end]
+        ).select_related(
+            'machine', 
+            'machine__machine_type', 
+            'machine__machine_type__section',
+            'failure_category', 
+            'user'
+        ).order_by('machine__name', 'start_date')
+        
+        # Filter by section
+        if section:
+            queryset = queryset.filter(machine__machine_type__section__name=section)
+        
+        failures = list(queryset)
+        
+        # Get all machine types in results
+        machine_types = set()
+        for failure in failures:
+            if failure.machine and failure.machine.machine_type:
+                machine_types.add(failure.machine.machine_type.name)
+        machine_type_names = sorted(list(machine_types))
+        
+        # Calculate metrics
+        total_mttr = 0
+        for failure in failures:
+            if failure.repairing_time:
+                total_mttr += failure.repairing_time
+        
+        avg_mttr_hours = (total_mttr / len(failures) / 60) if failures else 0
+        
+        # Build daily trend data
+        daily_data = defaultdict(lambda: defaultdict(int))
+        for failure in failures:
+            date = failure.start_date.strftime('%Y-%m-%d') if failure.start_date else 'Unknown'
+            mt_name = failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown'
+            daily_data[date][mt_name] += 1
+        
+        # Convert to regular dict and fill missing machine types
+        daily_data_dict = {}
+        for date in sorted(daily_data.keys()):
+            daily_data_dict[date] = {}
+            for mt in machine_type_names:
+                daily_data_dict[date][mt] = daily_data[date][mt]
+        
+        # Build pareto data
+        pareto_data = {}
+        for mt_name in machine_type_names:
+            mt_failures = [f for f in failures if f.machine and f.machine.machine_type and f.machine.machine_type.name == mt_name]
+            
+            # Count by category
+            category_counts = defaultdict(int)
+            for failure in mt_failures:
+                category = failure.category_level_0 or 'Uncategorized'
+                category_counts[category] += 1
+            
+            # Sort and calculate cumulative
+            sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+            total_count = sum(count for _, count in sorted_categories)
+            
+            pareto_list = []
+            cumulative = 0
+            for category, count in sorted_categories:
+                cumulative += count
+                cumulative_pct = (cumulative / total_count * 100) if total_count > 0 else 0
+                pareto_list.append({
+                    'category': category,
+                    'count': count,
+                    'cumulative_percentage': cumulative_pct
+                })
+            
+            pareto_data[mt_name] = pareto_list
+        
+        # Build failure list
+        failure_list = []
+        for failure in failures:
+            try:
+                repairing_time = failure.repairing_time or 0
+            except:
+                repairing_time = 0
+            
+            failure_list.append({
+                'id': failure.id,
+                'machine_name': failure.machine.name if failure.machine else 'Unknown',
+                'details': failure.details or '',
+                'category_level_0': failure.category_level_0 or 'Uncategorized',
+                'failure_category': failure.category_level_1 or '',
+                'status': failure.status,
+                'rootcause': failure.rootcause or '',
+                'repair_action': failure.repair_action or '',
+                'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+                'repairing_time_hours': round(repairing_time / 60, 2) if repairing_time else 0,
+            })
+        
+        return {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'section': section or 'All Sections',
+            'total_count': len(failures),
+            'avg_mttr_hours': round(avg_mttr_hours, 2),
+            'machine_type_names': machine_type_names,
+            'daily_data': daily_data_dict,
+            'pareto_data': pareto_data,
+            'failures': failure_list
+        }
+    
+    except Exception as e:
+        # logger.error(f"Error getting failures with charts: {str(e)}", exc_info=True)
+        return {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'section': section or 'All Sections',
+            'total_count': 0,
+            'avg_mttr_hours': 0,
+            'machine_type_names': [],
+            'daily_data': {},
+            'pareto_data': {},
             'failures': [],
             'error': str(e)
         }
