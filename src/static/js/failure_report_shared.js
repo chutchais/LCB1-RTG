@@ -125,144 +125,7 @@ function displayDailyTrendChart(data) {
     });
 }
 
-// Display pareto charts
-function displayParetoCharts(data) {
-    const paretoData = data.pareto_data || {};
-    const machineTypeNames = data.machine_type_names || [];
-    const container = document.getElementById('paretoChartsContainer');
 
-    container.innerHTML = '';
-
-    machineTypeNames.forEach((mtName, mtIndex) => {
-        const mtParetoData = paretoData[mtName] || [];
-        
-        const cardDiv = document.createElement('div');
-        cardDiv.className = 'pareto-card';
-        cardDiv.innerHTML = `
-            <div class="pareto-card-title">${mtName}</div>
-            <div class="pareto-mini-chart">
-                <canvas id="pareto-chart-${mtName}"></canvas>
-            </div>
-        `;
-        container.appendChild(cardDiv);
-
-        if (mtParetoData.length === 0) {
-            cardDiv.querySelector('.pareto-mini-chart').innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No data available</p>';
-            return;
-        }
-
-        const categories = mtParetoData.map(item => item.category);
-        const counts = mtParetoData.map(item => item.count);
-        const cumulativePercentages = mtParetoData.map(item => item.cumulative_percentage);
-
-        const ctx = document.getElementById(`pareto-chart-${mtName}`).getContext('2d');
-        
-        paretoChartInstances[mtName] = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: categories,
-                datasets: [
-                    {
-                        label: 'Failures',
-                        data: counts,
-                        backgroundColor: reportColors[mtIndex % reportColors.length],
-                        borderColor: reportBorderColors[mtIndex % reportBorderColors.length],
-                        borderWidth: 1,
-                        yAxisID: 'y',
-                        order: 2
-                    },
-                    {
-                        label: 'Cumulative %',
-                        data: cumulativePercentages,
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 2,
-                        type: 'line',
-                        yAxisID: 'y1',
-                        pointRadius: 4,
-                        pointBackgroundColor: 'rgba(255, 99, 132, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        tension: 0.4,
-                        order: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'x',
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Count',
-                            font: {
-                                size: 10
-                            }
-                        },
-                        ticks: {
-                            font: {
-                                size: 9
-                            }
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Cumulative %',
-                            font: {
-                                size: 10
-                            }
-                        },
-                        min: 0,
-                        max: 100,
-                        ticks: {
-                            font: {
-                                size: 9
-                            }
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            font: {
-                                size: 10
-                            }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.dataset.yAxisID === 'y1') {
-                                    label += context.parsed.y.toFixed(1) + '%';
-                                } else {
-                                    label += context.parsed.y;
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    });
-}
 
 // Display daily details table
 function displayDailyDetailsTable(data) {
@@ -442,6 +305,213 @@ function showDailyFailures(date, shift) {
             body.innerHTML = '<div class="alert alert-danger">Error loading failure data: ' + error.message + '</div>';
             modal.show();
         });
+}
+
+// Display pareto charts
+function displayParetoCharts(data) {
+    const paretoData = data.pareto_data || {};
+    const machineTypeNames = data.machine_type_names || [];
+    const failures = data.failures || [];
+    const container = document.getElementById('paretoChartsContainer');
+
+    container.innerHTML = '';
+
+    machineTypeNames.forEach((mtName, mtIndex) => {
+        const mtParetoData = paretoData[mtName] || [];
+        
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'pareto-card';
+        cardDiv.innerHTML = `
+            <div class="pareto-card-title">${mtName}</div>
+            <div class="pareto-mini-chart">
+                <canvas id="pareto-chart-${mtName}"></canvas>
+            </div>
+        `;
+        container.appendChild(cardDiv);
+
+        if (mtParetoData.length === 0) {
+            cardDiv.querySelector('.pareto-mini-chart').innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No data available</p>';
+            return;
+        }
+
+        const categories = mtParetoData.map(item => item.category);
+        const counts = mtParetoData.map(item => item.count);
+        const cumulativePercentages = mtParetoData.map(item => item.cumulative_percentage);
+
+        const ctx = document.getElementById(`pareto-chart-${mtName}`).getContext('2d');
+        
+        paretoChartInstances[mtName] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: categories,
+                datasets: [
+                    {
+                        label: 'Failures',
+                        data: counts,
+                        backgroundColor: reportColors[mtIndex % reportColors.length],
+                        borderColor: reportBorderColors[mtIndex % reportBorderColors.length],
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        label: 'Cumulative %',
+                        data: cumulativePercentages,
+                        borderColor: '#e74c3c',
+                        borderWidth: 2,
+                        type: 'line',
+                        fill: false,
+                        yAxisID: 'y1',
+                        order: 1,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#e74c3c',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                onClick: function(event, activeElements) {
+                    // Handle click on pareto chart
+                    if (activeElements.length > 0) {
+                        const elementIndex = activeElements[0].index;
+                        const categoryName = categories[elementIndex];
+                        showCategoryFailuresModal(categoryName, mtName, failures);
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Failure Count'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Cumulative %'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.dataset.label === 'Failures') {
+                                    return context.dataset.label + ': ' + context.parsed.y;
+                                } else {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+}
+
+// Show category failures in modal
+function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
+    // Filter failures for this category and machine type
+    const categoryFailures = failures.filter(f => 
+        f.category_level_0 === categoryName && f.machine_type === machineTypeName
+    );
+
+    const modal = new bootstrap.Modal(document.getElementById('failureModal'));
+    const body = document.getElementById('failureModalBody');
+    const title = document.getElementById('failureModalTitle');
+
+    title.textContent = `Failures - ${machineTypeName} / ${categoryName} (${categoryFailures.length} failures)`;
+
+    let htmlContent = `
+        <div class="summary-section">
+            <strong>📊 Category:</strong> ${categoryName}<br>
+            <strong>🤖 Machine Type:</strong> ${machineTypeName}<br>
+            <strong>📋 Total Failures:</strong> ${categoryFailures.length}
+        </div>
+    `;
+
+    if (categoryFailures.length === 0) {
+        htmlContent += '<div class="alert alert-info">No failures found for this category.</div>';
+    } else {
+        htmlContent += `
+            <div class="failure-table-container">
+                <table class="failure-modal-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Machine & Time</th>
+                            <th style="width: 20%;">Details</th>
+                            <th style="width: 20%;">Root Cause</th>
+                            <th style="width: 20%;">Action</th>
+                            <th style="width: 15%;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        categoryFailures.forEach((failure) => {
+            const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
+            const rootcauseHtml = failure.rootcause ? 
+                `<div class="rootcause-label">🔍 Root Cause:</div><div class="rootcause-text">${failure.rootcause}</div>` : '<em>N/A</em>';
+            const actionHtml = failure.repair_action ? 
+                `<div class="action-label">🔧 Action:</div><div class="action-text">${failure.repair_action}</div>` : '<em>N/A</em>';
+
+            htmlContent += `
+                <tr>
+                    <td class="machine-datetime-cell">
+                        <a href="/maintenance/reports/machine/${failure.machine_name}/" class="machine-name" target="_blank">
+                            ${failure.machine_name}
+                        </a>
+                        <div class="machine-datetime">
+                            ⏰ ${failure.start_date}
+                        </div>
+                    </td>
+                    <td class="details-text">
+                        ${failure.details || '<em>No details</em>'}
+                    </td>
+                    <td>
+                        ${rootcauseHtml}
+                    </td>
+                    <td>
+                        ${actionHtml}
+                    </td>
+                    <td>
+                        <span class="failure-status ${statusClass}">${failure.status}</span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        htmlContent += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    body.innerHTML = htmlContent;
+    modal.show();
 }
 
 // Display report

@@ -664,6 +664,7 @@ def get_failures_by_date_and_shift(date_str, shift=None):
         result['failures'].append({
             'id': failure.id,
             'machine_name': failure.machine.name if failure.machine else 'Unknown',
+            'machine_type': failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown',  # ADD THIS LINE
             'details': failure.details or '-',
             'category_level_0': failure.category_level_0 or 'Uncategorized',
             'failure_category': failure.category_level_1 or '-',
@@ -715,6 +716,7 @@ def get_failures_by_date_shift_and_type(date_str, shift=None, machine_type=None)
         result['failures'].append({
             'id': failure.id,
             'machine_name': failure.machine.name if failure.machine else 'Unknown',
+            'machine_type': failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown',
             'details': failure.details or '-',
             'category_level_0': failure.category_level_0 or 'Uncategorized',
             'failure_category': failure.category_level_1 or '-',
@@ -937,9 +939,23 @@ def get_week_failures_by_section(section_name):
         except:
             repairing_time = 0
         
+        # failures_list.append({
+        #     'id': failure.id,
+        #     'machine_name': failure.machine.name if failure.machine else 'Unknown',
+        #     'details': failure.details or '',
+        #     'category_level_0': failure.category_level_0 or 'Uncategorized',
+        #     'failure_category': failure.category_level_1 or '',
+        #     'status': failure.status,
+        #     'rootcause': failure.rootcause or '',
+        #     'repair_action': failure.repair_action or '',
+        #     'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+        #     'repairing_time_hours': round(repairing_time / 60, 2) if repairing_time else 0,
+        # })
+        # In the function that builds failure_list, add machine_type
         failures_list.append({
             'id': failure.id,
             'machine_name': failure.machine.name if failure.machine else 'Unknown',
+            'machine_type': failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown',  # ADD THIS LINE
             'details': failure.details or '',
             'category_level_0': failure.category_level_0 or 'Uncategorized',
             'failure_category': failure.category_level_1 or '',
@@ -988,6 +1004,7 @@ def get_week_failures_by_section(section_name):
         },
         'avg_mttr_hours': round(avg_mttr, 2)
     }
+    
     
     return {
         'period_start': week_start.strftime('%Y-%m-%d'),
@@ -1197,6 +1214,7 @@ def get_failures_by_date_shift_section(date_str, shift='all', section=None):
             result['failures'].append({
                 'id': failure.id,
                 'machine_name': failure.machine.name if failure.machine else 'Unknown',
+                'machine_type': failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown',  # ADD THIS LINE
                 'details': failure.details or '',
                 'category_level_0': failure.category_level_0 or 'Uncategorized',
                 'failure_category': failure.category_level_1 or (failure.get_failure_category_display() if hasattr(failure, 'get_failure_category_display') else ''),
@@ -1284,9 +1302,23 @@ def get_failures_by_date_range_section(start_date_str, end_date_str, section=Non
             except:
                 repairing_time = 0
             
+            # result['failures'].append({
+            #     'id': failure.id,
+            #     'machine_name': failure.machine.name if failure.machine else 'Unknown',
+            #     'details': failure.details or '',
+            #     'category_level_0': failure.category_level_0 or 'Uncategorized',
+            #     'failure_category': failure.category_level_1 or (failure.get_failure_category_display() if hasattr(failure, 'get_failure_category_display') else ''),
+            #     'status': failure.status,
+            #     'rootcause': failure.rootcause or '',
+            #     'repair_action': failure.repair_action or '',
+            #     'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+            #     'repairing_time_hours': round(repairing_time / 60, 2) if repairing_time else 0,
+            #     'user': failure.user.username if failure.user else 'N/A',
+            # })
             result['failures'].append({
                 'id': failure.id,
                 'machine_name': failure.machine.name if failure.machine else 'Unknown',
+                'machine_type': failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown',  # ADD THIS LINE
                 'details': failure.details or '',
                 'category_level_0': failure.category_level_0 or 'Uncategorized',
                 'failure_category': failure.category_level_1 or (failure.get_failure_category_display() if hasattr(failure, 'get_failure_category_display') else ''),
@@ -1415,6 +1447,7 @@ def get_failures_by_date_range_with_charts(start_date_str, end_date_str, section
             failure_list.append({
                 'id': failure.id,
                 'machine_name': failure.machine.name if failure.machine else 'Unknown',
+                'machine_type': failure.machine.machine_type.name if failure.machine and failure.machine.machine_type else 'Unknown',  # ADD THIS LINE
                 'details': failure.details or '',
                 'category_level_0': failure.category_level_0 or 'Uncategorized',
                 'failure_category': failure.category_level_1 or '',
