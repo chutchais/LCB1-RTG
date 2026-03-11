@@ -442,13 +442,13 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
     const body = document.getElementById('failureModalBody');
     const title = document.getElementById('failureModalTitle');
 
-    title.textContent = `Failures - ${machineTypeName} / ${categoryName} (${categoryFailures.length} failures)`;
+    title.textContent = `Failures - ${machineTypeName} / ${categoryName}`;
 
     let htmlContent = `
         <div class="summary-section">
-            <strong>📊 Category:</strong> ${categoryName}<br>
-            <strong>🤖 Machine Type:</strong> ${machineTypeName}<br>
-            <strong>📋 Total Failures:</strong> ${categoryFailures.length}
+            <strong>🔧 Machine Type:</strong> ${machineTypeName} | 
+            <strong>📋 Category:</strong> ${categoryName} | 
+            <strong>📊 Total Failures:</strong> ${categoryFailures.length}
         </div>
     `;
 
@@ -461,10 +461,11 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
                     <thead>
                         <tr>
                             <th style="width: 15%;">Machine & Time</th>
-                            <th style="width: 20%;">Details</th>
-                            <th style="width: 20%;">Root Cause</th>
-                            <th style="width: 20%;">Action</th>
-                            <th style="width: 15%;">Status</th>
+                            <th style="width: 10%;">Category</th>
+                            <th style="width: 15%;">Failure Type</th>
+                            <th style="width: 25%;">Details</th>
+                            <th style="width: 30%;">Root Cause & Action</th>
+                            <th style="width: 5%;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -473,9 +474,10 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
         categoryFailures.forEach((failure) => {
             const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
             const rootcauseHtml = failure.rootcause ? 
-                `<div class="rootcause-label">🔍 Root Cause:</div><div class="rootcause-text">${failure.rootcause}</div>` : '<em>N/A</em>';
+                `<div class="rootcause-label">🔍 Root Cause:</div><div class="rootcause-text">${failure.rootcause}</div>` : '';
             const actionHtml = failure.repair_action ? 
-                `<div class="action-label">🔧 Action:</div><div class="action-text">${failure.repair_action}</div>` : '<em>N/A</em>';
+                `<div class="action-label" style="margin-top: 8px;">🔧 Action:</div><div class="action-text">${failure.repair_action}</div>` : '';
+            const rootcauseAction = rootcauseHtml || actionHtml ? `${rootcauseHtml}${actionHtml}` : '<em>No details</em>';
 
             htmlContent += `
                 <tr>
@@ -487,14 +489,17 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
                             ⏰ ${failure.start_date}
                         </div>
                     </td>
+                    <td>
+                        <span class="failure-category-badge">${failure.category_level_0}</span>
+                    </td>
+                    <td class="details-text">
+                        ${failure.failure_category || '<em>N/A</em>'}
+                    </td>
                     <td class="details-text">
                         ${failure.details || '<em>No details</em>'}
                     </td>
                     <td>
-                        ${rootcauseHtml}
-                    </td>
-                    <td>
-                        ${actionHtml}
+                        ${rootcauseAction}
                     </td>
                     <td>
                         <span class="failure-status ${statusClass}">${failure.status}</span>
@@ -506,6 +511,9 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
         htmlContent += `
                     </tbody>
                 </table>
+            </div>
+            <div class="alert alert-success mt-3">
+                <strong>✅ Total Failures:</strong> ${categoryFailures.length} failure(s)
             </div>
         `;
     }
