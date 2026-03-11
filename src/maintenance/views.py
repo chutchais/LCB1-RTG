@@ -509,3 +509,33 @@ def report_metrics(request):
         'machine_types': machine_types,
     }
     return render(request, 'maintenance/report_metrics.html', context)
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from .models import Machine
+
+@require_http_methods(["GET"])
+def api_search_machines(request):
+    """Search machines by name across entire system"""
+    search_text = request.GET.get('q', '').strip()
+    
+    if not search_text or len(search_text) < 2:
+        return JsonResponse({'machines': []})
+    
+    # Search for machines containing the search text
+    machines = Machine.objects.filter(
+        name__icontains=search_text
+    ).select_related('machine_type', 'machine_type__section').order_by('name').values(
+        'name', 'machine_type__name', 'machine_type__section__name'
+    )[:50]  # Limit to 50 results
+    
+    results = []
+    for machine in machines:
+        results.append({
+            'name': machine['name'],
+            'machine_type': machine['machine_type__name'] or 'Unknown',
+            'section': machine['machine_type__section__name'] or 'Unknown'
+        })
+    
+    return JsonResponse({'machines': results})

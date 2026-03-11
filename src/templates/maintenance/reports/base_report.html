@@ -216,6 +216,52 @@
     </div>
 
     <div class="container">
+                <!-- Machine Search Box - AT THE TOP -->
+        <div class="search-section" style="margin-bottom: 20px;">
+            <div class="row g-2">
+                <div class="col-md-8">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text" style="background-color: #667eea; color: white; border: none;">
+                            🔍
+                        </span>
+                        <input type="text" class="form-control" id="machineSearchBox" placeholder="Search any machine in system (min 2 characters)...">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-outline-secondary w-100" onclick="clearMachineSearch()">
+                        <i class="fas fa-times"></i> Clear Search
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search Results -->
+            <div id="machineSearchResults" style="display: none; margin-top: 15px;">
+                <div class="alert alert-info">
+                    <strong>🔍 Search Results:</strong>
+                    <div id="matchingMachinesList" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Initialize machine search immediately
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DEBUG: DOMContentLoaded fired');
+                const searchBox = document.getElementById('machineSearchBox');
+                console.log('DEBUG: searchBox element', searchBox);
+                
+                if (searchBox) {
+                    searchBox.addEventListener('input', function(e) {
+                        console.log('DEBUG: Search input changed:', e.target.value);
+                        searchMachinesByName(e.target.value);
+                    });
+                    console.log('DEBUG: Search listener attached');
+                } else {
+                    console.error('ERROR: machineSearchBox not found!');
+                }
+            });
+        </script>
+        
         <!-- Filters -->
         <div class="filter-section">
             <form method="get" class="row g-2">

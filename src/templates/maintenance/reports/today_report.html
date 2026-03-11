@@ -1,4 +1,5 @@
 {% extends "maintenance/reports/base_report.html" %}
+{% load static %}
 
 {% block title %}Today's Failure Report{% endblock %}
 
@@ -317,5 +318,28 @@
         }
     })();
     {% endfor %}
+</script>
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/failure_report_shared.js' %}"></script>
+<script>
+    // Initialize search listener for today report
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DEBUG: Today report DOMContentLoaded');
+        const searchBox = document.getElementById('machineSearchBox');
+        console.log('DEBUG: searchBox element', searchBox);
+        
+        if (searchBox) {
+            searchBox.addEventListener('input', function(e) {
+                console.log('DEBUG: Search input changed:', e.target.value);
+                searchMachinesByName(e.target.value);
+            });
+            console.log('DEBUG: Search listener attached to today report');
+        }
+    });
 </script>
 {% endblock %}

@@ -523,7 +523,11 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
 }
 
 // Display report
+// Update displaySharedReport to add search listener
 function displaySharedReport(data, summaryData) {
+    // Store failures globally for searching
+    allFailures = data.failures || [];
+    
     // Update summary cards
     document.getElementById('totalFailuresDisplay').textContent = data.total_count || 0;
     document.getElementById('avgMTTRDisplay').textContent = (data.avg_mttr_hours || 0).toFixed(1) + 'h';
@@ -534,4 +538,89 @@ function displaySharedReport(data, summaryData) {
     displayDailyTrendChart(data);
     displayParetoCharts(data);
     displayDailyDetailsTable(data);
+    
+    // Add search listener to base search box
+    addMachineSearchListener();
+}
+
+// Add search listener
+function addMachineSearchListener() {
+    const searchBox = document.getElementById('machineSearchBox');
+    if (searchBox) {
+        searchBox.addEventListener('input', function(e) {
+            searchMachinesByName(e.target.value);
+        });
+    }
+}
+
+// Search machines by name - FROM ENTIRE SYSTEM
+function searchMachinesByName(searchText) {
+    const searchLower = searchText.toLowerCase().trim();
+    
+    if (!searchLower || searchLower.length < 2) {
+        // Clear search results
+        document.getElementById('machineSearchResults').style.display = 'none';
+        return;
+    }
+    
+    // Show loading state
+    const resultsDiv = document.getElementById('machineSearchResults');
+    const listDiv = document.getElementById('matchingMachinesList');
+    listDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Searching...</div>';
+    resultsDiv.style.display = 'block';
+    
+    // Fetch from API - search entire system
+    fetch(`/maintenance/api/search-machines/?q=${encodeURIComponent(searchText)}`)
+        .then(response => response.json())
+        .then(data => {
+            const machines = data.machines || [];
+            
+            if (machines.length === 0) {
+                listDiv.innerHTML = '<div class="alert alert-warning mb-0">No machines found matching "<strong>' + searchText + '</strong>"</div>';
+                resultsDiv.style.display = 'block';
+            } else {
+                let html = '<div class="row">';
+                
+                machines.forEach(machine => {
+                    html += `
+                        <div class="col-md-3 mb-2">
+                            <div class="card border-info h-100">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title text-info mb-2">
+                                        <a href="/maintenance/reports/machine/${machine.name}/" target="_blank" class="text-info" style="text-decoration: none;">
+                                            <strong>${machine.name}</strong> 🔗
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted d-block">
+                                        <strong>Machine Type:</strong> ${machine.machine_type}
+                                    </small>
+                                    <small class="text-muted d-block">
+                                        <strong>Section:</strong> ${machine.section}
+                                    </small>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-info w-100" onclick="window.open('/maintenance/reports/machine/${machine.name}/', '_blank')">
+                                            View Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                listDiv.innerHTML = html;
+                resultsDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            listDiv.innerHTML = '<div class="alert alert-danger mb-0">Error searching machines: ' + error.message + '</div>';
+            resultsDiv.style.display = 'block';
+        });
+}
+
+// Clear search
+function clearMachineSearch() {
+    document.getElementById('machineSearchBox').value = '';
+    document.getElementById('machineSearchResults').style.display = 'none';
 }

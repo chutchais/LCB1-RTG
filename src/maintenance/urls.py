@@ -72,4 +72,6 @@ urlpatterns = [
     path('<section>', by_equipment, name='detail'),
     path('api/report/daily-failures-range/', DailyFailuresRangeAPIView.as_view(), name='api-daily-failures-range'),
     path('api/report/custom-failures-with-charts/', CustomFailuresWithChartsAPIView.as_view(), name='api-custom-failures-with-charts'),
+
+    path('api/search-machines/', views.api_search_machines, name='api_search_machines'),
 ]
