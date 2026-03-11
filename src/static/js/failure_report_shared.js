@@ -431,98 +431,7 @@ function displayParetoCharts(data) {
     });
 }
 
-// Show category failures in modal
-function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
-    // Filter failures for this category and machine type
-    const categoryFailures = failures.filter(f => 
-        f.category_level_0 === categoryName && f.machine_type === machineTypeName
-    );
 
-    const modal = new bootstrap.Modal(document.getElementById('failureModal'));
-    const body = document.getElementById('failureModalBody');
-    const title = document.getElementById('failureModalTitle');
-
-    title.textContent = `Failures - ${machineTypeName} / ${categoryName}`;
-
-    let htmlContent = `
-        <div class="summary-section">
-            <strong>🔧 Machine Type:</strong> ${machineTypeName} | 
-            <strong>📋 Category:</strong> ${categoryName} | 
-            <strong>📊 Total Failures:</strong> ${categoryFailures.length}
-        </div>
-    `;
-
-    if (categoryFailures.length === 0) {
-        htmlContent += '<div class="alert alert-info">No failures found for this category.</div>';
-    } else {
-        htmlContent += `
-            <div class="failure-table-container">
-                <table class="failure-modal-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 15%;">Machine & Time</th>
-                            <th style="width: 10%;">Category</th>
-                            <th style="width: 15%;">Failure Type</th>
-                            <th style="width: 25%;">Details</th>
-                            <th style="width: 30%;">Root Cause & Action</th>
-                            <th style="width: 5%;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        categoryFailures.forEach((failure) => {
-            const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
-            const rootcauseHtml = failure.rootcause ? 
-                `<div class="rootcause-label">🔍 Root Cause:</div><div class="rootcause-text">${failure.rootcause}</div>` : '';
-            const actionHtml = failure.repair_action ? 
-                `<div class="action-label" style="margin-top: 8px;">🔧 Action:</div><div class="action-text">${failure.repair_action}</div>` : '';
-            const rootcauseAction = rootcauseHtml || actionHtml ? `${rootcauseHtml}${actionHtml}` : '<em>No details</em>';
-
-            htmlContent += `
-                <tr>
-                    <td class="machine-datetime-cell">
-                        <a href="/maintenance/reports/machine/${failure.machine_name}/" class="machine-name" target="_blank">
-                            ${failure.machine_name}
-                        </a>
-                        <div class="machine-datetime">
-                            ⏰ ${failure.start_date}
-                        </div>
-                    </td>
-                    <td>
-                        <span class="failure-category-badge">${failure.category_level_0}</span>
-                    </td>
-                    <td class="details-text">
-                        ${failure.failure_category || '<em>N/A</em>'}
-                    </td>
-                    <td class="details-text">
-                        ${failure.details || '<em>No details</em>'}
-                    </td>
-                    <td>
-                        ${rootcauseAction}
-                    </td>
-                    <td>
-                        <span class="failure-status ${statusClass}">${failure.status}</span>
-                    </td>
-                </tr>
-            `;
-        });
-
-        htmlContent += `
-                    </tbody>
-                </table>
-            </div>
-            <div class="alert alert-success mt-3">
-                <strong>✅ Total Failures:</strong> ${categoryFailures.length} failure(s)
-            </div>
-        `;
-    }
-
-    body.innerHTML = htmlContent;
-    modal.show();
-}
-
-// Display report
 // Update displaySharedReport to add search listener
 function displaySharedReport(data, summaryData) {
     // Store failures globally for searching
@@ -623,4 +532,224 @@ function searchMachinesByName(searchText) {
 function clearMachineSearch() {
     document.getElementById('machineSearchBox').value = '';
     document.getElementById('machineSearchResults').style.display = 'none';
+}
+
+// Show category failures in modal
+function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
+    // Filter failures for this category and machine type
+    const categoryFailures = failures.filter(f => 
+        f.category_level_0 === categoryName && f.machine_type === machineTypeName
+    );
+
+    const modal = new bootstrap.Modal(document.getElementById('failureModal'));
+    const body = document.getElementById('failureModalBody');
+    const title = document.getElementById('failureModalTitle');
+
+    title.textContent = `Failures - ${machineTypeName} / ${categoryName}`;
+
+    let htmlContent = `
+        <div class="summary-section">
+            <strong>🔧 Machine Type:</strong> ${machineTypeName} | 
+            <strong>📋 Category:</strong> ${categoryName} | 
+            <strong>📊 Total Failures:</strong> ${categoryFailures.length}
+        </div>
+    `;
+
+    if (categoryFailures.length === 0) {
+        htmlContent += '<div class="alert alert-info">No failures found for this category.</div>';
+        body.innerHTML = htmlContent;
+        modal.show();
+        return;
+    }
+
+    // Calculate failure type distribution for pie chart
+    const failureTypeCount = {};
+    categoryFailures.forEach(f => {
+        const fType = f.failure_category || 'N/A';
+        failureTypeCount[fType] = (failureTypeCount[fType] || 0) + 1;
+    });
+
+    const failureTypes = Object.keys(failureTypeCount);
+    const failureTypeCounts = Object.values(failureTypeCount);
+
+    // Generate random colors for pie chart
+    const colors = generateChartColors(failureTypes.length);
+
+    htmlContent += `
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="mb-3">📊 Failure Type Distribution</h6>
+                <canvas id="failureTypePieChart" style="max-height: 250px;"></canvas>
+            </div>
+            <div class="col-md-6">
+                <h6 class="mb-3">📋 Failure Type Summary</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Failure Type</th>
+                            <th>Count</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    failureTypes.forEach((fType, idx) => {
+        const count = failureTypeCount[fType];
+        const percentage = ((count / categoryFailures.length) * 100).toFixed(1);
+        htmlContent += `
+            <tr>
+                <td>
+                    <span class="badge" style="background-color: ${colors[idx]};">${fType}</span>
+                </td>
+                <td><strong>${count}</strong></td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+
+    htmlContent += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="failure-table-container">
+            <table class="failure-modal-table">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Machine & Time</th>
+                        <th style="width: 10%;">Category</th>
+                        <th style="width: 15%;">Failure Type</th>
+                        <th style="width: 25%;">Details</th>
+                        <th style="width: 30%;">Root Cause & Action</th>
+                        <th style="width: 5%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    categoryFailures.forEach((failure) => {
+        const statusClass = failure.status === 'OPEN' ? 'open' : 'closed';
+        const rootcauseHtml = failure.rootcause ? 
+            `<div class="rootcause-label">🔍 Root Cause:</div><div class="rootcause-text">${failure.rootcause}</div>` : '';
+        const actionHtml = failure.repair_action ? 
+            `<div class="action-label" style="margin-top: 8px;">🔧 Action:</div><div class="action-text">${failure.repair_action}</div>` : '';
+        const rootcauseAction = rootcauseHtml || actionHtml ? `${rootcauseHtml}${actionHtml}` : '<em>No details</em>';
+
+        htmlContent += `
+            <tr>
+                <td class="machine-datetime-cell">
+                    <a href="/maintenance/reports/machine/${failure.machine_name}/" class="machine-name" target="_blank">
+                        ${failure.machine_name}
+                    </a>
+                    <div class="machine-datetime">
+                        ⏰ ${failure.start_date}
+                    </div>
+                </td>
+                <td>
+                    <span class="failure-category-badge">${failure.category_level_0}</span>
+                </td>
+                <td class="details-text">
+                    ${failure.failure_category || '<em>N/A</em>'}
+                </td>
+                <td class="details-text">
+                    ${failure.details || '<em>No details</em>'}
+                </td>
+                <td>
+                    ${rootcauseAction}
+                </td>
+                <td>
+                    <span class="failure-status ${statusClass}">${failure.status}</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    htmlContent += `
+                </tbody>
+            </table>
+        </div>
+        <div class="alert alert-success mt-3">
+            <strong>✅ Total Failures:</strong> ${categoryFailures.length} failure(s)
+        </div>
+    `;
+
+    body.innerHTML = htmlContent;
+    modal.show();
+
+    // Draw the pie chart after modal is shown
+    setTimeout(() => {
+        drawFailureTypePieChart(failureTypes, failureTypeCounts, colors);
+    }, 100);
+}
+
+// Draw failure type pie chart
+function drawFailureTypePieChart(failureTypes, failureTypeCounts, colors) {
+    const ctx = document.getElementById('failureTypePieChart');
+    if (!ctx) {
+        console.log('DEBUG: failureTypePieChart canvas not found');
+        return;
+    }
+
+    // Destroy existing chart if it exists
+    if (window.failureTypePieChartInstance) {
+        window.failureTypePieChartInstance.destroy();
+    }
+
+    window.failureTypePieChartInstance = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: failureTypes,
+            datasets: [{
+                data: failureTypeCounts,
+                backgroundColor: colors,
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return label + ': ' + value + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Generate chart colors
+function generateChartColors(count) {
+    const baseColors = [
+        '#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe',
+        '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#30b0fe',
+        '#e0b0ff', '#a8edea', '#fed6e3', '#ffeaa7', '#fab1a0'
+    ];
+
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+        colors.push(baseColors[i % baseColors.length]);
+    }
+    return colors;
 }
