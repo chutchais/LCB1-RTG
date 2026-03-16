@@ -326,7 +326,8 @@ def get_machine_performance_metrics(machine_type=None):
     return result
 
 def get_machine_failure_history(machine_name, days=30):
-    """Get detailed failure history for a specific machine"""
+    """Get machine failure history with all failures (optimized for performance)"""
+    from datetime import datetime, timedelta, time
     
     try:
         machine = Machine.objects.get(name=machine_name)
@@ -334,80 +335,234 @@ def get_machine_failure_history(machine_name, days=30):
         return None
     
     tz = get_timezone()
-    start_date = datetime.now(tz=tz) - timedelta(days=days)
+    now = datetime.now(tz=tz)
+    two_weeks_ago = now - timedelta(days=14)
+    one_week_ago = now - timedelta(days=7)
     
-    failures = list(machine.failures.filter(
-        start_date__gte=start_date
-    ).select_related('user').order_by('-start_date'))
+    # Optimize: Use only necessary fields with select_related and prefetch_related
+    all_failures = Failure.objects.filter(
+        machine=machine
+    ).select_related(
+        'machine', 'machine__machine_type', 'failure_category', 'user'
+    ).prefetch_related('images').values(
+        'id', 'start_date', 'end_date', 'category', 'failure_category__name',
+        'details', 'rootcause', 'repair_action', 
+        'status', 'user__username'
+    ).order_by('-start_date')
     
-    # Calculate metrics
-    closed_failures = [f for f in failures if f.status == 'CLOSED']
+    # Convert to list once (avoid multiple DB queries)
+    all_failures_list = list(all_failures)
     
-    repair_times = []
-    for failure in closed_failures:
-        try:
-            rt = failure.repairing_time
-            if rt:
-                repair_times.append(rt)
-        except:
-            pass
+    if not all_failures_list:
+        return None
     
-    mttr = sum(repair_times) / len(repair_times) if repair_times else 0
+    # Get LAST 30 failures only (with images - these are needed)
+    recent_failures_ids = [f['id'] for f in all_failures_list[:30]]
+    recent_failures_queryset = Failure.objects.filter(
+        id__in=recent_failures_ids
+    ).select_related('user', 'failure_category').prefetch_related('images').order_by('-start_date')
     
-    # Count by category
-    category_dict = {}
-    for failure in failures:
-        cat = failure.category_level_0 or 'Uncategorized'
-        if cat not in category_dict:
-            category_dict[cat] = 0
-        category_dict[cat] += 1
+    # Build category breakdown using cached list
+    category_breakdown = {}
+    for failure in all_failures_list:
+        cat = failure['category'] or 'Uncategorized'
+        category_breakdown[cat] = category_breakdown.get(cat, 0) + 1
     
-    category_breakdown = sorted([{'category_level_0': k, 'count': v} for k, v in category_dict.items()], 
-                                 key=lambda x: x['count'], reverse=True)
+    category_breakdown = dict(sorted(category_breakdown.items(), key=lambda x: x[1], reverse=True))
     
-    # Prepare failure history
-    failure_history = []
-    for f in failures[:50]:  # Last 50 failures
-        try:
-            repairing_time = f.repairing_time or 0
-            lead_time = f.lead_time or 0
-            waiting_time = f.waitting_time or 0
-        except:
-            repairing_time = 0
-            lead_time = 0
-            waiting_time = 0
+    # Helper function to calculate repair time in hours
+    def calculate_repair_hours(start_date, end_date):
+        if start_date and end_date:
+            diff = end_date - start_date
+            return diff.total_seconds() / 3600
+        return 0
+    
+    # Build recent failures list with image data
+    recent_failures = []
+    for failure in recent_failures_queryset:
+        repair_hours = calculate_repair_hours(failure.start_date, failure.end_date)
         
-        failure_history.append({
-            'id': f.id,
-            'category': f.category_level_0 or 'Uncategorized',
-            'full_path': f.category_full_path or '',
-            'start_date': f.start_date.strftime('%Y-%m-%d %H:%M') if f.start_date else '',
-            'end_date': f.end_date.strftime('%Y-%m-%d %H:%M') if f.end_date else '',
-            'repairing_time_hours': round(repairing_time / 60, 2),
-            'lead_time_hours': round(lead_time / 60, 2),
-            'waiting_time_hours': round(waiting_time / 60, 2),
-            'status': f.status,
-            'details': f.details or '',
-            'rootcause': f.rootcause or '',
-            'repair_action': f.repair_action or '',
-            'technician': f.user.username if f.user else 'N/A'
+        # Get images for this failure
+        images = []
+        try:
+            failure_images = failure.images.all()
+            for img in failure_images:
+                if hasattr(img, 'image') and img.image:
+                    images.append({
+                        'url': img.image.url,
+                        'caption': getattr(img, 'caption', '') or ''
+                    })
+        except Exception as e:
+            print(f"ERROR getting images for failure {failure.id}: {str(e)}")
+        
+        recent_failures.append({
+            'id': failure.id,
+            'start_date': failure.start_date.strftime('%Y-%m-%d %H:%M') if failure.start_date else '',
+            'category': failure.category or 'Uncategorized',
+            'failure_category': failure.failure_category.name if failure.failure_category else 'N/A',
+            'details': failure.details or '',
+            'repairing_time_hours': round(repair_hours, 2),
+            'rootcause': failure.rootcause or '',
+            'repair_action': failure.repair_action or '',
+            'status': failure.status,
+            'technician': failure.user.username if failure.user else 'N/A',
+            'images': images
         })
+    
+    # Calculate performance metrics from cached list and queryset
+    repair_times = []
+    for failure in recent_failures_queryset:
+        repair_hours = calculate_repair_hours(failure.start_date, failure.end_date)
+        if repair_hours > 0:
+            repair_times.append(repair_hours)
+    
+    avg_repair_time = sum(repair_times) / len(repair_times) if repair_times else 0
+    
+    # Generate exclusive advise (uses cached data)
+    advise_list = generate_machine_advise_optimized(all_failures_list, recent_failures_queryset, two_weeks_ago, one_week_ago, calculate_repair_hours)
+    
+    # Count status breakdown from cached list
+    open_count = sum(1 for f in all_failures_list if f['status'] == 'OPEN')
+    closed_count = len(all_failures_list) - open_count
+    
+    # Count failures in time windows from cached list
+    failures_this_week = sum(1 for f in all_failures_list if f['start_date'] >= one_week_ago)
     
     return {
         'machine_name': machine_name,
-        'machine_type': machine.machine_type.name if machine.machine_type else 'N/A',
-        'performance_metrics': {
-            'mttr_hours': round(mttr / 60, 2),
-            'total_failures_in_period': len(failures),
-            'failures_this_week': sum(1 for f in failures if f.start_date >= datetime.now(tz=tz) - timedelta(days=7)),
-            'status_breakdown': {
-                'OPEN': sum(1 for f in failures if f.status == 'OPEN'),
-                'CLOSED': sum(1 for f in failures if f.status == 'CLOSED'),
-            }
-        },
+        'machine_type': machine.machine_type.name if machine.machine_type else 'Unknown',
+        'total_failures': len(all_failures_list),
+        'recent_failures': recent_failures,
         'category_breakdown': category_breakdown,
-        'recent_failures': failure_history
+        'avg_repair_time': round(avg_repair_time, 2),
+        'advise_list': advise_list,
+        'performance_metrics': {
+            'mttr_hours': round(avg_repair_time, 2),
+            'total_failures_in_period': len(all_failures_list),
+            'failures_this_week': failures_this_week,
+            'status_breakdown': {
+                'OPEN': open_count,
+                'CLOSED': closed_count
+            }
+        }
     }
+
+
+def generate_machine_advise_optimized(failures_list, recent_failures_queryset, two_weeks_ago, one_week_ago, calculate_repair_hours):
+    """Generate advise from pre-fetched failure data (no DB queries)"""
+    
+    advise_list = []
+    
+    if not failures_list:
+        return advise_list
+    
+    # FILTER: Only generate advises for 'BD' category failures
+    bd_failures = [f for f in failures_list if f['category'] == 'BD']
+    
+    if not bd_failures:
+        return advise_list  # No advises if no BD failures
+    
+    # Helper to calculate repair time
+    def get_repair_hours(start, end):
+        if start and end:
+            diff = end - start
+            return diff.total_seconds() / 3600
+        return 0
+    
+    # Check for recurring categories in last 2 weeks (BD only)
+    category_counts_2weeks = {}
+    failure_type_counts = {}
+    failures_1week_count = 0
+    open_count = 0
+    
+    for failure in bd_failures:  # Use BD failures only
+        start_date = failure['start_date']
+        
+        # Count open failures
+        if failure['status'] == 'OPEN':
+            open_count += 1
+        
+        # Only process recent failures for time-based analysis
+        if start_date >= two_weeks_ago:
+            cat = failure['category'] or 'Uncategorized'
+            category_counts_2weeks[cat] = category_counts_2weeks.get(cat, 0) + 1
+            
+            ftype = failure['failure_category__name'] or 'Unknown'
+            failure_type_counts[ftype] = failure_type_counts.get(ftype, 0) + 1
+        
+        # Count failures in last week
+        if start_date >= one_week_ago:
+            failures_1week_count += 1
+    
+    # Generate advises (for BD category only)
+    
+    # 1. Recurring categories (3+ in 2 weeks)
+    for category, count in category_counts_2weeks.items():
+        if count >= 3:
+            advise_list.append({
+                'type': 'warning',
+                'icon': '⚠️',
+                'title': f'Recurring Issue: {category}',
+                'message': f'Machine failed on <strong>{category}</strong> <strong>{count} times</strong> within last 2 weeks. Consider preventive maintenance or component replacement.',
+                'severity': 'high' if count >= 4 else 'medium'
+            })
+    
+    # 2. High failure rate (2+ per week)
+    if failures_1week_count >= 2:
+        advise_list.append({
+            'type': 'alert',
+            'icon': '🔴',
+            'title': 'High Failure Rate',
+            'message': f'<strong>{failures_1week_count} failures</strong> detected in the last 7 days. Machine may require immediate attention or inspection.',
+            'severity': 'high' if failures_1week_count >= 4 else 'medium'
+        })
+    
+    # 3. High MTTR (average > 8 hours) - Filter BD failures only
+    repair_times = []
+    bd_failure_ids = [f['id'] for f in bd_failures[:20]]
+    for failure in recent_failures_queryset:
+        if failure.id in bd_failure_ids:
+            repair_hours = get_repair_hours(failure.start_date, failure.end_date)
+            if repair_hours > 0:
+                repair_times.append(repair_hours)
+    
+    if repair_times:
+        avg_repair_time = sum(repair_times) / len(repair_times)
+        if avg_repair_time > 8:
+            advise_list.append({
+                'type': 'info',
+                'icon': '⏱️',
+                'title': 'Long Repair Time',
+                'message': f'Average repair time is <strong>{avg_repair_time:.1f} hours</strong>. Consider having spare parts available or improving repair procedures.',
+                'severity': 'medium'
+            })
+    
+    # 4. Specific failure types (2+ in 2 weeks)
+    for ftype, count in failure_type_counts.items():
+        if count >= 2 and ftype != 'Unknown':
+            advise_list.append({
+                'type': 'info',
+                'icon': '💡',
+                'title': f'Pattern: {ftype}',
+                'message': f'<strong>{ftype}</strong> failure type occurred <strong>{count} times</strong> recently. Review maintenance procedures for this component.',
+                'severity': 'low'
+            })
+    
+    # 5. Open failures (BD only)
+    if open_count >= 1:
+        advise_list.append({
+            'type': 'urgent',
+            'icon': '🚨',
+            'title': 'Unresolved Failures',
+            'message': f'<strong>{open_count} failure(s)</strong> still open. Please close or address these issues.',
+            'severity': 'high'
+        })
+    
+    # Sort by severity and limit to top 5
+    severity_order = {'high': 0, 'medium': 1, 'low': 2}
+    advise_list.sort(key=lambda x: severity_order.get(x['severity'], 3))
+    
+    return advise_list[:5]
 
 def get_all_machine_types():
     """Get all machine types for dropdown filters"""

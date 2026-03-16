@@ -4,7 +4,7 @@
 
 {% block page_title %}{{ machine_name }} - Detailed Analysis{% endblock %}
 
-{% block page_subtitle %}Machine Type: {{ machine_data.machine_type }}{% endblock %}
+{% block page_subtitle %}Machine Type: {{ machine_data.machine_type }} | Total Failures: {{ machine_data.total_failures }}{% endblock %}
 
 {% block filters %}{% endblock %}
 
@@ -23,8 +23,8 @@
     </div>
     <div class="col-md-3">
         <div class="metric-card">
-            <div class="metric-value">{{ machine_data.performance_metrics.total_failures_in_period }}</div>
-            <div class="metric-label">Failures (Last {{ days }} days)</div>
+            <div class="metric-value">{{ machine_data.total_failures }}</div>
+            <div class="metric-label">Total Failures</div>
         </div>
     </div>
     <div class="col-md-3">
@@ -47,133 +47,244 @@
     </div>
 </div>
 
-<!-- Category Breakdown Chart -->
+<!-- Exclusive Advise/Analysis Section -->
+{% if machine_data.advise_list %}
+<div class="report-card">
+    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h5 class="mb-0">💼 Exclusive Advise & Analysis</h5>
+    </div>
+    <div class="card-body">
+        {% for advise in machine_data.advise_list %}
+        <div class="alert alert-{% if advise.type == 'urgent' %}danger{% elif advise.type == 'warning' %}warning{% elif advise.type == 'alert' %}danger{% else %}info{% endif %} mb-3" role="alert">
+            <h6 class="alert-heading mb-2">
+                {{ advise.icon }} 
+                <strong>{{ advise.title }}</strong>
+            </h6>
+            <p class="mb-0">{{ advise.message|safe }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Category Breakdown Chart (Bar Chart with Qty & Percentage) -->
 {% if machine_data.category_breakdown %}
 <div class="report-card">
     <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Failure Categories Distribution</h5>
+        <h5 class="mb-0">📊 Failure Categories Distribution (All Failures)</h5>
     </div>
     <div class="card-body">
-        <div class="chart-container">
+        <div style="position: relative; height: 200px; width: 50%; max-width: 600px;">
             <canvas id="categoryChart"></canvas>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- Recent Failures Table -->
+<!-- Recent Failure History (Last 30 Failures) with Images -->
 <div class="report-card">
     <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Recent Failure History (Last {{ days }} Days)</h5>
+        <h5 class="mb-0">📋 Recent Failure History (Last 30 Failures)</h5>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Category</th>
-                        <th>Details</th>
-                        <th>MTTR (h)</th>
-                        <th>Lead Time (h)</th>
-                        <th>Status</th>
-                        <th>Technician</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for failure in machine_data.recent_failures %}
-                    <tr>
-                        <td>{{ failure.start_date }}</td>
-                        <td>
-                            <span class="badge bg-info">{{ failure.category }}</span>
-                        </td>
-                        <td>
-                            <small>{{ failure.details }}</small>
-                        </td>
-                        <td>{{ failure.repairing_time_hours }}</td>
-                        <td>{{ failure.lead_time_hours }}</td>
-                        <td>
-                            {% if failure.status == 'OPEN' %}
-                                <span class="badge bg-danger">OPEN</span>
-                            {% else %}
-                                <span class="badge bg-success">CLOSED</span>
+        {% if machine_data.recent_failures %}
+            {% for failure in machine_data.recent_failures %}
+            {% if forloop.counter <= 5 %}
+                <!-- First 5 failures: Expanded by default -->
+                <div class="failure-record mb-4 p-3 border rounded" style="background-color: #f9f9f9;">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="row mb-2">
+                                <div class="col-md-3">
+                                    <strong>Date:</strong><br>
+                                    <small>{{ failure.start_date }}</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Category:</strong><br>
+                                    <span class="badge bg-info">{{ failure.category }}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Type:</strong><br>
+                                    <small>{{ failure.failure_category }}</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Status:</strong><br>
+                                    {% if failure.status == 'OPEN' %}
+                                        <span class="badge bg-danger">OPEN</span>
+                                    {% else %}
+                                        <span class="badge bg-success">CLOSED</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <strong>Details:</strong><br>
+                                    <small>{{ failure.details }}</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>MTTR:</strong><br>
+                                    <small>{{ failure.repairing_time_hours }}h</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Technician:</strong><br>
+                                    <small>{{ failure.technician }}</small>
+                                </div>
+                            </div>
+                            
+                            {% if failure.rootcause or failure.repair_action %}
+                            <div class="row">
+                                <div class="col-12">
+                                    {% if failure.rootcause %}
+                                    <p class="mb-1"><strong>🔍 Root Cause:</strong></p>
+                                    <p class="ms-3">{{ failure.rootcause }}</p>
+                                    {% endif %}
+                                    {% if failure.repair_action %}
+                                    <p class="mb-1"><strong>🔧 Repair Action:</strong></p>
+                                    <p class="ms-3">{{ failure.repair_action }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
                             {% endif %}
-                        </td>
-                        <td>{{ failure.technician }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center text-muted">No failures recorded in this period</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Root Cause Analysis -->
-<div class="report-card">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Recent Issues Analysis</h5>
-    </div>
-    <div class="card-body">
-        {% for failure in machine_data.recent_failures %}
-        {% if failure.rootcause or failure.repair_action %}
-        <div class="accordion" id="failureAccordion">
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading{{ failure.id }}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                            data-bs-target="#collapse{{ failure.id }}">
-                        {{ failure.start_date }} - {{ failure.category }}
-                    </button>
-                </h2>
-                <div id="collapse{{ failure.id }}" class="accordion-collapse collapse" 
-                     data-bs-parent="#failureAccordion">
-                    <div class="accordion-body">
-                        <p><strong>Details:</strong> {{ failure.details }}</p>
-                        <p><strong>Root Cause:</strong> {{ failure.rootcause }}</p>
-                        <p><strong>Repair Action:</strong> {{ failure.repair_action }}</p>
+                        </div>
+                        
+                        <!-- Images Column -->
+                        <div class="col-md-4">
+                            {% if failure.images %}
+                                <strong>📷 Images:</strong>
+                                <div class="image-gallery">
+                                    {% for image in failure.images %}
+                                    <div class="mb-2">
+                                        <img src="{{ image.url }}" alt="Failure Image" class="img-fluid rounded" style="max-height: 150px; cursor: pointer;" 
+                                             onclick="window.open('{{ image.url }}', '_blank')">
+                                        {% if image.caption %}
+                                        <small class="d-block text-muted mt-1">{{ image.caption }}</small>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-muted">
+                                    <small>📷 No images available</small>
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            {% else %}
+                <!-- Rest of failures (6+): Collapsed by default -->
+                <div class="accordion mb-2" id="accordionFailure{{ failure.id }}">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingFailure{{ failure.id }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#collapseFailure{{ failure.id }}" aria-expanded="false" 
+                                    aria-controls="collapseFailure{{ failure.id }}">
+                                <span class="badge bg-info me-2">{{ failure.category }}</span>
+                                <strong>{{ failure.start_date }}</strong> - {{ failure.failure_category }}
+                                <span class="badge {% if failure.status == 'OPEN' %}bg-danger{% else %}bg-success{% endif %} ms-2">
+                                    {{ failure.status }}
+                                </span>
+                            </button>
+                        </h2>
+                        <div id="collapseFailure{{ failure.id }}" class="accordion-collapse collapse" 
+                             data-bs-parent="#accordionFailures" aria-labelledby="headingFailure{{ failure.id }}">
+                            <div class="accordion-body p-3" style="background-color: #f9f9f9;">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="row mb-2">
+                                            <div class="col-md-4">
+                                                <strong>Details:</strong><br>
+                                                <small>{{ failure.details }}</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>MTTR:</strong><br>
+                                                <small>{{ failure.repairing_time_hours }}h</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Technician:</strong><br>
+                                                <small>{{ failure.technician }}</small>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if failure.rootcause or failure.repair_action %}
+                                        <div class="row">
+                                            <div class="col-12">
+                                                {% if failure.rootcause %}
+                                                <p class="mb-1"><strong>🔍 Root Cause:</strong></p>
+                                                <p class="ms-3">{{ failure.rootcause }}</p>
+                                                {% endif %}
+                                                {% if failure.repair_action %}
+                                                <p class="mb-1"><strong>🔧 Repair Action:</strong></p>
+                                                <p class="ms-3">{{ failure.repair_action }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Images Column -->
+                                    <div class="col-md-4">
+                                        {% if failure.images %}
+                                            <strong>📷 Images:</strong>
+                                            <div class="image-gallery">
+                                                {% for image in failure.images %}
+                                                <div class="mb-2">
+                                                    <img src="{{ image.url }}" alt="Failure Image" class="img-fluid rounded" style="max-height: 150px; cursor: pointer;" 
+                                                         onclick="window.open('{{ image.url }}', '_blank')">
+                                                    {% if image.caption %}
+                                                    <small class="d-block text-muted mt-1">{{ image.caption }}</small>
+                                                    {% endif %}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <div class="text-muted">
+                                                <small>📷 No images available</small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% endfor %}
+        {% else %}
+        <div class="text-center text-muted">No failures recorded</div>
         {% endif %}
-        {% endfor %}
     </div>
 </div>
 
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
 <script>
-    // Category Distribution Chart
+    // Category Distribution Bar Chart with Qty & Percentage
     {% if machine_data.category_breakdown %}
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const categories = [
-        {% for cat in machine_data.category_breakdown %}'{{ cat.category_level_0 }}',{% endfor %}
+    const categories = {{ machine_data.category_breakdown|safe|safe }};
+    
+    const labels = Object.keys(categories);
+    const data = Object.values(categories);
+    const total = data.reduce((a, b) => a + b, 0);
+    const percentages = data.map(d => ((d / total) * 100).toFixed(1));
+    
+    // Generate colors
+    const colors = [
+        '#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe',
+        '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#30b0fe'
     ];
-    const categoryCounts = [
-        {% for cat in machine_data.category_breakdown %}{{ cat.count }},{% endfor %}
-    ];
-
+    
     new Chart(categoryCtx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
-            labels: categories,
+            labels: labels,
             datasets: [{
-                data: categoryCounts,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.6)',
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                    'rgba(153, 102, 255, 0.6)',
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(153, 102, 255, 1)',
-                ],
+                label: 'Failures',
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: colors.slice(0, labels.length),
                 borderWidth: 1
             }]
         },
@@ -182,13 +293,49 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'right'
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            return 'Count: ' + context.parsed.y + ' (' + percentages[idx] + '%)';
+                        }
+                    },
+                    titleFont: {
+                        size: 10
+                    },
+                    bodyFont: {
+                        size: 9
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        font: {
+                            size: 9
+                        }
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 8
+                        }
+                    },
+                    title: {
+                        display: false
+                    }
                 }
             }
         }
     });
     {% endif %}
 </script>
-
-{% endif %}
 {% endblock %}
