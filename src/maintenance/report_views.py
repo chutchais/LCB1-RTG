@@ -2,7 +2,7 @@
 from django.shortcuts import render
 from django.views.generic import TemplateView, View
 from django.http import JsonResponse
-from django.contrib.auth.mixins import LoginRequiredMixin
+# from django.contrib.auth.mixins import LoginRequiredMixin
 from datetime import datetime, timedelta
 import json
 
@@ -31,7 +31,7 @@ from .report_utils import (
     get_failures_by_date_range_section
 )
 
-class WeekFailureReportView(LoginRequiredMixin, TemplateView):
+class WeekFailureReportView(TemplateView):
     """Display this week's failure report with trends"""
     template_name = 'maintenance/reports/week_report.html'
     
@@ -79,7 +79,7 @@ class WeekFailureReportView(LoginRequiredMixin, TemplateView):
 
 # ==================== Date Range Selection ====================
 
-class ReportDateRangeView(LoginRequiredMixin, TemplateView):
+class ReportDateRangeView( TemplateView):
     """Display date range selector for custom reports"""
     template_name = 'maintenance/reports/date_range_selector.html'
     
@@ -106,7 +106,7 @@ class ReportDateRangeView(LoginRequiredMixin, TemplateView):
 
 # ==================== Custom Date Range Reports ====================
 
-class CustomDateRangeFailureReportView(LoginRequiredMixin, TemplateView):
+class CustomDateRangeFailureReportView( TemplateView):
     """Display failure report for custom date range"""
     template_name = 'maintenance/reports/custom_failure_report.html'
     
@@ -147,7 +147,7 @@ class CustomDateRangeFailureReportView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class CustomDateRangePerformanceView(LoginRequiredMixin, TemplateView):
+class CustomDateRangePerformanceView(TemplateView):
     """Display performance metrics for custom date range"""
     template_name = 'maintenance/reports/custom_performance_report.html'
     
@@ -179,7 +179,7 @@ class CustomDateRangePerformanceView(LoginRequiredMixin, TemplateView):
 
 # ==================== HTML Views ====================
 
-class TodayFailureReportView(LoginRequiredMixin, TemplateView):
+class TodayFailureReportView( TemplateView):
     """Display today's failure report with bar chart"""
     template_name = 'maintenance/reports/today_report.html'
     
@@ -200,7 +200,7 @@ class TodayFailureReportView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class PerformanceMetricsView(LoginRequiredMixin, TemplateView):
+class PerformanceMetricsView( TemplateView):
     """Display performance metrics dashboard"""
     template_name = 'maintenance/reports/metrics_dashboard.html'
     
@@ -219,7 +219,7 @@ class PerformanceMetricsView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class MachineDetailReportView(LoginRequiredMixin, TemplateView):
+class MachineDetailReportView( TemplateView):
     """Display machine-specific failure history and performance"""
     template_name = 'maintenance/reports/machine_detail.html'
     
@@ -244,7 +244,7 @@ class MachineDetailReportView(LoginRequiredMixin, TemplateView):
 
 # ==================== API Views ====================
 
-class TodayFailureReportAPIView(LoginRequiredMixin, View):
+class TodayFailureReportAPIView( View):
     """API endpoint for today's failure data"""
     
     def get(self, request):
@@ -255,7 +255,7 @@ class TodayFailureReportAPIView(LoginRequiredMixin, View):
         return JsonResponse(report_data, safe=False)
 
 
-class WeekFailureReportAPIView(LoginRequiredMixin, View):
+class WeekFailureReportAPIView( View):
     """API endpoint for this week's failure data"""
     
     def get(self, request):
@@ -266,7 +266,7 @@ class WeekFailureReportAPIView(LoginRequiredMixin, View):
         return JsonResponse(report_data, safe=False)
 
 
-class PerformanceMetricsAPIView(LoginRequiredMixin, View):
+class PerformanceMetricsAPIView( View):
     """API endpoint for performance metrics"""
     
     def get(self, request):
@@ -277,7 +277,7 @@ class PerformanceMetricsAPIView(LoginRequiredMixin, View):
         return JsonResponse(metrics, safe=False)
 
 
-class MachineDetailAPIView(LoginRequiredMixin, View):
+class MachineDetailAPIView( View):
     """API endpoint for machine detail and history"""
     
     def get(self, request, machine_name):
@@ -293,7 +293,7 @@ class MachineDetailAPIView(LoginRequiredMixin, View):
 
 # ==================== Custom Date Range API Views ====================
 
-class CustomDateRangeFailureAPIView(LoginRequiredMixin, View):
+class CustomDateRangeFailureAPIView( View):
     """API endpoint for custom date range failure data"""
     
     def get(self, request):
@@ -311,7 +311,7 @@ class CustomDateRangeFailureAPIView(LoginRequiredMixin, View):
             return JsonResponse({'error': str(e)}, status=400)
 
 
-class CustomDateRangePerformanceAPIView(LoginRequiredMixin, View):
+class CustomDateRangePerformanceAPIView( View):
     """API endpoint for custom date range performance metrics"""
     
     def get(self, request):
@@ -328,7 +328,7 @@ class CustomDateRangePerformanceAPIView(LoginRequiredMixin, View):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
-class DailyFailureDetailsAPIView(LoginRequiredMixin, View):
+class DailyFailureDetailsAPIView(View):
     """API endpoint for daily failure details"""
     
     def get(self, request, date):
@@ -341,7 +341,7 @@ class DailyFailureDetailsAPIView(LoginRequiredMixin, View):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
-class TodayFailureReportView(LoginRequiredMixin, TemplateView):
+class TodayFailureReportView(TemplateView):
     """Display today's failure report with bar chart"""
     template_name = 'maintenance/reports/today_report.html'
     
@@ -375,7 +375,7 @@ class TodayFailureReportView(LoginRequiredMixin, TemplateView):
 
 
 
-class DailyFailuresRangeAPIView(LoginRequiredMixin, View):
+class DailyFailuresRangeAPIView( View):
     """API endpoint for date range failure details with section filter"""
     
     def get(self, request):
@@ -393,7 +393,7 @@ class DailyFailuresRangeAPIView(LoginRequiredMixin, View):
             # logger.error(f"Error in DailyFailuresRangeAPIView: {str(e)}", exc_info=True)
             return JsonResponse({'error': str(e)}, status=400)
 
-class CustomFailuresWithChartsAPIView(LoginRequiredMixin, View):
+class CustomFailuresWithChartsAPIView(View):
     """API endpoint for custom date range with charts data"""
     
     def get(self, request):

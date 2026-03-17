@@ -216,7 +216,7 @@
     </div>
 
     <div class="container">
-                <!-- Machine Search Box - AT THE TOP -->
+               <!-- Machine Search Box - AT THE TOP -->
         <div class="search-section" style="margin-bottom: 20px;">
             <div class="row g-2">
                 <div class="col-md-8">
@@ -243,8 +243,95 @@
             </div>
         </div>
 
+        <!-- Machine Search Functions - DEFINED FIRST -->
         <script>
-            // Initialize machine search immediately
+            // Search machines by name - FROM ENTIRE SYSTEM
+            function searchMachinesByName(searchText) {
+                const searchLower = searchText.toLowerCase().trim();
+                
+                console.log('DEBUG searchMachinesByName:', searchLower);
+                
+                if (!searchLower || searchLower.length < 2) {
+                    console.log('DEBUG: Search text too short');
+                    document.getElementById('machineSearchResults').style.display = 'none';
+                    return;
+                }
+                
+                // Show loading state
+                const resultsDiv = document.getElementById('machineSearchResults');
+                const listDiv = document.getElementById('matchingMachinesList');
+                listDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Searching...</div>';
+                resultsDiv.style.display = 'block';
+                
+                // Build the API URL
+                const apiUrl = `/maintenance/api/search-machines/?q=${encodeURIComponent(searchText)}`;
+                console.log('DEBUG: Fetching from', apiUrl);
+                
+                // Fetch from API - search entire system
+                fetch(apiUrl)
+                    .then(response => {
+                        console.log('DEBUG: Response status', response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('DEBUG: Response data', data);
+                        const machines = data.machines || [];
+                        
+                        if (machines.length === 0) {
+                            listDiv.innerHTML = '<div class="alert alert-warning mb-0">No machines found matching "<strong>' + searchText + '</strong>"</div>';
+                            resultsDiv.style.display = 'block';
+                        } else {
+                            let html = '<div class="row">';
+                            
+                            machines.forEach(machine => {
+                                html += `
+                                    <div class="col-md-3 mb-2">
+                                        <div class="card border-info h-100">
+                                            <div class="card-body p-3">
+                                                <h6 class="card-title text-info mb-2">
+                                                    <a href="/maintenance/reports/machine/${machine.name}/" target="_blank" class="text-info" style="text-decoration: none;">
+                                                        <strong>${machine.name}</strong> 🔗
+                                                    </a>
+                                                </h6>
+                                                <small class="text-muted d-block">
+                                                    <strong>Machine Type:</strong> ${machine.machine_type}
+                                                </small>
+                                                <small class="text-muted d-block">
+                                                    <strong>Section:</strong> ${machine.section}
+                                                </small>
+                                                <div class="mt-2">
+                                                    <button class="btn btn-sm btn-outline-info w-100" onclick="window.open('/maintenance/reports/machine/${machine.name}/', '_blank')">
+                                                        View Report
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            
+                            html += '</div>';
+                            listDiv.innerHTML = html;
+                            resultsDiv.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('ERROR in searchMachinesByName:', error);
+                        listDiv.innerHTML = '<div class="alert alert-danger mb-0">Error searching machines: ' + error.message + '</div>';
+                        resultsDiv.style.display = 'block';
+                    });
+            }
+            
+            // Clear search
+            function clearMachineSearch() {
+                console.log('DEBUG: clearMachineSearch called');
+                document.getElementById('machineSearchBox').value = '';
+                document.getElementById('machineSearchResults').style.display = 'none';
+            }
+        </script>
+
+        <!-- Initialize search listener -->
+        <script>
             document.addEventListener('DOMContentLoaded', function() {
                 console.log('DEBUG: DOMContentLoaded fired');
                 const searchBox = document.getElementById('machineSearchBox');
@@ -261,28 +348,6 @@
                 }
             });
         </script>
-        
-        <!-- Filters -->
-        <div class="filter-section">
-            <form method="get" class="row g-2">
-                {% block filters %}
-                <div class="col-md-4">
-                    <label for="machine_type" class="form-label">Machine Type</label>
-                    <select class="form-select" id="machine_type" name="machine_type">
-                        <option value="">All Types</option>
-                        <option value="RTG" {% if selected_machine_type == 'RTG' %}selected{% endif %}>RTG</option>
-                        <option value="CRANE" {% if selected_machine_type == 'CRANE' %}selected{% endif %}>Crane</option>
-                        <option value="HUSTLER" {% if selected_machine_type == 'HUSTLER' %}selected{% endif %}>Hustler</option>
-                        <option value="TRAILER" {% if selected_machine_type == 'TRAILER' %}selected{% endif %}>Trailer</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
-                {% endblock %}
-            </form>
-        </div>
 
         <!-- Download Section -->
         {% block download_section %}{% endblock %}

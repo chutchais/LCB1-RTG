@@ -362,13 +362,14 @@ def get_machine_failure_history(machine_name, days=30):
         id__in=recent_failures_ids
     ).select_related('user', 'failure_category').prefetch_related('images').order_by('-start_date')
     
-    # Build category breakdown using cached list
-    category_breakdown = {}
+    # Build FAILURE TYPE breakdown using cached list (instead of category)
+    failure_type_breakdown = {}
     for failure in all_failures_list:
-        cat = failure['category'] or 'Uncategorized'
-        category_breakdown[cat] = category_breakdown.get(cat, 0) + 1
+        ftype = failure['failure_category__name'] or 'Uncategorized'
+        failure_type_breakdown[ftype] = failure_type_breakdown.get(ftype, 0) + 1
     
-    category_breakdown = dict(sorted(category_breakdown.items(), key=lambda x: x[1], reverse=True))
+    # Sort by count descending
+    failure_type_breakdown = dict(sorted(failure_type_breakdown.items(), key=lambda x: x[1], reverse=True))
     
     # Helper function to calculate repair time in hours
     def calculate_repair_hours(start_date, end_date):
@@ -433,7 +434,7 @@ def get_machine_failure_history(machine_name, days=30):
         'machine_type': machine.machine_type.name if machine.machine_type else 'Unknown',
         'total_failures': len(all_failures_list),
         'recent_failures': recent_failures,
-        'category_breakdown': category_breakdown,
+        'category_breakdown': failure_type_breakdown,  # Now contains failure types, not categories
         'avg_repair_time': round(avg_repair_time, 2),
         'advise_list': advise_list,
         'performance_metrics': {
