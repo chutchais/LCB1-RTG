@@ -148,20 +148,23 @@
                             {% endif %}
                         </div>
                         
-                        <!-- Images Column -->
+                        <!-- Images Column - 2 PER ROW -->
                         <div class="col-md-4">
                             {% if failure.images %}
                                 <strong>📷 Images:</strong>
                                 <div class="image-gallery">
-                                    {% for image in failure.images %}
-                                    <div class="mb-2">
-                                        <img src="{{ image.url }}" alt="Failure Image" class="img-fluid rounded" style="max-height: 150px; cursor: pointer;" 
-                                             onclick="window.open('{{ image.url }}', '_blank')">
-                                        {% if image.caption %}
-                                        <small class="d-block text-muted mt-1">{{ image.caption }}</small>
-                                        {% endif %}
+                                    <div class="row g-2">
+                                        {% for image in failure.images %}
+                                        <div class="col-6">
+                                            <img src="{{ image.url }}" alt="Failure Image" class="img-fluid rounded" 
+                                                 style="max-height: 120px; cursor: pointer; object-fit: cover; width: 100%;" 
+                                                 onclick="window.open('{{ image.url }}', '_blank')">
+                                            {% if image.caption %}
+                                            <small class="d-block text-muted mt-1">{{ image.caption }}</small>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
                                     </div>
-                                    {% endfor %}
                                 </div>
                             {% else %}
                                 <div class="text-muted">
@@ -222,20 +225,23 @@
                                         {% endif %}
                                     </div>
                                     
-                                    <!-- Images Column -->
+                                    <!-- Images Column - 2 PER ROW -->
                                     <div class="col-md-4">
                                         {% if failure.images %}
                                             <strong>📷 Images:</strong>
                                             <div class="image-gallery">
-                                                {% for image in failure.images %}
-                                                <div class="mb-2">
-                                                    <img src="{{ image.url }}" alt="Failure Image" class="img-fluid rounded" style="max-height: 150px; cursor: pointer;" 
-                                                         onclick="window.open('{{ image.url }}', '_blank')">
-                                                    {% if image.caption %}
-                                                    <small class="d-block text-muted mt-1">{{ image.caption }}</small>
-                                                    {% endif %}
+                                                <div class="row g-2">
+                                                    {% for image in failure.images %}
+                                                    <div class="col-6">
+                                                        <img src="{{ image.url }}" alt="Failure Image" class="img-fluid rounded" 
+                                                             style="max-height: 120px; cursor: pointer; object-fit: cover; width: 100%;" 
+                                                             onclick="window.open('{{ image.url }}', '_blank')">
+                                                        {% if image.caption %}
+                                                        <small class="d-block text-muted mt-1">{{ image.caption }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endfor %}
                                                 </div>
-                                                {% endfor %}
                                             </div>
                                         {% else %}
                                             <div class="text-muted">
