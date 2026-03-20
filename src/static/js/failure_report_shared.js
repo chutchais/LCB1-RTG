@@ -541,6 +541,13 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
         f.category_level_0 === categoryName && f.machine_type === machineTypeName
     );
 
+    // SORT BY DATETIME (LATEST FIRST) - NEW CODE
+    categoryFailures.sort((a, b) => {
+        const dateA = new Date(a.start_date);
+        const dateB = new Date(b.start_date);
+        return dateB - dateA; // Latest first
+    });
+
     const modal = new bootstrap.Modal(document.getElementById('failureModal'));
     const body = document.getElementById('failureModalBody');
     const title = document.getElementById('failureModalTitle');
@@ -569,8 +576,11 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
         failureTypeCount[fType] = (failureTypeCount[fType] || 0) + 1;
     });
 
-    const failureTypes = Object.keys(failureTypeCount);
-    const failureTypeCounts = Object.values(failureTypeCount);
+    // Sort by count (Max to Min)
+    const failureTypes = Object.keys(failureTypeCount).sort((a, b) => 
+        failureTypeCount[b] - failureTypeCount[a]
+    );
+    const failureTypeCounts = failureTypes.map(fType => failureTypeCount[fType]);
 
     // Generate random colors for pie chart
     const colors = generateChartColors(failureTypes.length);
@@ -582,7 +592,7 @@ function showCategoryFailuresModal(categoryName, machineTypeName, failures) {
                 <canvas id="failureTypePieChart" style="max-height: 250px;"></canvas>
             </div>
             <div class="col-md-6">
-                <h6 class="mb-3">📋 Failure Type Summary</h6>
+                <h6 class="mb-3">📋 Failure Type Summary (Max to Min)</h6>
                 <table class="table table-sm">
                     <thead>
                         <tr>
