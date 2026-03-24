@@ -207,7 +207,9 @@ FAILURE_TYPE_CHOICES = (
     ("BO", "Breakdown outside operation"),
     ("BD", "Breakdown"),
     ("CM", "Corrective maintenance"),
-    ("PC", "Power Cut")
+    ("PC", "Power Cut"),
+    ("PROACTIVE", "Proactive Maintenance"),
+    ("PdM", "Predictive Maintenance")
 )
 
 SHIFT_CHOICES =(
