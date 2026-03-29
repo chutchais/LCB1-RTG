@@ -189,11 +189,12 @@ class AccidentInline(admin.TabularInline):
 class MachineAdmin(admin.ModelAdmin):
 	search_fields = ['name','title']
 	list_filter = ['terminal','machine_type']
-	list_display = ('name','title','terminal','on_repair','on_preventive',
-				 'engine_hour','engine_move','engine_malfunction','overdue','created','user')
+	list_display = ('name','title','terminal','machine_age_readable','on_repair','on_preventive',
+				 'engine_hour','engine_move','engine_malfunction','overdue',
+                 'created','user')
 
 	readonly_fields = ('created','updated','user','on_repair','on_preventive',
-						'engine_hour','engine_move','mqtt_updated','engine_malfunction')
+						'engine_hour','engine_move','mqtt_updated','engine_malfunction','machine_age_readable')
 
 	inlines = [
         FailureInline,
@@ -206,7 +207,8 @@ class MachineAdmin(admin.ModelAdmin):
 	list_select_related = True
 
 	fieldsets = [
-		('Basic Information',{'fields': ['name','title','terminal','machine_type']}),
+		('Basic Information',{'fields': ['name','title','terminal',
+                                   'machine_type',('commissioned_date','machine_age_readable')]}),
 		('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction','mqtt_updated']}),
 		('Preventive Maintenance Plan',{'fields': ['engine_hour_next_pm','engine_move_next_pm']}),
 		('System Information',{'fields':[('user','created'),'updated']})
@@ -632,22 +634,13 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
     search_fields = ['machine__name','details','rootcause','repair_action']
     
 
-    # Simplified list_filter - combined into one
-    # list_filter = [
-    #     OperationDateListFilter,
-    #     'operation_shift',
-    #     'status',
-    #     MachineTypeFilter,
-    #     FailureCategoryFilter,  # NEW: Combined filter
-    #     'vendor'
-    # ]
     list_filter = [OperationDateListFilter,
-                   'status','category','machine__machine_type',
+                   'status','category','machine__machine_type','is_human_error',
                            FailureCategoryFilter,]
     
     
     list_display = ('machine','failure_category','details','receiving_date',
-                    'expect_date','start_date','end_date','status','image_count',
+                    'expect_date','start_date','end_date','is_human_error','status','image_count',
                               'defect_count','user')
 
     readonly_fields = ('created','updated','user','defect_count',
@@ -671,7 +664,7 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
                               'operation_date','operation_shift',
                               'waitting_time','repairing_time','lead_time']}),
         ('Telematic Information',{'fields': ['engine_hour','engine_move','engine_malfunction']}),
-        ('Failure Analysis',{'fields': ['rootcause','repair_action']}),
+        ('Failure Analysis',{'fields': ['rootcause','repair_action',('is_human_error','human_error_details')]}),
         ('Vendor and Cost Information',{'fields': ['vendor','repair_cost','service_cost']}),
         ('System Information',{'fields':[('user','created'),'updated']})
     ]

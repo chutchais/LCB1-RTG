@@ -28,3 +28,6 @@ python-snap7[cli]
 
 #Added on May 17,2025
 paho-mqtt
+
+#Added on March 29,2026
+python-dateutil

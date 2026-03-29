@@ -138,6 +138,8 @@ class Machine(BasicInfo):
     engine_hour_next_pm = models.DecimalField(max_digits=10, 
                                     decimal_places=2,default=0, blank=True,null=True) 
     engine_move_next_pm = models.IntegerField(default=0)
+    # Added on March 29, 2026 -- To track machine commissioning date for age calculation
+    commissioned_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -198,6 +200,39 @@ class Machine(BasicInfo):
         return False
     is_overdue.fget.short_description = 'Overdue'
 
+    @property
+    def machine_age_days(self):
+        """Calculate machine age in days from commissioning date"""
+        if self.commissioned_date:
+            import datetime
+            today = datetime.date.today()
+            return (today - self.commissioned_date).days
+        return None
+    machine_age_days.fget.short_description = 'Machine Age (days)'
+
+    @property
+    def machine_age_readable(self):
+        """Return machine age in human-readable format: '5 years 3 months'"""
+        if not self.commissioned_date:
+            return None
+        
+        import datetime
+        from dateutil.relativedelta import relativedelta
+        
+        today = datetime.date.today()
+        age = relativedelta(today, self.commissioned_date)
+        
+        parts = []
+        if age.years > 0:
+            parts.append(f"{age.years} year{'s' if age.years != 1 else ''}")
+        if age.months > 0:
+            parts.append(f"{age.months} month{'s' if age.months != 1 else ''}")
+        if age.days > 0 and age.years == 0 and age.months == 0:
+            parts.append(f"{age.days} day{'s' if age.days != 1 else ''}")
+        
+        return ' '.join(parts) if parts else "0 days"
+
+    machine_age_readable.fget.short_description = 'Machine Age (Readable)'
     class Meta(BasicInfo.Meta):
         db_table = 'ma-machine'
         ordering = ('name',)
@@ -392,6 +427,11 @@ class Failure(BasicInfo):
                             on_delete=models.SET_NULL,
                             blank=True, null=True, 
                             related_name='failures')
+
+    # Added on March 29, 2026 -- To record human error details for CMRP
+    is_human_error          = models.BooleanField(default=False)  # Flag if failure was human-caused
+    human_error_details     = models.TextField(blank=True, null=True)
+
 
     def __str__(self):
         return f'{self.machine} - {self.details[1:20]}'
