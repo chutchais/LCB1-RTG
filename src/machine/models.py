@@ -24,58 +24,256 @@ class Equipment(BasicInfo):
         db_table = 'equipment'
 
     def read_item_data(self, *args, **kwargs):
-        from .tasks import read_value,save_redis,save_previous_redis,get_previous_redis
-        import datetime, pytz
-        logging.info(f'Start reading data of {self.name} ({self.ip})')
-        # print(f'Start reading data of {self.name} ({self.ip})')
-        tz      = pytz.timezone('Asia/Bangkok')
-        now_tz  =   datetime.datetime.now(tz=tz)
+        from .plc_connection import read_multiple_values, plc_connect
+        from .tasks import save_redis, save_previous_redis, get_previous_redis
+        import datetime
+        import pytz
+        import logging
+        
+        logging.info(f'🔍 Start reading data of {self.name} ({self.ip})')
+        
+        tz = pytz.timezone('Asia/Bangkok')
+        now_tz = datetime.datetime.now(tz=tz)
         value_dict = {}
-        for item in self.items.all():
-            if item.monitor : continue #skip if monitor parameter is True
-            ip          = self.ip
-            db_number   = item.parameter.db_number
-            offset      = item.parameter.offset
-            field_type  = item.parameter.field_type
-            value       = read_value(ip,db_number,offset,field_type)
-
-            # Added on Oct 21,2022 -- to add Online status
-            # value_dict['live'] = True if value != -1 else False
-
+        
+        # ============ PRE-CHECK: DIAGNOSE CONNECTION ============
+        logging.info(f'🔎 Running diagnostics on {self.ip}...')
+        status = plc_connect(self.ip, 0, 2, 5)
+        
+        logging.info(f'  - Ping OK: {status["ping_ok"]}')
+        logging.info(f'  - Snap7 OK: {status["snap7_ok"]}')
+        logging.info(f'  - Status: {status["status"]}')
+        
+        if status['status'] == 'ping_only':
+            # Special case: ping works but Snap7 fails
+            logging.error(f'⚠️  DIAGNOSTIC: PLC responds to ping but Snap7 connection failed!')
+            logging.error(f'   This usually means:')
+            logging.error(f'   1. Snap7 service is not running on PLC')
+            logging.error(f'   2. TCP port 102 is blocked')
+            logging.error(f'   3. Wrong Rack/Slot configuration')
+            logging.error(f'   4. Network issues between app and PLC')
+            
+            error_data = {
+                'Equipment': self.name,
+                'status': 'error',
+                'error': 'Ping OK but Snap7 connection failed',
+                'diagnostic': 'Check PLC configuration, firewall, or Snap7 service',
+                'timestamp': now_tz.isoformat(),
+                'DateTime': now_tz.strftime("%b %d %H:%M")
+            }
+            try:
+                save_redis(f'{self.name}:LATEST', error_data)
+            except:
+                pass
+            return error_data
+        
+        if not status['connected']:
+            logging.error(f'❌ PLC connection check failed: {status["error"]}')
+            
+            error_data = {
+                'Equipment': self.name,
+                'status': 'error',
+                'error': status['error'],
+                'timestamp': now_tz.isoformat(),
+                'DateTime': now_tz.strftime("%b %d %H:%M")
+            }
+            try:
+                save_redis(f'{self.name}:LATEST', error_data)
+            except:
+                pass
+            return error_data
+        
+        # ============ REST OF YOUR FUNCTION... ============
+        # (previous code continues here)
+        
+        # ============ BUILD READS ARRAY ============
+        reads = []
+        items_list = list(self.items.all())
+        
+        for item in items_list:
+            if item.monitor:
+                continue  # skip if monitor parameter is True
+            
+            db_number = item.parameter.db_number
+            offset = item.parameter.offset
+            field_type = item.parameter.field_type
+            label = item.name
+            
+            reads.append((db_number, offset, field_type, label))
+        
+        if not reads:
+            logging.warning(f'⚠️  No items configured for {self.name}')
+            
+            # Save error status
+            error_data = {
+                'Equipment': self.name,
+                'status': 'error',
+                'error': 'No items configured',
+                'timestamp': now_tz.isoformat(),
+                'DateTime': now_tz.strftime("%b %d %H:%M")
+            }
+            try:
+                save_redis(f'{self.name}:LATEST', error_data)
+            except Exception as e:
+                logging.error(f'Error saving error status to Redis: {e}')
+            
+            return error_data
+        
+        logging.info(f'  📋 Will read {len(reads)} items from PLC')
+        
+        # ============ READ ALL VALUES IN ONE CONNECTION ============
+        try:
+            values = read_multiple_values(
+                ip=self.ip,
+                reads=reads,
+                rack=0,
+                slot=2,
+                timeout=5
+            )
+            
+            logging.info(f'✓ Read complete from {self.name}')
+            
+        except Exception as e:
+            logging.error(f'❌ Exception reading from PLC: {e}')
+            
+            # Save error status
+            error_data = {
+                'Equipment': self.name,
+                'status': 'error',
+                'error': str(e),
+                'timestamp': now_tz.isoformat(),
+                'DateTime': now_tz.strftime("%b %d %H:%M")
+            }
+            try:
+                save_redis(f'{self.name}:LATEST', error_data)
+            except:
+                pass
+            
+            return error_data
+        
+        # ============ PROCESS READ VALUES ============
+        failed_items = []
+        success_items = []
+        
+        for item in items_list:
+            if item.monitor:
+                continue
+            
+            label = item.name
+            value = values.get(label, -1)
+            
             key = f'{self.name}:{item.parameter.name}:PREVIOUS'
-            if value == -1 :
-                logging.warn(f'Unable to read data from machine: {key} -->{value}')
-                value = get_previous_redis(key)
-                print(f'Get current value of : {key} -->{value}')
+            
+            if value == -1:
+                # Read failed - try to get previous value
+                logging.warning(f'⚠️  Unable to read data: {key} --> {value}')
+                
+                previous_value = get_previous_redis(key)
+                print(f'📦 Get previous value of: {key} --> {previous_value}')
+                
+                value_dict[item.name] = previous_value
+                failed_items.append(item.name)
             else:
-                save_previous_redis(key,value)
+                # Read successful
+                save_previous_redis(key, value)
                 item.current_value = value
                 item.save()
-                print(f'Save to current value of {key}-->{value} -- Successful')
-                # Added on July 11,2024 -- To ensure new read value more than current value
-                # Edit on JUly 16,2024 -- To protect Over value , more than 30.
-                # if value > item.current_value :
-                # offset_reading_value = 30
-                # if value > item.current_value and value < item.current_value + offset_reading_value   :
-                #     save_previous_redis(key,value)
-                #     # Added on Oct 21,2022 -- Save to Current value on Item
-                #     item.current_value = value
-                #     item.save()
-                #     print(f'Save to current value of {key}-->{value} -- Successful')
-                # else:
-                #     logging.warn(f'Reading value is less or more than current value of : {key} --> Read :{value} , Current : {item.current_value}')
-
-            value_dict[item.name] = value
-            logging.info(f'{item} -->{value} {item.units}')
-            # print(f'{item} -->{value} {item.units}')
+                
+                print(f'✓ Saved current value of {key} --> {value}')
+                logging.info(f'{item} --> {value} {item.units}')
+                print(f'{item} --> {value} {item.units}')
+                
+                value_dict[item.name] = value
+                success_items.append(item.name)
         
+        # ============ ADD METADATA ============
         value_dict['Equipment']     = self.name
-        value_dict['DateTime']      = now_tz.strftime("%b %d %H:%M")#now_tz.strftime("%Y-%m-%d %H:%M:%S")
+        value_dict['DateTime']      = now_tz.strftime("%b %d %H:%M")
+        value_dict['timestamp']     = now_tz.strftime("%b %d %H:%M")#now_tz.isoformat()
+        
+        # Add status
+        if len(failed_items) == len(items_list):
+            # All failed - PLC connection error
+            value_dict['status'] = 'error'
+            value_dict['error'] = 'PLC connection failed - All items failed to read'
+            logging.error(f'❌ FAILED: All {len(items_list)} items failed - PLC CONNECTION ERROR')
+        elif len(failed_items) > 0:
+            # Partial success
+            value_dict['status'] = 'partial'
+            value_dict['items_read'] = len(success_items)
+            value_dict['items_failed'] = len(failed_items)
+            value_dict['failed_items'] = failed_items
+            logging.warning(f'⚠️  Partial read: {len(success_items)} success, {len(failed_items)} failed')
+        else:
+            # All success
+            value_dict['status'] = 'success'
+            logging.info(f'✅ All {len(success_items)} items read successfully')
+        
+        # ============ SAVE TO REDIS ============
+        try:
+            key = f'{self.name}:LATEST'
+            save_redis(key, value_dict)
+            print(f"✓ Data saved to Redis: {key}")
+            print(f"  Status: {value_dict.get('status', 'unknown')}")
+        except Exception as e:
+            logging.error(f'❌ Error saving to Redis: {e}')
+            import traceback
+            traceback.print_exc()
+        
+        return value_dict
+   
+    # def read_item_data(self, *args, **kwargs):
+    #     from .plc_connection import read_value
+    #     from .tasks import  save_redis, save_previous_redis, get_previous_redis
+    #     import datetime, pytz
+    #     logging.info(f'Start reading data of {self.name} ({self.ip})')
+        
+    #     tz = pytz.timezone('Asia/Bangkok')
+    #     now_tz = datetime.datetime.now(tz=tz)
+    #     value_dict = {}
 
-        # Save to Redis (DB0), key = {Name}{item.name} , value = Reading value
-        key = f'{self.name}:LATEST'
-        save_redis(key,value_dict)
-        # print(value_dict)
+        
+    #     for item in self.items.all():
+    #         if item.monitor: 
+    #             continue  # skip if monitor parameter is True
+            
+    #         ip = self.ip
+    #         db_number = item.parameter.db_number
+    #         offset = item.parameter.offset
+    #         field_type = item.parameter.field_type
+    #         value = read_value(ip, db_number, offset, field_type)
+
+    #         key = f'{self.name}:{item.parameter.name}:PREVIOUS'
+            
+    #         if value == -1:
+    #             logging.warn(f'Unable to read data from machine: {key} -->{value}')
+    #             value = get_previous_redis(key)
+    #             print(f'Get current value of : {key} -->{value}')
+    #         else:
+    #             save_previous_redis(key, value)
+    #             item.current_value = value
+    #             item.save()
+    #             print(f'Save to current value of {key}-->{value} -- Successful')
+
+    #         value_dict[item.name] = value
+    #         logging.info(f'{item} -->{value} {item.units}')
+    #         print(f'{item} -->{value} {item.units}')
+        
+    #     value_dict['Equipment'] = self.name
+        
+    #     # ==================== ADD THIS BLOCK ====================
+    #     # Save to Redis with original format and machine format
+    #     try:
+    #         key = f'{self.name}:LATEST'
+    #         save_redis(key, value_dict)
+    #         print(f"✓ Data saved to Redis: {key}")
+    #     except Exception as e:
+    #         print(f"✗ Error saving to Redis: {e}")
+    #         import traceback
+    #         traceback.print_exc()
+    #     # ========================================================
+        
+    #     return value_dict
     
     def read_monitor_data(self, *args, **kwargs):
         from .tasks import read_bit,read_value,save_redis,save_previous_redis,save_redis_stack

@@ -24,7 +24,9 @@ def index(request):
     import json
     import pandas as pd
     # get all key that suffix is *:LATEST
-    value_dict = [db.hgetall(k) for k in db.keys('*:LATEST')]
+    # value_dict = [db.hgetall(k) for k in db.keys('*:LATEST')]
+
+    value_dict = [db.hgetall(k) for k in db.keys('machine:*:LATEST')]
     # Get Parameter name from first Equipment (to be reference)
     # from machine.models import Equipment
     # first_eq = Equipment.objects.filter(name__contains='RTG').first()

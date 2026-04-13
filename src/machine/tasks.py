@@ -4,6 +4,8 @@ from snap7 import util
 import logging
 import redis
 from django.conf import settings
+import json  # ← ADD THIS LINE
+from datetime import datetime  # ← Make sure this line is there
 
 from machine.models import Item
 
@@ -131,12 +133,56 @@ def read_bit(ip:str,db_name:int,offset:int,bit_number:int):
         logging.error(f'Error to read bit: {ip} : read data {t} , bit_number={bit_number}')
         return -1
 
-def save_redis(key:str,value:dict):
-    # ttl = -1
-    import json
-    db.hmset(key,value)
-    db.publish('RTG-NOTIFY',json.dumps(value))
-    # db.expire(key, ttl)
+# def save_redis(key:str,value:dict):
+#     # ttl = -1
+#     import json
+#     db.hmset(key,value)
+#     db.publish('RTG-NOTIFY',json.dumps(value))
+#     # db.expire(key, ttl)
+def save_redis(key: str, value: dict):
+    """Save to Redis and publish"""
+    if db is None:
+        print("✗ Redis not connected!")
+        return False
+    
+    try:
+        # Save original
+        db.hmset(key, value)
+        print(f"✓ Saved: {key}")
+        
+        # Extract equipment name
+        if ':LATEST' in key:
+            equipment_name = key.split(':')[0]
+            machine_key = f'machine:{equipment_name}:LATEST'
+            
+            # Create clean machine data (don't duplicate fields)
+            machine_data = dict(value)
+            # Remove if already present
+            machine_data.pop('machine', None)
+            machine_data.pop('timestamp', None)
+            
+            # Add metadata
+            machine_data['machine'] = equipment_name
+            machine_data['timestamp'] = datetime.now().isoformat()
+            
+            # Save machine format
+            db.hmset(machine_key, machine_data)
+            print(f"✓ Saved: {machine_key}")
+            
+            # Publish
+            json_data = json.dumps(machine_data)
+            print(f"→ Publishing to MACHINE-NOTIFY: {json_data[:80]}...")
+            
+            count = db.publish('MACHINE-NOTIFY', json_data)
+            print(f"✓ Publish result: {count} subscribers received message")
+            
+            if count == 0:
+                print("⚠ WARNING: No subscribers listening to MACHINE-NOTIFY!")
+            
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 def save_previous_redis(key:str,value:str):
     db.set(key,value)
@@ -185,5 +231,4 @@ def save_redis_stack(key:str,value,max_range=12):
         db.lpop(key)
     db.rpush(key,value)
     return db.lrange(key,0,-1)
-
 

@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online RTG Metering Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+
+        .status.disconnected {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .table-section {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .table-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .view-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .view-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f5f5f5;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #555;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .machine-name {
+            font-weight: 600;
+            color: #333;
+            min-width: 120px;
+        }
+
+        .machine-status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .machine-status[style*="background-color: #f44336"] {
+            /* Error - solid red */
+            animation: pulse-error 1s infinite;
+        }
+
+        @keyframes pulse-error {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .data-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+            color: #667eea;
+        }
+
+        .timestamp-cell {
+            font-size: 0.85em;
+            color: #999;
+            white-space: nowrap;
+            min-width: 200px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .machine-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            border-left: 4px solid #999;
+        }
+
+        .machine-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .machine-card[data-status="error"] {
+            border-left-color: #f44336;
+        }
+
+        .machine-card[data-status="partial"] {
+            border-left-color: #ff9800;
+        }
+
+        .machine-card[data-status="success"] {
+            border-left-color: #4caf50;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+
+        .card-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .card-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .card-status-badge.error {
+            background: #f44336;
+        }
+
+        .card-status-badge.partial {
+            background: #ff9800;
+        }
+
+        .card-status-badge.success {
+            background: #4caf50;
+        }
+
+        .card-data {
+            font-size: 0.85em;
+        }
+
+        .card-data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            color: #666;
+        }
+
+        .card-data-value {
+            font-weight: 500;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error-box {
+            color: #f44336;
+            font-weight: bold;
+            padding: 8px;
+            background: #ffebee;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border-left: 3px solid #f44336;
+        }
+
+        .warning-box {
+            color: #ff9800;
+            font-size: 0.8em;
+            padding: 6px;
+            background: #fff3e0;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border-left: 3px solid #ff9800;
+        }
+
+        .card-timestamp {
+            font-size: 0.75em;
+            color: #999;
+            margin-top: 8px;
+            text-align: right;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .table-wrapper {
+                max-height: 400px;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+                font-size: 0.9em;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .card-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+
+            .timestamp-cell {
+                min-width: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏭 Online RTG Metering Dashboard</h1>
+            <div class="status disconnected" id="ws-status">
+                ⚫ Connecting...
+            </div>
+        </div>
+
+        <div class="error" id="error-message"></div>
+
+        <div class="table-section">
+            <div class="table-header">
+                <span>Live RTG Metering Data</span>
+                <div class="view-toggle">
+                    <button class="view-btn active" id="table-view-btn" onclick="switchView('table')">
+                        📊 Table
+                    </button>
+                    <button class="view-btn" id="card-view-btn" onclick="switchView('card')">
+                        🗂️ Cards
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table View -->
+            <div id="table-view" class="table-wrapper">
+                <table id="machines-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">Machine</th>
+                            <th style="width: 120px;">Status</th>
+                            <th>Data</th>
+                            <th style="width: 220px;">Last Update</th>
+                        </tr>
+                    </thead>
+                    <tbody id="machines-tbody">
+                        <tr>
+                            <td colspan="4" class="no-data">⏳ Waiting for machine data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Card View -->
+            <div id="card-view" class="card-grid" style="display: none;">
+                <!-- Cards will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const machinesData = new Map();
+        let currentView = 'table';
+        let lastUpdateTimestamp = new Map();
+
+        const wsStatus = document.getElementById('ws-status');
+        const errorMessageEl = document.getElementById('error-message');
+        const tableView = document.getElementById('table-view');
+        const cardView = document.getElementById('card-view');
+        const machinesTbody = document.getElementById('machines-tbody');
+
+        // Get WebSocket protocol
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/machine`;
+
+        console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
+
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('✅ WebSocket connected');
+            wsStatus.textContent = '🟢 Connected';
+            wsStatus.classList.remove('disconnected');
+            wsStatus.classList.add('connected');
+            hideError();
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                console.log('📨 Received:', message);
+
+                const machineName = message.machine;
+                const data = message.data || {};
+                const timestamp = message.timestamp;
+
+                machinesData.set(machineName, {
+                    data: data,
+                    timestamp: timestamp,
+                    status: 'active'
+                });
+
+                // Store timestamp for sorting
+                lastUpdateTimestamp.set(machineName, new Date(timestamp).getTime());
+
+                updateDashboard();
+
+            } catch (error) {
+                console.error('❌ Error parsing message:', error);
+                showError(`Error parsing message: ${error.message}`);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('❌ WebSocket error:', error);
+            wsStatus.textContent = '🔴 Error';
+            wsStatus.classList.remove('connected');
+            wsStatus.classList.add('disconnected');
+            showError('WebSocket connection error');
+        };
+
+        ws.onclose = () => {
+            console.log('❌ WebSocket disconnected');
+            wsStatus.textContent = '🔴 Disconnected';
+            wsStatus.classList.remove('connected');
+            wsStatus.classList.add('disconnected');
+            showError('WebSocket disconnected. Reconnecting...');
+        };
+
+        function switchView(view) {
+            currentView = view;
+            document.getElementById('table-view-btn').classList.toggle('active', view === 'table');
+            document.getElementById('card-view-btn').classList.toggle('active', view === 'card');
+            tableView.style.display = view === 'table' ? 'block' : 'none';
+            cardView.style.display = view === 'card' ? 'grid' : 'none';
+            updateDashboard();
+        }
+
+        function getSortedMachines() {
+            // Sort by most recent update first
+            return Array.from(machinesData.entries()).sort((a, b) => {
+                const timeA = lastUpdateTimestamp.get(a[0]) || 0;
+                const timeB = lastUpdateTimestamp.get(b[0]) || 0;
+                return timeB - timeA; // Descending order (newest first)
+            });
+        }
+
+        function updateDashboard() {
+            if (currentView === 'table') {
+                updateTableView();
+            } else {
+                updateCardView();
+            }
+        }
+
+        function updateTableView() {
+            if (machinesData.size === 0) {
+                machinesTbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="no-data">⏳ Waiting for machine data...</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            machinesTbody.innerHTML = '';
+            const sortedMachines = getSortedMachines();
+
+            sortedMachines.forEach(([machineName, machineInfo]) => {
+                const row = createTableRow(machineName, machineInfo);
+                machinesTbody.appendChild(row);
+            });
+        }
+
+        function createTableRow(machineName, machineInfo) {
+            const { data, timestamp, status } = machineInfo;
+
+            const row = document.createElement('tr');
+
+            // Get machine status from data
+            const machineStatus = data.status || 'unknown';
+            
+            // Determine status display with color
+            let statusDisplay = '';
+            let dataDisplay = '';
+            let statusIndicatorColor = '#999';
+
+            if (machineStatus === 'error') {
+                statusDisplay = '<span style="color: #f44336; font-weight: bold;">● ERROR</span>';
+                dataDisplay = `<strong style="color: #f44336;">Error:</strong> ${data.error || 'Unknown error'}`;
+                statusIndicatorColor = '#f44336';
+            } else if (machineStatus === 'partial') {
+                statusDisplay = '<span style="color: #ff9800; font-weight: bold;">● PARTIAL</span>';
+                const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+                dataDisplay = Object.entries(data)
+                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'DateTime'].includes(key))
+                    .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
+                    .slice(0, 2)
+                    .join(' | ') + ` <em style="color: #ff9800;">(${data.items_failed} failed: ${failedItems})</em>`;
+                statusIndicatorColor = '#ff9800';
+            } else if (machineStatus === 'success') {
+                statusDisplay = '<span style="color: #4caf50; font-weight: bold;">● SUCCESS</span>';
+                dataDisplay = Object.entries(data)
+                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime'].includes(key))
+                    .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
+                    .slice(0, 3)
+                    .join(' | ');
+                statusIndicatorColor = '#4caf50';
+            } else {
+                statusDisplay = '<span style="color: #999; font-weight: bold;">● UNKNOWN</span>';
+                dataDisplay = 'No data available';
+                statusIndicatorColor = '#999';
+            }
+
+            // Use DateTime directly from JSON
+            const dateTimeDisplay = data.DateTime || 'N/A';
+
+            row.innerHTML = `
+                <td class="machine-name">
+                    <span class="machine-status" style="background-color: ${statusIndicatorColor};"></span>${machineName}
+                </td>
+                <td>${statusDisplay}</td>
+                <td class="data-cell">${dataDisplay || 'No data'}</td>
+                <td class="timestamp-cell">${dateTimeDisplay}</td>
+            `;
+
+            return row;
+        }
+
+        function updateCardView() {
+            if (machinesData.size === 0) {
+                cardView.innerHTML = '<div class="no-data" style="grid-column: 1/-1;">⏳ Waiting for machine data...</div>';
+                return;
+            }
+
+            cardView.innerHTML = '';
+            const sortedMachines = getSortedMachines();
+
+            sortedMachines.forEach(([machineName, machineInfo]) => {
+                const card = createMachineCard(machineName, machineInfo);
+                cardView.appendChild(card);
+            });
+        }
+
+        function createMachineCard(machineName, machineInfo) {
+            const { data, timestamp, status } = machineInfo;
+
+            const card = document.createElement('div');
+            card.className = 'machine-card';
+
+            // Get machine status
+            const machineStatus = data.status || 'unknown';
+            
+            let dataHtml = '';
+            let statusColor = '#999';
+            let statusText = 'UNKNOWN';
+
+            card.setAttribute('data-status', machineStatus);
+
+            if (machineStatus === 'error') {
+                statusColor = '#f44336';
+                statusText = 'ERROR';
+                dataHtml = `<div class="error-box">
+                                ⚠️ ${data.error || 'Unknown error'}
+                            </div>`;
+            } else if (machineStatus === 'partial') {
+                statusColor = '#ff9800';
+                statusText = 'PARTIAL';
+                const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+                dataHtml = `<div class="warning-box">
+                                ⚠️ ${data.items_failed} items failed: ${failedItems}
+                            </div>`;
+                
+                Object.entries(data)
+                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'error', 'DateTime'].includes(key))
+                    .forEach(([key, value]) => {
+                        dataHtml += `
+                            <div class="card-data-row">
+                                <span>${key}:</span>
+                                <span class="card-data-value">${formatValue(value)}</span>
+                            </div>
+                        `;
+                    });
+            } else if (machineStatus === 'success') {
+                statusColor = '#4caf50';
+                statusText = 'SUCCESS';
+                Object.entries(data)
+                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime'].includes(key))
+                    .forEach(([key, value]) => {
+                        dataHtml += `
+                            <div class="card-data-row">
+                                <span>${key}:</span>
+                                <span class="card-data-value">${formatValue(value)}</span>
+                            </div>
+                        `;
+                    });
+            }
+
+            // Use DateTime directly from JSON
+            const dateTimeDisplay = data.DateTime || 'N/A';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="card-name">${machineName}</span>
+                    <span class="machine-status" style="background-color: ${statusColor};"></span>
+                </div>
+                <div class="card-status-badge ${machineStatus}">
+                    ${statusText}
+                </div>
+                <div class="card-data">
+                    ${dataHtml || '<div style="color: #999;">No data</div>'}
+                </div>
+                <div class="card-timestamp">${dateTimeDisplay}</div>
+            `;
+
+            return card;
+        }
+
+        function formatValue(value) {
+            if (typeof value === 'number') {
+                return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            }
+            return String(value);
+        }
+
+        function showError(message) {
+            errorMessageEl.textContent = '⚠️ ' + message;
+            errorMessageEl.classList.add('show');
+        }
+
+        function hideError() {
+            errorMessageEl.classList.remove('show');
+        }
+
+        // Update dashboard every 500ms
+        setInterval(updateDashboard, 500);
+    </script>
+</body>
+</html>
