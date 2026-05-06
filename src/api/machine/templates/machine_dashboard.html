@@ -507,61 +507,121 @@
             });
         }
 
-        function createTableRow(machineName, machineInfo) {
-            const { data, timestamp, status } = machineInfo;
+        // function createTableRow(machineName, machineInfo) {
+        //     const { data, timestamp, status } = machineInfo;
 
-            const row = document.createElement('tr');
+        //     const row = document.createElement('tr');
 
-            // Get machine status from data
-            const machineStatus = data.status || 'unknown';
+        //     // Get machine status from data
+        //     const machineStatus = data.status || 'unknown';
             
-            // Determine status display with color
-            let statusDisplay = '';
-            let dataDisplay = '';
-            let statusIndicatorColor = '#999';
+        //     // Determine status display with color
+        //     let statusDisplay = '';
+        //     let dataDisplay = '';
+        //     let statusIndicatorColor = '#999';
 
-            if (machineStatus === 'error') {
-                statusDisplay = '<span style="color: #f44336; font-weight: bold;">● ERROR</span>';
-                dataDisplay = `<strong style="color: #f44336;">Error:</strong> ${data.error || 'Unknown error'}`;
-                statusIndicatorColor = '#f44336';
-            } else if (machineStatus === 'partial') {
-                statusDisplay = '<span style="color: #ff9800; font-weight: bold;">● PARTIAL</span>';
-                const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
-                dataDisplay = Object.entries(data)
-                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'DateTime'].includes(key))
-                    .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
-                    .slice(0, 2)
-                    .join(' | ') + ` <em style="color: #ff9800;">(${data.items_failed} failed: ${failedItems})</em>`;
-                statusIndicatorColor = '#ff9800';
-            } else if (machineStatus === 'success') {
-                statusDisplay = '<span style="color: #4caf50; font-weight: bold;">● SUCCESS</span>';
-                dataDisplay = Object.entries(data)
-                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime'].includes(key))
-                    .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
-                    .slice(0, 3)
-                    .join(' | ');
-                statusIndicatorColor = '#4caf50';
-            } else {
-                statusDisplay = '<span style="color: #999; font-weight: bold;">● UNKNOWN</span>';
-                dataDisplay = 'No data available';
-                statusIndicatorColor = '#999';
+        //     if (machineStatus === 'error') {
+        //         statusDisplay = '<span style="color: #f44336; font-weight: bold;">● ERROR</span>';
+        //         dataDisplay = `<strong style="color: #f44336;">Error:</strong> ${data.error || 'Unknown error'}`;
+        //         statusIndicatorColor = '#f44336';
+        //     } else if (machineStatus === 'partial') {
+        //         statusDisplay = '<span style="color: #ff9800; font-weight: bold;">● PARTIAL</span>';
+        //         const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+        //         dataDisplay = Object.entries(data)
+        //             .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'DateTime'].includes(key))
+        //             .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
+        //             .slice(0, 2)
+        //             .join(' | ') + ` <em style="color: #ff9800;">(${data.items_failed} failed: ${failedItems})</em>`;
+        //         statusIndicatorColor = '#ff9800';
+        //     } else if (machineStatus === 'success') {
+        //         statusDisplay = '<span style="color: #4caf50; font-weight: bold;">● SUCCESS</span>';
+        //         dataDisplay = Object.entries(data)
+        //             .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime'].includes(key))
+        //             .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
+        //             .slice(0, 3)
+        //             .join(' | ');
+        //         statusIndicatorColor = '#4caf50';
+        //     } else {
+        //         statusDisplay = '<span style="color: #999; font-weight: bold;">● UNKNOWN</span>';
+        //         dataDisplay = 'No data available';
+        //         statusIndicatorColor = '#999';
+        //     }
+
+        //     // Use DateTime directly from JSON
+        //     const dateTimeDisplay = data.DateTime || 'N/A';
+
+        //     row.innerHTML = `
+        //         <td class="machine-name">
+        //             <span class="machine-status" style="background-color: ${statusIndicatorColor};"></span>${machineName}
+        //         </td>
+        //         <td>${statusDisplay}</td>
+        //         <td class="data-cell">${dataDisplay || 'No data'}</td>
+        //         <td class="timestamp-cell">${dateTimeDisplay}</td>
+        //     `;
+
+        //     return row;
+        // }
+            function createTableRow(machineName, machineInfo) {
+                const { data, timestamp, status } = machineInfo;
+
+                const row = document.createElement('tr');
+
+                // Get machine status from data
+                const machineStatus = data.status || 'unknown';
+                
+                // Determine status display with color
+                let statusDisplay = '';
+                let dataDisplay = '';
+                let statusIndicatorColor = '#999';
+                let lastSuccessfulRead = data.last_successful_read || '';
+
+                if (machineStatus === 'error') {
+                    statusDisplay = '<span style="color: #f44336; font-weight: bold;">● ERROR</span>';
+                    dataDisplay = `<strong style="color: #f44336;">Error:</strong> ${data.error || 'Unknown error'}`;
+                    statusIndicatorColor = '#f44336';
+                } else if (machineStatus === 'partial') {
+                    statusDisplay = '<span style="color: #ff9800; font-weight: bold;">● PARTIAL</span>';
+                    const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+                    dataDisplay = Object.entries(data)
+                        .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'DateTime', 'last_successful_read'].includes(key))
+                        .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
+                        .slice(0, 2)
+                        .join(' | ') + ` <em style="color: #ff9800;">(${data.items_failed} failed: ${failedItems})</em>`;
+                    statusIndicatorColor = '#ff9800';
+                } else if (machineStatus === 'success') {
+                    statusDisplay = '<span style="color: #4caf50; font-weight: bold;">● SUCCESS</span>';
+                    dataDisplay = Object.entries(data)
+                        .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime', 'last_successful_read'].includes(key))
+                        .map(([key, value]) => `<strong>${key}:</strong> ${formatValue(value)}`)
+                        .slice(0, 3)
+                        .join(' | ');
+                    statusIndicatorColor = '#4caf50';
+                } else {
+                    statusDisplay = '<span style="color: #999; font-weight: bold;">● UNKNOWN</span>';
+                    dataDisplay = 'No data available';
+                    statusIndicatorColor = '#999';
+                }
+
+                // Use DateTime directly from JSON
+                const dateTimeDisplay = data.DateTime || 'N/A';
+                
+                // Format last successful read with humanized time
+                const lastReadHumanized = getDetailedTimeInfo(lastSuccessfulRead);
+
+                row.innerHTML = `
+                    <td class="machine-name">
+                        <span class="machine-status" style="background-color: ${statusIndicatorColor};"></span>${machineName}
+                    </td>
+                    <td>${statusDisplay}</td>
+                    <td class="data-cell">${dataDisplay || 'No data'}</td>
+                    <td class="timestamp-cell">
+                        <strong>Current:</strong> ${dateTimeDisplay}<br>
+                        <strong>Last Read:</strong> <span style="color: #667eea; font-weight: 600;">${lastReadHumanized}</span>
+                    </td>
+                `;
+
+                return row;
             }
-
-            // Use DateTime directly from JSON
-            const dateTimeDisplay = data.DateTime || 'N/A';
-
-            row.innerHTML = `
-                <td class="machine-name">
-                    <span class="machine-status" style="background-color: ${statusIndicatorColor};"></span>${machineName}
-                </td>
-                <td>${statusDisplay}</td>
-                <td class="data-cell">${dataDisplay || 'No data'}</td>
-                <td class="timestamp-cell">${dateTimeDisplay}</td>
-            `;
-
-            return row;
-        }
-
         function updateCardView() {
             if (machinesData.size === 0) {
                 cardView.innerHTML = '<div class="no-data" style="grid-column: 1/-1;">⏳ Waiting for machine data...</div>';
@@ -577,86 +637,358 @@
             });
         }
 
-        function createMachineCard(machineName, machineInfo) {
-            const { data, timestamp, status } = machineInfo;
+        // function createMachineCard(machineName, machineInfo) {
+        //     const { data, timestamp, status } = machineInfo;
 
-            const card = document.createElement('div');
-            card.className = 'machine-card';
+        //     const card = document.createElement('div');
+        //     card.className = 'machine-card';
 
-            // Get machine status
-            const machineStatus = data.status || 'unknown';
+        //     // Get machine status
+        //     const machineStatus = data.status || 'unknown';
             
-            let dataHtml = '';
-            let statusColor = '#999';
-            let statusText = 'UNKNOWN';
+        //     let dataHtml = '';
+        //     let statusColor = '#999';
+        //     let statusText = 'UNKNOWN';
 
-            card.setAttribute('data-status', machineStatus);
+        //     card.setAttribute('data-status', machineStatus);
 
-            if (machineStatus === 'error') {
-                statusColor = '#f44336';
-                statusText = 'ERROR';
-                dataHtml = `<div class="error-box">
-                                ⚠️ ${data.error || 'Unknown error'}
-                            </div>`;
-            } else if (machineStatus === 'partial') {
-                statusColor = '#ff9800';
-                statusText = 'PARTIAL';
-                const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
-                dataHtml = `<div class="warning-box">
-                                ⚠️ ${data.items_failed} items failed: ${failedItems}
-                            </div>`;
+        //     if (machineStatus === 'error') {
+        //         statusColor = '#f44336';
+        //         statusText = 'ERROR';
+        //         dataHtml = `<div class="error-box">
+        //                         ⚠️ ${data.error || 'Unknown error'}
+        //                     </div>`;
+        //     } else if (machineStatus === 'partial') {
+        //         statusColor = '#ff9800';
+        //         statusText = 'PARTIAL';
+        //         const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+        //         dataHtml = `<div class="warning-box">
+        //                         ⚠️ ${data.items_failed} items failed: ${failedItems}
+        //                     </div>`;
                 
-                Object.entries(data)
-                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'error', 'DateTime'].includes(key))
-                    .forEach(([key, value]) => {
-                        dataHtml += `
-                            <div class="card-data-row">
-                                <span>${key}:</span>
-                                <span class="card-data-value">${formatValue(value)}</span>
-                            </div>
-                        `;
-                    });
-            } else if (machineStatus === 'success') {
-                statusColor = '#4caf50';
-                statusText = 'SUCCESS';
-                Object.entries(data)
-                    .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime'].includes(key))
-                    .forEach(([key, value]) => {
-                        dataHtml += `
-                            <div class="card-data-row">
-                                <span>${key}:</span>
-                                <span class="card-data-value">${formatValue(value)}</span>
-                            </div>
-                        `;
-                    });
-            }
+        //         Object.entries(data)
+        //             .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'error', 'DateTime'].includes(key))
+        //             .forEach(([key, value]) => {
+        //                 dataHtml += `
+        //                     <div class="card-data-row">
+        //                         <span>${key}:</span>
+        //                         <span class="card-data-value">${formatValue(value)}</span>
+        //                     </div>
+        //                 `;
+        //             });
+        //     } else if (machineStatus === 'success') {
+        //         statusColor = '#4caf50';
+        //         statusText = 'SUCCESS';
+        //         Object.entries(data)
+        //             .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime'].includes(key))
+        //             .forEach(([key, value]) => {
+        //                 dataHtml += `
+        //                     <div class="card-data-row">
+        //                         <span>${key}:</span>
+        //                         <span class="card-data-value">${formatValue(value)}</span>
+        //                     </div>
+        //                 `;
+        //             });
+        //     }
 
-            // Use DateTime directly from JSON
-            const dateTimeDisplay = data.DateTime || 'N/A';
+        //     // Use DateTime directly from JSON
+        //     const dateTimeDisplay = data.DateTime || 'N/A';
 
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="card-name">${machineName}</span>
-                    <span class="machine-status" style="background-color: ${statusColor};"></span>
-                </div>
-                <div class="card-status-badge ${machineStatus}">
-                    ${statusText}
-                </div>
-                <div class="card-data">
-                    ${dataHtml || '<div style="color: #999;">No data</div>'}
-                </div>
-                <div class="card-timestamp">${dateTimeDisplay}</div>
-            `;
+        //     card.innerHTML = `
+        //         <div class="card-header">
+        //             <span class="card-name">${machineName}</span>
+        //             <span class="machine-status" style="background-color: ${statusColor};"></span>
+        //         </div>
+        //         <div class="card-status-badge ${machineStatus}">
+        //             ${statusText}
+        //         </div>
+        //         <div class="card-data">
+        //             ${dataHtml || '<div style="color: #999;">No data</div>'}
+        //         </div>
+        //         <div class="card-timestamp">${dateTimeDisplay}</div>
+        //     `;
 
-            return card;
-        }
+        //     return card;
+        // }
 
+//         function createMachineCard(machineName, machineInfo) {
+//     const { data, timestamp, status } = machineInfo;
+
+//     const card = document.createElement('div');
+//     card.className = 'machine-card';
+
+//     // Get machine status
+//     const machineStatus = data.status || 'unknown';
+    
+//     let dataHtml = '';
+//     let statusColor = '#999';
+//     let statusText = 'UNKNOWN';
+
+//     card.setAttribute('data-status', machineStatus);
+
+//     if (machineStatus === 'error') {
+//         statusColor = '#f44336';
+//         statusText = 'ERROR';
+//         dataHtml = `<div class="error-box">
+//                         ⚠️ ${data.error || 'Unknown error'}
+//                     </div>`;
+//     } else if (machineStatus === 'partial') {
+//         statusColor = '#ff9800';
+//         statusText = 'PARTIAL';
+//         const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+//         dataHtml = `<div class="warning-box">
+//                         ⚠️ ${data.items_failed} items failed: ${failedItems}
+//                     </div>`;
+        
+//         Object.entries(data)
+//             .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'error', 'DateTime', 'last_successful_read'].includes(key))
+//             .forEach(([key, value]) => {
+//                 dataHtml += `
+//                     <div class="card-data-row">
+//                         <span>${key}:</span>
+//                         <span class="card-data-value">${formatValue(value)}</span>
+//                     </div>
+//                 `;
+//             });
+//     } else if (machineStatus === 'success') {
+//         statusColor = '#4caf50';
+//         statusText = 'SUCCESS';
+//         Object.entries(data)
+//             .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime', 'last_successful_read'].includes(key))
+//             .forEach(([key, value]) => {
+//                 dataHtml += `
+//                     <div class="card-data-row">
+//                         <span>${key}:</span>
+//                         <span class="card-data-value">${formatValue(value)}</span>
+//                     </div>
+//                 `;
+//             });
+//     }
+
+//     // Use DateTime directly from JSON
+//     const dateTimeDisplay = data.DateTime || 'N/A';
+    
+//     // Format last successful read
+//     let lastReadDisplay = 'Never';
+//     if (data.last_successful_read && data.last_successful_read !== 'Never') {
+//         try {
+//             const lastReadDate = new Date(data.last_successful_read);
+//             const timeString = lastReadDate.toLocaleTimeString('en-US', { hour12: false });
+//             const dateString = lastReadDate.toLocaleDateString('en-US');
+//             lastReadDisplay = `${timeString} (${dateString})`;
+//         } catch (e) {
+//             lastReadDisplay = data.last_successful_read;
+//         }
+//     }
+
+//     card.innerHTML = `
+//         <div class="card-header">
+//             <span class="card-name">${machineName}</span>
+//             <span class="machine-status" style="background-color: ${statusColor};"></span>
+//         </div>
+//         <div class="card-status-badge ${machineStatus}">
+//             ${statusText}
+//         </div>
+//         <div class="card-data">
+//             ${dataHtml || '<div style="color: #999;">No data</div>'}
+//         </div>
+//         <div class="card-timestamp">
+//             <div style="margin-bottom: 8px;">
+//                 <strong>Current Read:</strong><br>
+//                 ${dateTimeDisplay}
+//             </div>
+//             <div style="border-top: 1px solid #f0f0f0; padding-top: 8px;">
+//                 <strong>Last Successful:</strong><br>
+//                 ${lastReadDisplay}
+//             </div>
+//         </div>
+//     `;
+
+//     return card;
+// }
+
+function createMachineCard(machineName, machineInfo) {
+    const { data, timestamp, status } = machineInfo;
+
+    const card = document.createElement('div');
+    card.className = 'machine-card';
+
+    // Get machine status
+    const machineStatus = data.status || 'unknown';
+    
+    let dataHtml = '';
+    let statusColor = '#999';
+    let statusText = 'UNKNOWN';
+
+    card.setAttribute('data-status', machineStatus);
+
+    if (machineStatus === 'error') {
+        statusColor = '#f44336';
+        statusText = 'ERROR';
+        dataHtml = `<div class="error-box">
+                        ⚠️ ${data.error || 'Unknown error'}
+                    </div>`;
+    } else if (machineStatus === 'partial') {
+        statusColor = '#ff9800';
+        statusText = 'PARTIAL';
+        const failedItems = data.failed_items ? data.failed_items.join(', ') : 'Unknown';
+        dataHtml = `<div class="warning-box">
+                        ⚠️ ${data.items_failed} items failed: ${failedItems}
+                    </div>`;
+        
+        Object.entries(data)
+            .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'items_failed', 'items_read', 'failed_items', 'error', 'DateTime', 'last_successful_read'].includes(key))
+            .forEach(([key, value]) => {
+                dataHtml += `
+                    <div class="card-data-row">
+                        <span>${key}:</span>
+                        <span class="card-data-value">${formatValue(value)}</span>
+                    </div>
+                `;
+            });
+    } else if (machineStatus === 'success') {
+        statusColor = '#4caf50';
+        statusText = 'SUCCESS';
+        Object.entries(data)
+            .filter(([key]) => !['machine', 'Equipment', 'timestamp', 'status', 'DateTime', 'last_successful_read'].includes(key))
+            .forEach(([key, value]) => {
+                dataHtml += `
+                    <div class="card-data-row">
+                        <span>${key}:</span>
+                        <span class="card-data-value">${formatValue(value)}</span>
+                    </div>
+                `;
+            });
+    }
+
+    // Use DateTime directly from JSON
+    const dateTimeDisplay = data.DateTime || 'N/A';
+    
+    // Format last successful read with humanized time
+    const lastReadHumanized = getDetailedTimeInfo(data.last_successful_read);
+
+    card.innerHTML = `
+        <div class="card-header">
+            <span class="card-name">${machineName}</span>
+            <span class="machine-status" style="background-color: ${statusColor};"></span>
+        </div>
+        <div class="card-status-badge ${machineStatus}">
+            ${statusText}
+        </div>
+        <div class="card-data">
+            ${dataHtml || '<div style="color: #999;">No data</div>'}
+        </div>
+        <div class="card-timestamp">
+            <div style="margin-bottom: 8px;">
+                <strong>Current Read:</strong><br>
+                ${dateTimeDisplay}
+            </div>
+            <div style="border-top: 1px solid #f0f0f0; padding-top: 8px;">
+                <strong>Last Successful:</strong><br>
+                <span style="color: #667eea; font-weight: 600;">${lastReadHumanized}</span>
+            </div>
+        </div>
+    `;
+
+    return card;
+}
         function formatValue(value) {
             if (typeof value === 'number') {
                 return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
             }
             return String(value);
         }
+
+        // ============ ADD THIS NEW FUNCTION ============
+function getHumanizedTime(isoString) {
+    /**
+     * Convert ISO timestamp to humanized format
+     * Examples: "50 minutes ago", "1 hour and 25 minutes ago", "2 days ago"
+     */
+    if (!isoString) {
+        return 'Never';
+    }
+    
+    try {
+        const pastDate = new Date(isoString);
+        const now = new Date();
+        
+        // Calculate difference in milliseconds
+        const diffMs = now - pastDate;
+        
+        if (diffMs < 0) {
+            return 'In the future'; // Clock is off
+        }
+        
+        // Convert to seconds
+        const diffSeconds = Math.floor(diffMs / 1000);
+        
+        // Less than a minute
+        if (diffSeconds < 60) {
+            return `${diffSeconds} second${diffSeconds !== 1 ? 's' : ''} ago`;
+        }
+        
+        // Less than an hour
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        if (diffMinutes < 60) {
+            return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+        }
+        
+        // Less than a day
+        const diffHours = Math.floor(diffMinutes / 60);
+        const remainingMinutes = diffMinutes % 60;
+        
+        if (diffHours < 24) {
+            if (remainingMinutes === 0) {
+                return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else {
+                return `${diffHours} hour${diffHours !== 1 ? 's' : ''} and ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} ago`;
+            }
+        }
+        
+        // Less than a month
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 30) {
+            return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+        }
+        
+        // Less than a year
+        const diffMonths = Math.floor(diffDays / 30);
+        if (diffMonths < 12) {
+            return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+        }
+        
+        // More than a year
+        const diffYears = Math.floor(diffMonths / 12);
+        return `${diffYears} year${diffYears !== 1 ? 's' : ''} ago`;
+        
+    } catch (error) {
+        console.error('Error parsing date:', error);
+        return 'Invalid date';
+    }
+}
+
+function getDetailedTimeInfo(isoString) {
+    /**
+     * Get both humanized time and actual time
+     * Returns: "50 minutes ago (10:30:45 2026-04-13)"
+     */
+    if (!isoString) {
+        return 'Never';
+    }
+    
+    try {
+        const date = new Date(isoString);
+        const timeString = date.toLocaleTimeString('en-US', { hour12: false });
+        const dateString = date.toLocaleDateString('en-US');
+        const humanized = getHumanizedTime(isoString);
+        
+        return `${humanized} (${timeString} ${dateString})`;
+    } catch (error) {
+        return 'Invalid date';
+    }
+}
+// ================================================
 
         function showError(message) {
             errorMessageEl.textContent = '⚠️ ' + message;

@@ -232,3 +232,65 @@ def save_redis_stack(key:str,value,max_range=12):
     db.rpush(key,value)
     return db.lrange(key,0,-1)
 
+# Added on May 6,2026 -- To support both JSON and Hash format in Redis
+def get_redis_data(key: str):
+    """
+    Get Redis data - handles both JSON string and Hash formats safely
+    
+    Args:
+        key: Redis key
+    
+    Returns:
+        dict or None if not found
+    
+    Handles:
+        - JSON stored as string (json.dumps)
+        - Hash stored as dict (hmset)
+        - Non-existent keys
+        - WRONGTYPE errors when format mismatches
+    """
+    try:
+        # r = Redis(
+        #     host=os.environ.get('REDIS_HOST', 'redis'),
+        #     port=int(os.environ.get('REDIS_PORT', 6379)),
+        #     db=int(os.environ.get('REDIS_READING_DB', 0)),
+        #     decode_responses=True
+        # )
+        
+        # First, check the key type in Redis
+        key_type = db.type(key)
+        # logger.debug(f"Redis key type for '{key}': {key_type}")
+        
+        if key_type == 'string':
+            # Data stored as JSON string
+            # logger.debug(f"Reading '{key}' as JSON string")
+            data_str = db.get(key)
+            if data_str:
+                try:
+                    return json.loads(data_str)
+                except json.JSONDecodeError as e:
+                    # logger.warning(f"Failed to parse JSON from '{key}': {e}")
+                    return {'raw_data': data_str}
+        
+        elif key_type == 'hash':
+            # Data stored as Hash
+            # logger.debug(f"Reading '{key}' as Hash")
+            data_hash = db.hgetall(key)
+            if data_hash:
+                return data_hash
+        
+        elif key_type == 'none':
+            # Key doesn't exist
+            # logger.debug(f"Key '{key}' does not exist in Redis")
+            return None
+        
+        else:
+            # Unknown type (list, set, zset, etc.)
+            # logger.warning(f"Unexpected Redis key type '{key_type}' for key '{key}'")
+            return None
+        
+        return None
+    
+    except Exception as e:
+        # logger.error(f"❌ Error getting Redis data for '{key}': {e}", exc_info=True)
+        return None

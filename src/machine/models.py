@@ -25,7 +25,7 @@ class Equipment(BasicInfo):
 
     def read_item_data(self, *args, **kwargs):
         from .plc_connection import read_multiple_values, plc_connect
-        from .tasks import save_redis, save_previous_redis, get_previous_redis
+        from .tasks import save_redis, save_previous_redis, get_previous_redis,get_redis_data
         import datetime
         import pytz
         import logging
@@ -44,6 +44,11 @@ class Equipment(BasicInfo):
         logging.info(f'  - Snap7 OK: {status["snap7_ok"]}')
         logging.info(f'  - Status: {status["status"]}')
         
+        try:
+            previous_data = get_redis_data(f'{self.name}:LATEST')
+        except:
+            previous_data = None
+
         if status['status'] == 'ping_only':
             # Special case: ping works but Snap7 fails
             logging.error(f'⚠️  DIAGNOSTIC: PLC responds to ping but Snap7 connection failed!')
@@ -59,7 +64,8 @@ class Equipment(BasicInfo):
                 'error': 'Ping OK but Snap7 connection failed',
                 'diagnostic': 'Check PLC configuration, firewall, or Snap7 service',
                 'timestamp': now_tz.isoformat(),
-                'DateTime': now_tz.strftime("%b %d %H:%M")
+                'DateTime': now_tz.strftime("%b %d %H:%M"),
+                'last_successful_read': previous_data.get('last_successful_read') if previous_data else ''
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
@@ -75,7 +81,8 @@ class Equipment(BasicInfo):
                 'status': 'error',
                 'error': status['error'],
                 'timestamp': now_tz.isoformat(),
-                'DateTime': now_tz.strftime("%b %d %H:%M")
+                'DateTime': now_tz.strftime("%b %d %H:%M"),
+                'last_successful_read': previous_data.get('last_successful_read') if previous_data else ''
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
@@ -110,7 +117,8 @@ class Equipment(BasicInfo):
                 'status': 'error',
                 'error': 'No items configured',
                 'timestamp': now_tz.isoformat(),
-                'DateTime': now_tz.strftime("%b %d %H:%M")
+                'DateTime': now_tz.strftime("%b %d %H:%M"),
+                # 'last_successful_read': ''
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
@@ -137,12 +145,19 @@ class Equipment(BasicInfo):
             logging.error(f'❌ Exception reading from PLC: {e}')
             
             # Save error status
+            # Get previous data to show on dashboard
+            try:
+                previous_data = get_redis_data(f'{self.name}:LATEST')
+            except:
+                previous_data = None
+
             error_data = {
                 'Equipment': self.name,
                 'status': 'error',
                 'error': str(e),
                 'timestamp': now_tz.isoformat(),
-                'DateTime': now_tz.strftime("%b %d %H:%M")
+                'DateTime': now_tz.strftime("%b %d %H:%M"),
+                'last_successful_read': previous_data.get('last_successful_read') if previous_data else ''
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
@@ -190,12 +205,23 @@ class Equipment(BasicInfo):
         value_dict['Equipment']     = self.name
         value_dict['DateTime']      = now_tz.strftime("%b %d %H:%M")
         value_dict['timestamp']     = now_tz.strftime("%b %d %H:%M")#now_tz.isoformat()
-        
+        value_dict['last_successful_read'] = now_tz.isoformat()
+
         # Add status
         if len(failed_items) == len(items_list):
             # All failed - PLC connection error
             value_dict['status'] = 'error'
             value_dict['error'] = 'PLC connection failed - All items failed to read'
+                    # Try to get previous successful read timestamp
+            try:
+                previous_data = get_redis_data(f'{self.name}:LATEST')
+                if previous_data and 'last_successful_read' in previous_data:
+                    value_dict['last_successful_read'] = previous_data['last_successful_read']
+                else:
+                    value_dict['last_successful_read'] = ''
+            except:
+                value_dict['last_successful_read'] = ''
+
             logging.error(f'❌ FAILED: All {len(items_list)} items failed - PLC CONNECTION ERROR')
         elif len(failed_items) > 0:
             # Partial success
@@ -203,6 +229,7 @@ class Equipment(BasicInfo):
             value_dict['items_read'] = len(success_items)
             value_dict['items_failed'] = len(failed_items)
             value_dict['failed_items'] = failed_items
+            value_dict['last_successful_read'] = now_tz.isoformat()
             logging.warning(f'⚠️  Partial read: {len(success_items)} success, {len(failed_items)} failed')
         else:
             # All success
