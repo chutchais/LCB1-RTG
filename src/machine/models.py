@@ -26,6 +26,7 @@ class Equipment(BasicInfo):
     def read_item_data(self, *args, **kwargs):
         from .plc_connection import read_multiple_values, plc_connect
         from .tasks import save_redis, save_previous_redis, get_previous_redis,get_redis_data
+        from .services.connection_status_service import ConnectionStatusService
         import datetime
         import pytz
         import logging
@@ -69,6 +70,13 @@ class Equipment(BasicInfo):
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
+                # Record connection status
+                ConnectionStatusService.record_status(
+                    self.name,
+                    'failed',
+                    'Ping OK but Snap7 connection failed',
+                    {}
+                )
             except:
                 pass
             return error_data
@@ -86,6 +94,13 @@ class Equipment(BasicInfo):
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
+                # Record connection status
+                ConnectionStatusService.record_status(
+                    self.name,
+                    'failed',
+                    status['error'],
+                    {}
+                )
             except:
                 pass
             return error_data
@@ -122,6 +137,13 @@ class Equipment(BasicInfo):
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
+    # Record connection status
+                ConnectionStatusService.record_status(
+                    self.name,
+                    'failed',
+                    'No items configured for reading',
+                    {}
+                )
             except Exception as e:
                 logging.error(f'Error saving error status to Redis: {e}')
             
@@ -161,6 +183,13 @@ class Equipment(BasicInfo):
             }
             try:
                 save_redis(f'{self.name}:LATEST', error_data)
+                # Record connection status
+                ConnectionStatusService.record_status(
+                    self.name,
+                    'failed',
+                    str(e),
+                    {}
+                )
             except:
                 pass
             
@@ -169,6 +198,7 @@ class Equipment(BasicInfo):
         # ============ PROCESS READ VALUES ============
         failed_items = []
         success_items = []
+        items_for_storage = {}
         
         for item in items_list:
             if item.monitor:
@@ -199,6 +229,7 @@ class Equipment(BasicInfo):
                 print(f'{item} --> {value} {item.units}')
                 
                 value_dict[item.name] = value
+                items_for_storage[item.name] = value
                 success_items.append(item.name)
         
         # ============ ADD METADATA ============
@@ -221,6 +252,14 @@ class Equipment(BasicInfo):
                     value_dict['last_successful_read'] = ''
             except:
                 value_dict['last_successful_read'] = ''
+            
+            # Record failed status
+            ConnectionStatusService.record_status(
+                self.name,
+                'failed',
+                'All items failed to read',
+                {}
+            )
 
             logging.error(f'❌ FAILED: All {len(items_list)} items failed - PLC CONNECTION ERROR')
         elif len(failed_items) > 0:
@@ -230,10 +269,25 @@ class Equipment(BasicInfo):
             value_dict['items_failed'] = len(failed_items)
             value_dict['failed_items'] = failed_items
             value_dict['last_successful_read'] = now_tz.isoformat()
+            # Record partial status
+            ConnectionStatusService.record_status(
+                self.name,
+                'partial',
+                f"{len(failed_items)} items failed: {', '.join(failed_items)}",
+                items_for_storage
+            )
+
             logging.warning(f'⚠️  Partial read: {len(success_items)} success, {len(failed_items)} failed')
         else:
             # All success
             value_dict['status'] = 'success'
+            # Record success status
+            ConnectionStatusService.record_status(
+                self.name,
+                'success',
+                '',
+                items_for_storage
+            )
             logging.info(f'✅ All {len(success_items)} items read successfully')
         
         # ============ SAVE TO REDIS ============
@@ -416,3 +470,236 @@ class DataLogger(BasicInfo):
 def update_datalogger_created(sender, instance, created, **kwargs):
     if created:
         update_transaction_date(instance)
+
+
+from django.db import models
+from django.utils import timezone
+from datetime import timedelta
+class ConnectionStatus(models.Model):
+    """
+    Track equipment connection status every 5 minutes
+    Stores: success/failure status + detailed item data for each read
+    Auto-deletes records older than 48 hours
+    Supports shift tracking (Morning: 08:00-20:00, Night: 20:00-08:00)
+    
+    NOTE: Does NOT inherit from BasicInfo - uses own timestamp fields
+    """
+    
+    CONNECTION_STATUS_CHOICES = [
+        ('success', 'Successfully connected'),
+        ('failed', 'Connection failed'),
+        ('timeout', 'Connection timeout'),
+        ('partial', 'Partial read (some items failed)'),
+    ]
+    
+    SHIFT_CHOICES = [
+        ('morning', 'Morning Shift (08:00 - 20:00)'),
+        ('night', 'Night Shift (20:00 - 08:00)'),
+    ]
+    
+    # Own timestamp fields (not from BasicInfo)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='connection_statuses',
+        help_text="Equipment this status is for"
+    )
+    
+    connection_status = models.CharField(
+        max_length=20,
+        choices=CONNECTION_STATUS_CHOICES,
+        help_text="Connection status (success/failed/timeout/partial)"
+    )
+    
+    error_message = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Error message if failed"
+    )
+    
+    items_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Item readings data: {'Crane On Hour': 1720, 'Production Count': 5432, ...}"
+    )
+    
+    recorded_at = models.DateTimeField(
+        help_text="When this status was recorded"
+    )
+    
+    shift = models.CharField(
+        max_length=10,
+        choices=SHIFT_CHOICES,
+        default='morning',
+        help_text="Which shift this status was recorded during"
+    )
+    
+    shift_date = models.DateField(
+        help_text="Date of shift start (morning: same day, night: previous day)"
+    )
+    
+    class Meta:
+        db_table = 'equipment_connection_status'
+        ordering = ['-recorded_at']
+        indexes = [
+            models.Index(fields=['equipment', '-recorded_at']),
+            models.Index(fields=['-recorded_at']),
+            models.Index(fields=['equipment', 'shift', 'shift_date']),
+            models.Index(fields=['shift', 'shift_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.equipment.name} - {self.connection_status} - {self.recorded_at}"
+    
+    def get_summary(self):
+        """Get summary of this status record"""
+        return {
+            'connection_status': self.connection_status,
+            'error': self.error_message,
+            'timestamp': self.recorded_at.isoformat(),
+            'items': self.items_data,
+            'shift': self.shift,
+            'shift_date': self.shift_date.isoformat()
+        }
+    
+    @staticmethod
+    def cleanup_old_records(hours=48):
+        """Delete records older than specified hours"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        cutoff_time = timezone.now() - timedelta(hours=hours)
+        deleted_count, _ = ConnectionStatus.objects.filter(
+            recorded_at__lt=cutoff_time
+        ).delete()
+        
+        logger.info(f"✓ Cleaned up {deleted_count} old connection status records")
+        return deleted_count
+    
+    @staticmethod
+    def get_storage_info():
+        """Get storage information"""
+        from django.db.models import Min, Max, Count
+        
+        stats = ConnectionStatus.objects.aggregate(
+            total=Count('id'),
+            oldest=Min('recorded_at'),
+            newest=Max('recorded_at')
+        )
+        
+        total = stats['total']
+        oldest = stats['oldest']
+        newest = stats['newest']
+        
+        age_days = 0
+        if oldest and newest:
+            age_days = (newest - oldest).days + (newest - oldest).seconds / 86400
+        
+        by_equipment = {}
+        for item in ConnectionStatus.objects.values('equipment__name').annotate(
+            count=Count('id')
+        ).order_by('-count'):
+            by_equipment[item['equipment__name']] = item['count']
+        
+        return {
+            'total_records': total,
+            'records_by_equipment': by_equipment,
+            'oldest_record': oldest.isoformat() if oldest else None,
+            'newest_record': newest.isoformat() if newest else None,
+            'age_days': round(age_days, 2),
+            'estimated_size_mb': round(total * 0.002, 2)
+        }
+    
+    @staticmethod
+    def get_shift_stats(shift: str, shift_date=None):
+        """Get connection status statistics for a specific shift"""
+        from django.db.models import Count
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if shift_date is None:
+            shift_date = timezone.now().date()
+        elif isinstance(shift_date, str):
+            from datetime import datetime
+            shift_date = datetime.strptime(shift_date, '%Y-%m-%d').date()
+        
+        statuses = ConnectionStatus.objects.filter(
+            shift=shift,
+            shift_date=shift_date
+        )
+        
+        total = statuses.count()
+        
+        if total == 0:
+            return {
+                'shift': shift,
+                'shift_date': shift_date.isoformat(),
+                'total_checks': 0,
+                'success': 0,
+                'failed': 0,
+                'timeout': 0,
+                'partial': 0,
+                'success_rate': 0,
+                'equipment_count': 0,
+                'equipment_details': []
+            }
+        
+        success_count = statuses.filter(connection_status='success').count()
+        failed_count = statuses.filter(connection_status='failed').count()
+        timeout_count = statuses.filter(connection_status='timeout').count()
+        partial_count = statuses.filter(connection_status='partial').count()
+        
+        success_rate = (success_count / total) * 100 if total > 0 else 0
+        
+        equipment_details = []
+        for item in statuses.values('equipment__name').annotate(
+            total=Count('id'),
+            success=Count('id', filter=models.Q(connection_status='success')),
+            failed=Count('id', filter=models.Q(connection_status='failed')),
+            timeout=Count('id', filter=models.Q(connection_status='timeout')),
+            partial=Count('id', filter=models.Q(connection_status='partial'))
+        ).order_by('equipment__name'):
+            eq_total = item['total']
+            eq_success_rate = (item['success'] / eq_total * 100) if eq_total > 0 else 0
+            
+            equipment_details.append({
+                'equipment': item['equipment__name'],
+                'total': eq_total,
+                'success': item['success'],
+                'failed': item['failed'],
+                'timeout': item['timeout'],
+                'partial': item['partial'],
+                'success_rate': round(eq_success_rate, 2)
+            })
+        
+        return {
+            'shift': shift,
+            'shift_label': 'Morning Shift (08:00 - 20:00)' if shift == 'morning' else 'Night Shift (20:00 - 08:00)',
+            'shift_date': shift_date.isoformat(),
+            'total_checks': total,
+            'success': success_count,
+            'failed': failed_count,
+            'timeout': timeout_count,
+            'partial': partial_count,
+            'success_rate': round(success_rate, 2),
+            'equipment_count': len(equipment_details),
+            'equipment_details': equipment_details
+        }
+    
+    @staticmethod
+    def get_daily_shift_report(date=None):
+        """Get both morning and night shift reports for a day"""
+        if date is None:
+            date = timezone.now().date()
+        elif isinstance(date, str):
+            from datetime import datetime
+            date = datetime.strptime(date, '%Y-%m-%d').date()
+        
+        return {
+            'date': date.isoformat(),
+            'morning': ConnectionStatus.get_shift_stats('morning', date),
+            'night': ConnectionStatus.get_shift_stats('night', date)
+        }
