@@ -18,6 +18,11 @@ urlpatterns = [
     path('productivity-report-daily/', views.productivity_report_daily_api, name='productivity_report_daily'),
     path('productivity-report-daily-detailed/', views.productivity_report_daily_detailed_api, name='productivity_report_daily_detailed'),
     
+        # ✅ NEW: HTML/Text/CSV endpoints
+    path('productivity-report-daily-html/', views.productivity_report_daily_html, name='productivity_report_daily_html'),
+    path('productivity-report-daily-text/', views.productivity_report_daily_text, name='productivity_report_daily_text'),
+    path('productivity-report-daily-csv/', views.productivity_report_daily_csv_api, name='productivity_report_daily_csv'),
+    path('productivity-report-daily-excel/', views.productivity_report_daily_excel, name='productivity_report_daily_excel'),  # ✅ ADD THIS
     # Equipment endpoints
     path('equipment/', views.available_equipment_api, name='available_equipment'),
 ]

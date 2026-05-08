@@ -16,7 +16,13 @@ from machine.api.report_services import (
     get_productivity_report_daily_detailed
 )
 
+from django.http import HttpResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from machine.api.report_services import get_productivity_report_daily
+from machine.api.html_generators import json_to_html_table, json_to_plain_text_table, json_to_csv,json_to_excel  # ✅ ADD IMPORT
 
+from datetime import datetime
 # ============ ITEMS DATA ENDPOINTS ============
 
 @api_view(['GET'])
@@ -436,3 +442,214 @@ def available_equipment_api(request):
         'count': len(equipment_list),
         'data': equipment_list
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def productivity_report_daily_html(request):
+    """
+    Get productivity report as HTML table
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Start date in format YYYY-MM-DD (default: last 7 days)
+    - shift: 'morning', 'night', or 'all' (default: 'all')
+    
+    Examples:
+    - GET /api/productivity-report-daily-html/
+      → Returns HTML table for last 7 days
+    
+    - GET /api/productivity-report-daily-html/?date=2026-05-08
+      → Returns HTML table for 2026-05-08
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    shift = request.query_params.get('shift', 'all')
+    
+    # Get report data
+    result = get_productivity_report_daily(equipment_name, target_date_str, shift)
+    
+    if result['status'] == 'error':
+        html = f'<p style="color: red;">Error: {result["error"]}</p>'
+        return HttpResponse(html, content_type='text/html')
+    
+    # Convert to HTML table
+    html_table = json_to_html_table(result['data'])
+    
+    # Wrap in basic HTML
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Daily Productivity Report</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            h1 {{
+                color: #2c3e50;
+            }}
+            .info {{
+                background-color: white;
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .info p {{
+                margin: 5px 0;
+            }}
+            table {{
+                background-color: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin: 20px 0;
+            }}
+            td, th {{
+                padding: 8px 12px;
+                text-align: center;
+            }}
+            th {{
+                color: white;
+            }}
+            @media print {{
+                body {{
+                    background-color: white;
+                }}
+                .info {{
+                    display: none;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>📊 Daily Productivity Report</h1>
+        <div class="info">
+            <p><strong>Date Range:</strong> {result['data']['date_range']['from']} to {result['data']['date_range']['to']}</p>
+            <p><strong>Equipment:</strong> {result['data']['summary']['total_equipment']}</p>
+            <p><strong>Generated:</strong> {result['data'].get('timestamp', 'N/A')}</p>
+        </div>
+        {html_table}
+    </body>
+    </html>
+    '''
+    
+    return HttpResponse(html, content_type='text/html')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def productivity_report_daily_text(request):
+    """
+    Get productivity report as plain text table (for console/email)
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Start date in format YYYY-MM-DD (default: last 7 days)
+    - shift: 'morning', 'night', or 'all' (default: 'all')
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    shift = request.query_params.get('shift', 'all')
+    
+    # Get report data
+    result = get_productivity_report_daily(equipment_name, target_date_str, shift)
+    
+    if result['status'] == 'error':
+        text = f'Error: {result["error"]}'
+        return HttpResponse(text, content_type='text/plain')
+    
+    # Convert to plain text table
+    text_table = json_to_plain_text_table(result['data'])
+    
+    # Add header info
+    full_text = f'''
+Daily Productivity Report
+Date Range: {result['data']['date_range']['from']} to {result['data']['date_range']['to']}
+Equipment: {result['data']['summary']['total_equipment']}
+Generated: {result['data'].get('timestamp', 'N/A')}
+
+{text_table}
+    '''
+    
+    return HttpResponse(full_text, content_type='text/plain')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def productivity_report_daily_csv_api(request):
+    """
+    Get productivity report as CSV file
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Start date in format YYYY-MM-DD (default: last 7 days)
+    - shift: 'morning', 'night', or 'all' (default: 'all')
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    shift = request.query_params.get('shift', 'all')
+    
+    # Get report data
+    result = get_productivity_report_daily(equipment_name, target_date_str, shift)
+    
+    if result['status'] == 'error':
+        return HttpResponse(f'Error: {result["error"]}', content_type='text/plain', status=404)
+    
+    # Convert to CSV
+    csv_data = json_to_csv(result['data'])
+    
+    # Return as downloadable file
+    response = HttpResponse(csv_data, content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="productivity-report-{datetime.now().strftime("%Y-%m-%d")}.csv"'
+    
+    return response
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def productivity_report_daily_excel(request):
+    """
+    Get productivity report as Excel file (.xlsx)
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Start date in format YYYY-MM-DD (default: last 7 days)
+    - shift: 'morning', 'night', or 'all' (default: 'all')
+    
+    Examples:
+    - GET /api/productivity-report-daily-excel/
+      → Downloads Excel file for last 7 days
+    
+    - GET /api/productivity-report-daily-excel/?date=2026-05-08
+      → Downloads Excel file for 2026-05-08
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    shift = request.query_params.get('shift', 'all')
+    
+    # Get report data
+    result = get_productivity_report_daily(equipment_name, target_date_str, shift)
+    
+    if result['status'] == 'error':
+        return HttpResponse(f'Error: {result["error"]}', content_type='text/plain', status=404)
+    
+    # Convert to Excel
+    try:
+        excel_data = json_to_excel(result['data'])
+        
+        # Return as downloadable file
+        response = HttpResponse(
+            excel_data,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="productivity-report-{datetime.now().strftime("%Y-%m-%d")}.xlsx"'
+        
+        return response
+    except Exception as e:
+        return HttpResponse(f'Error generating Excel: {str(e)}', content_type='text/plain', status=500)
