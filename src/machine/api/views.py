@@ -8,13 +8,16 @@ from datetime import datetime
 from machine.models import ConnectionStatus, Equipment
 from machine.api.serializers import ConnectionStatusListSerializer
 from machine.api.services import get_items_data, get_items_data_filtered
-
 from machine.api.report_services import (
     get_productivity_report,
     get_productivity_report_detailed,
-    get_productivity_comparison_report
+    get_productivity_comparison_report,
+    get_productivity_report_daily,
+    get_productivity_report_daily_detailed
 )
 
+
+# ============ ITEMS DATA ENDPOINTS ============
 
 @api_view(['GET'])
 # @permission_classes([IsAuthenticated])
@@ -60,7 +63,6 @@ def items_data_api(request):
     })
 
 
-# ✅ NEW ENDPOINT WITH SMART DEFAULTS
 @api_view(['GET'])
 # @permission_classes([IsAuthenticated])
 def items_data_smart_api(request):
@@ -154,7 +156,7 @@ def items_data_detailed_api(request):
     # Build query for all records
     query = ConnectionStatus.objects.filter(
         equipment=equipment,
-        recorded_at__date=target_date,
+        shift_date=target_date,
         connection_status='success'
     ).order_by('recorded_at')
     
@@ -172,60 +174,163 @@ def items_data_detailed_api(request):
     })
 
 
-@api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-def available_equipment_api(request):
-    """
-    Get list of all available equipment
-    """
-    equipment_list = list(
-        Equipment.objects.values('id', 'name', 'ip').order_by('name')
-    )
-    
-    return Response({
-        'status': 'success',
-        'count': len(equipment_list),
-        'data': equipment_list
-    })
+# ============ PRODUCTIVITY REPORT ENDPOINTS ============
 
-
-# For report endpoints, we will implement separate services that handle the complex logic and calculations.
 @api_view(['GET'])
 # @permission_classes([IsAuthenticated])
 def productivity_report_api(request):
     """
-    Get productivity report (report-friendly format)
-    
-    Layout: Equipment | Morning (Crane Hour, Moves, Productivity) | 
-                      | Night (Crane Hour, Moves, Productivity) | 
-                      | Total (Crane Hour, Moves, Productivity)
-    
-    Formula: Productivity = (Crane On Minute / 60) / Number of Move
+    Get productivity report with flexible format options
     
     Query Parameters (all optional):
     - equipment: Equipment name (default: all equipment)
     - date: Date in format YYYY-MM-DD (default: last 7 days)
+    - format: 'daily' for daily breakdown or 'summary' for 7-day summary (default: 'summary')
+    - shift: 'morning', 'night', or 'all' (default: 'all')
     
-    Example:
+    Format Options:
+    - 'summary': Returns aggregated data for entire period (default)
+      Response: One entry per equipment with morning/night/total
+    
+    - 'daily': Returns daily breakdown (one report per day)
+      Response: Multiple reports, one for each day with equipment data
+    
+    Examples:
+    ============ SUMMARY FORMAT (default) ============
     - GET /api/productivity-report/
-      → Get ALL equipment for LAST 7 DAYS
-    
-    - GET /api/productivity-report/?equipment=RTG22
-      → Get RTG22 for LAST 7 DAYS
+      → All equipment, Last 7 days, SUMMARIZED
     
     - GET /api/productivity-report/?date=2026-05-07
-      → Get ALL equipment for 2026-05-07
+      → All equipment, 2026-05-07, SUMMARIZED
     
-    - GET /api/productivity-report/?equipment=RTG22&date=2026-05-07
-      → Get RTG22 on 2026-05-07
+    - GET /api/productivity-report/?equipment=RTG22
+      → RTG22, Last 7 days, SUMMARIZED
+    
+    ============ DAILY FORMAT ============
+    - GET /api/productivity-report/?format=daily
+      → All equipment, Last 7 days, DAILY BREAKDOWN (7 reports)
+    
+    - GET /api/productivity-report/?format=daily&date=2026-05-07
+      → All equipment, starting 2026-05-07, DAILY BREAKDOWN
+    
+    - GET /api/productivity-report/?format=daily&equipment=RTG22
+      → RTG22, Last 7 days, DAILY BREAKDOWN
     """
     
-    # Get optional parameters
+    # Get parameters
     equipment_name = request.query_params.get('equipment')
     target_date_str = request.query_params.get('date')
+    format_type = request.query_params.get('format', 'summary')
+    shift = request.query_params.get('shift', 'all')
     
-    # Call report service
-    result = get_productivity_report(equipment_name, target_date_str)
+    # Validate format
+    if format_type not in ['summary', 'daily']:
+        return Response({
+            'error': 'Invalid format. Must be "summary" or "daily"',
+            'received': format_type,
+            'examples': {
+                'summary': '/api/productivity-report/?format=summary',
+                'daily': '/api/productivity-report/?format=daily'
+            }
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # ✅ GET REPORT BASED ON FORMAT
+    if format_type == 'daily':
+        result = get_productivity_report_daily(equipment_name, target_date_str, shift)
+    else:  # summary
+        result = get_productivity_report(equipment_name, target_date_str, shift)
+    
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        'status': 'success',
+        'format': format_type,
+        'data': result['data']
+    })
+
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def productivity_report_detailed_api(request):
+    """
+    Get detailed productivity report with flexible format options
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Date in format YYYY-MM-DD (default: last 7 days)
+    - format: 'daily' for daily + trends or 'summary' for detailed summary (default: 'summary')
+    
+    Format Options:
+    - 'summary': Returns detailed metrics for aggregated period
+    - 'daily': Returns daily breakdown with trend analysis
+    
+    Examples:
+    - GET /api/productivity-report-detailed/?format=summary
+    - GET /api/productivity-report-detailed/?format=daily
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    format_type = request.query_params.get('format', 'summary')
+    
+    # Validate format
+    if format_type not in ['summary', 'daily']:
+        return Response({
+            'error': 'Invalid format. Must be "summary" or "daily"',
+            'received': format_type
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # ✅ GET DETAILED REPORT BASED ON FORMAT
+    if format_type == 'daily':
+        result = get_productivity_report_daily_detailed(equipment_name, target_date_str)
+    else:  # summary
+        result = get_productivity_report_detailed(equipment_name, target_date_str)
+    
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        'status': 'success',
+        'format': format_type,
+        'data': result['data']
+    })
+
+
+# ✅ NEW: Daily report endpoints
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def productivity_report_daily_api(request):
+    """
+    Get productivity report broken down by individual days
+    
+    Returns one report per day (not summarized)
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Start date in format YYYY-MM-DD (default: last 7 days)
+    - shift: 'morning', 'night', or 'all' (default: 'all')
+    
+    Examples:
+    - GET /api/productivity-report-daily/
+      → Get ALL equipment for LAST 7 DAYS (one report per day)
+    
+    - GET /api/productivity-report-daily/?date=2026-05-07
+      → Get ALL equipment starting from 2026-05-07
+    
+    - GET /api/productivity-report-daily/?equipment=RTG22
+      → Get RTG22 for LAST 7 DAYS (one report per day)
+    
+    - GET /api/productivity-report-daily/?equipment=RTG22&date=2026-05-07
+      → Get RTG22 starting from 2026-05-07
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    shift = request.query_params.get('shift', 'all')
+    
+    result = get_productivity_report_daily(equipment_name, target_date_str, shift)
     
     if result['status'] == 'error':
         return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -238,19 +343,35 @@ def productivity_report_api(request):
 
 @api_view(['GET'])
 # @permission_classes([IsAuthenticated])
-def productivity_report_detailed_api(request):
+def productivity_report_daily_detailed_api(request):
     """
-    Get detailed productivity report with additional metrics
+    Get detailed daily productivity report with trend analysis
+    
+    Includes:
+    - Daily breakdown
+    - Trend analysis
+    - Best/worst performing days
+    - Summary metrics (total crane minutes, total moves, averages)
     
     Query Parameters (all optional):
     - equipment: Equipment name (default: all equipment)
-    - date: Date in format YYYY-MM-DD (default: last 7 days)
+    - date: Start date in format YYYY-MM-DD (default: last 7 days)
+    
+    Examples:
+    - GET /api/productivity-report-daily-detailed/
+      → Last 7 days with trends
+    
+    - GET /api/productivity-report-daily-detailed/?date=2026-05-01
+      → Starting from 2026-05-01 with trends
+    
+    - GET /api/productivity-report-daily-detailed/?equipment=RTG22
+      → RTG22 last 7 days with trends
     """
     
     equipment_name = request.query_params.get('equipment')
     target_date_str = request.query_params.get('date')
     
-    result = get_productivity_report_detailed(equipment_name, target_date_str)
+    result = get_productivity_report_daily_detailed(equipment_name, target_date_str)
     
     if result['status'] == 'error':
         return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -275,13 +396,8 @@ def productivity_comparison_api(request):
     
     Example:
     - GET /api/productivity-comparison/
-      → Compare ALL equipment for LAST 7 DAYS
-    
     - GET /api/productivity-comparison/?equipment=RTG22,RTG25
-      → Compare RTG22 and RTG25
-    
     - GET /api/productivity-comparison/?date=2026-05-07
-      → Compare ALL equipment on 2026-05-07
     """
     
     equipment_param = request.query_params.get('equipment')
@@ -300,4 +416,23 @@ def productivity_comparison_api(request):
     return Response({
         'status': 'success',
         'data': result['data']
+    })
+
+
+# ============ EQUIPMENT ENDPOINTS ============
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def available_equipment_api(request):
+    """
+    Get list of all available equipment
+    """
+    equipment_list = list(
+        Equipment.objects.values('id', 'name', 'ip').order_by('name')
+    )
+    
+    return Response({
+        'status': 'success',
+        'count': len(equipment_list),
+        'data': equipment_list
     })
