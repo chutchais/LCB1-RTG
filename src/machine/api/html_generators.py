@@ -308,10 +308,10 @@ def json_to_html_table(report_data):
             # Morning shift
             morning = equipment.get('morning') or {}  # ✅ FIX: Handle None
             if morning:
-                morning_hour = round(morning.get('crane_on_minute', 0) / 60, 2)
+                morning_hour = morning.get('crane_on_minute', 0) / 60
                 morning_move = morning.get('number_of_move', '-')
-                morning_prod = round(morning.get('productivity', 0), 4) if morning.get('productivity') else '-'
-                html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_hour}</td>\n'
+                morning_prod = round(morning.get('productivity', 0), 2) if morning.get('productivity') else '-'
+                html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_hour:.2f}</td>\n'
                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_move}</td>\n'
                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_prod}</td>\n'
             else:
@@ -322,10 +322,10 @@ def json_to_html_table(report_data):
             # Night shift
             night = equipment.get('night') or {}  # ✅ FIX: Handle None
             if night:
-                night_hour = round(night.get('crane_on_minute', 0) / 60, 2)
+                night_hour = night.get('crane_on_minute', 0) / 60
                 night_move = night.get('number_of_move', '-')
-                night_prod = round(night.get('productivity', 0), 4) if night.get('productivity') else '-'
-                html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_hour}</td>\n'
+                night_prod = round(night.get('productivity', 0), 2) if night.get('productivity') else '-'
+                html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_hour:.2f}</td>\n'
                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_move}</td>\n'
                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_prod}</td>\n'
             else:
@@ -336,10 +336,10 @@ def json_to_html_table(report_data):
             # Total
             total = equipment.get('total') or {}  # ✅ FIX: Handle None
             if total:
-                total_hour = round(total.get('crane_on_minute', 0) / 60, 2)
+                total_hour = total.get('crane_on_minute', 0) / 60
                 total_move = total.get('number_of_move', '-')
-                total_prod = round(total.get('productivity', 0), 4) if total.get('productivity') else '-'
-                html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_hour}</td>\n'
+                total_prod = round(total.get('productivity', 0), 2) if total.get('productivity') else '-'
+                html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_hour:.2f}</td>\n'
                 html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_move}</td>\n'
                 html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_prod}</td>\n'
             else:

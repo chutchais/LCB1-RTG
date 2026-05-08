@@ -31,12 +31,14 @@ def calculate_productivity(crane_on_minute_diff, number_of_move_diff):
     
     try:
         # Convert minutes to hours
-        crane_hours = float(crane_on_minute_diff) / 60
+        # crane_hours = float(crane_on_minute_diff) / 60
+        crane_hours = round(float(crane_on_minute_diff) / 60,2)
         moves = float(number_of_move_diff)
         
         # Productivity = moves per hour
         productivity = moves / crane_hours
-        return round(productivity, 4)
+        # return round(productivity, 4)
+        return round(productivity, 2)  # ✅ CHANGED FROM 4
     except (TypeError, ValueError, ZeroDivisionError):
         return None
 
