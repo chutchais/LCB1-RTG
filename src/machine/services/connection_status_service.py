@@ -240,17 +240,41 @@ class ConnectionStatusService:
         else:
             return 'night'
     
+    # @staticmethod
+    # def get_shift_date(dt=None):
+    #     """
+    #     Get shift date (morning uses same day, night uses SAME day - current day)
+        
+    #     ✅ FIXED LOGIC:
+    #     - Morning shift (08:00-20:00) on May 8 → shift_date = May 8
+    #     - Night shift (20:00-08:00) on May 8 → shift_date = May 8 (not May 7!)
+        
+    #     The shift_date represents the DATE OF THE SHIFT, not the start date
+    #     A night shift happening on May 8 at 8:36 PM belongs to May 8's night shift
+    #     """
+    #     if dt is None:
+    #         dt = timezone.now()
+        
+    #     tz = pytz.timezone('Asia/Bangkok')
+    #     if dt.tzinfo is None:
+    #         dt = tz.localize(dt)
+    #     else:
+    #         dt = dt.astimezone(tz)
+        
+    #     # ✅ SIMPLY RETURN CURRENT DATE (same day)
+    #     # Night shift from 8:36 PM May 8 to 8:00 AM May 9 belongs to May 8
+    #     return dt.date()
     @staticmethod
     def get_shift_date(dt=None):
         """
-        Get shift date (morning uses same day, night uses SAME day - current day)
+        Get shift date based on time
         
-        ✅ FIXED LOGIC:
+        ✅ CORRECT LOGIC:
         - Morning shift (08:00-20:00) on May 8 → shift_date = May 8
-        - Night shift (20:00-08:00) on May 8 → shift_date = May 8 (not May 7!)
+        - Night shift (20:00-08:00) on May 9 at 01:30 AM → shift_date = May 8
         
-        The shift_date represents the DATE OF THE SHIFT, not the start date
-        A night shift happening on May 8 at 8:36 PM belongs to May 8's night shift
+        Night shift spans from 20:00 on one day to 08:00 the next day
+        So a night shift record at May 9 1:30 AM belongs to the night shift that started on May 8 at 20:00
         """
         if dt is None:
             dt = timezone.now()
@@ -261,10 +285,22 @@ class ConnectionStatusService:
         else:
             dt = dt.astimezone(tz)
         
-        # ✅ SIMPLY RETURN CURRENT DATE (same day)
-        # Night shift from 8:36 PM May 8 to 8:00 AM May 9 belongs to May 8
-        return dt.date()
-    
+        shift = ConnectionStatusService.get_current_shift(dt)
+        current_date = dt.date()
+        
+        if shift == 'morning':
+            # Morning: 08:00-20:00 uses same day
+            return current_date
+        else:  # night shift
+            # Night: 20:00-08:00 uses PREVIOUS day
+            # Because night shift starts at 20:00 on previous day and ends at 08:00 on current day
+            if dt.hour < 8:
+                # Between 00:00-08:00, belongs to night shift of previous day
+                return current_date - timedelta(days=1)
+            else:
+                # This shouldn't happen in night shift, but just in case
+                return current_date
+        
     @staticmethod
     def get_shift_date_range(shift_date, shift):
         """

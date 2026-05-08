@@ -75,14 +75,16 @@ class Command(BaseCommand):
 
         for record in query.order_by('recorded_at'):
             try:
-                # Get correct shift_date based on recorded_at time
+                # Get correct shift_date and shift based on recorded_at time
                 recorded_at_tz = record.recorded_at.astimezone(tz) if record.recorded_at.tzinfo else tz.localize(
                     record.recorded_at)
+                
+                # ✅ GET CORRECT SHIFT AND SHIFT_DATE
+                correct_shift = ConnectionStatusService.get_current_shift(recorded_at_tz)
                 correct_shift_date = ConnectionStatusService.get_shift_date(recorded_at_tz)
-                current_shift = ConnectionStatusService.get_current_shift(recorded_at_tz)
 
                 # Check if wrong
-                if record.shift_date != correct_shift_date or record.shift != current_shift:
+                if record.shift_date != correct_shift_date or record.shift != correct_shift:
                     wrong_count += 1
 
                     old_shift_date = record.shift_date
@@ -93,13 +95,13 @@ class Command(BaseCommand):
                         f'  ❌ Record ID {record.id}:\n'
                         f'     Time: {recorded_at_tz}\n'
                         f'     Old: shift={old_shift}, shift_date={old_shift_date}\n'
-                        f'     New: shift={current_shift}, shift_date={correct_shift_date}'
+                        f'     New: shift={correct_shift}, shift_date={correct_shift_date}'
                     )
 
                     if not dry_run:
                         # Update the record
                         record.shift_date = correct_shift_date
-                        record.shift = current_shift
+                        record.shift = correct_shift
                         record.save(update_fields=['shift_date', 'shift'])
                         self.stdout.write(self.style.SUCCESS(f'     ✅ Fixed!\n'))
                         fixed_count += 1
@@ -119,7 +121,7 @@ class Command(BaseCommand):
         self.stdout.write('📊 SUMMARY')
         self.stdout.write('='*60)
         self.stdout.write(f'  Total records checked: {query.count()}')
-        self.stdout.write(f'  Records with wrong shift_date: {wrong_count}')
+        self.stdout.write(f'  Records with wrong shift_date/shift: {wrong_count}')
         self.stdout.write(f'  Records fixed: {fixed_count}')
         self.stdout.write(f'  Errors: {len(errors)}')
 
