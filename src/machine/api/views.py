@@ -9,6 +9,12 @@ from machine.models import ConnectionStatus, Equipment
 from machine.api.serializers import ConnectionStatusListSerializer
 from machine.api.services import get_items_data, get_items_data_filtered
 
+from machine.api.report_services import (
+    get_productivity_report,
+    get_productivity_report_detailed,
+    get_productivity_comparison_report
+)
+
 
 @api_view(['GET'])
 # @permission_classes([IsAuthenticated])
@@ -180,4 +186,118 @@ def available_equipment_api(request):
         'status': 'success',
         'count': len(equipment_list),
         'data': equipment_list
+    })
+
+
+# For report endpoints, we will implement separate services that handle the complex logic and calculations.
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def productivity_report_api(request):
+    """
+    Get productivity report (report-friendly format)
+    
+    Layout: Equipment | Morning (Crane Hour, Moves, Productivity) | 
+                      | Night (Crane Hour, Moves, Productivity) | 
+                      | Total (Crane Hour, Moves, Productivity)
+    
+    Formula: Productivity = (Crane On Minute / 60) / Number of Move
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Date in format YYYY-MM-DD (default: last 7 days)
+    
+    Example:
+    - GET /api/productivity-report/
+      → Get ALL equipment for LAST 7 DAYS
+    
+    - GET /api/productivity-report/?equipment=RTG22
+      → Get RTG22 for LAST 7 DAYS
+    
+    - GET /api/productivity-report/?date=2026-05-07
+      → Get ALL equipment for 2026-05-07
+    
+    - GET /api/productivity-report/?equipment=RTG22&date=2026-05-07
+      → Get RTG22 on 2026-05-07
+    """
+    
+    # Get optional parameters
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    
+    # Call report service
+    result = get_productivity_report(equipment_name, target_date_str)
+    
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        'status': 'success',
+        'data': result['data']
+    })
+
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def productivity_report_detailed_api(request):
+    """
+    Get detailed productivity report with additional metrics
+    
+    Query Parameters (all optional):
+    - equipment: Equipment name (default: all equipment)
+    - date: Date in format YYYY-MM-DD (default: last 7 days)
+    """
+    
+    equipment_name = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    
+    result = get_productivity_report_detailed(equipment_name, target_date_str)
+    
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        'status': 'success',
+        'data': result['data']
+    })
+
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def productivity_comparison_api(request):
+    """
+    Get productivity comparison report
+    
+    Shows best/worst performing equipment and statistics
+    
+    Query Parameters (optional):
+    - equipment: Comma-separated equipment names (default: all)
+    - date: Date in format YYYY-MM-DD (default: last 7 days)
+    
+    Example:
+    - GET /api/productivity-comparison/
+      → Compare ALL equipment for LAST 7 DAYS
+    
+    - GET /api/productivity-comparison/?equipment=RTG22,RTG25
+      → Compare RTG22 and RTG25
+    
+    - GET /api/productivity-comparison/?date=2026-05-07
+      → Compare ALL equipment on 2026-05-07
+    """
+    
+    equipment_param = request.query_params.get('equipment')
+    target_date_str = request.query_params.get('date')
+    
+    # Parse equipment list
+    equipment_names = None
+    if equipment_param:
+        equipment_names = [e.strip() for e in equipment_param.split(',')]
+    
+    result = get_productivity_comparison_report(equipment_names, target_date_str)
+    
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        'status': 'success',
+        'data': result['data']
     })
