@@ -1052,11 +1052,17 @@ def get_items_data(equipment_name, target_date, shift='all', include_details=Fal
         }
     
     # Build query using shift_date
+    # query = ConnectionStatus.objects.filter(
+    #     equipment=equipment,
+    #     shift_date=target_date,
+    #     connection_status='success'
+    # ).order_by('recorded_at')
+    # Build query using shift_date
     query = ConnectionStatus.objects.filter(
         equipment=equipment,
         shift_date=target_date,
         connection_status='success'
-    ).order_by('recorded_at')
+    ).order_by('recorded_at', 'id')  # ✅ ADD 'id' as tiebreaker!
     
     if shift != 'all':
         query = query.filter(shift=shift)
@@ -1208,12 +1214,19 @@ def get_items_data_filtered(equipment_name=None, target_date=None, shift='all', 
         }
     
     # ========== 4. BUILD QUERY USING shift_date ==========
+    # query = ConnectionStatus.objects.filter(
+    #     equipment__in=equipment_list,
+    #     shift_date__gte=from_date,
+    #     shift_date__lte=to_date,
+    #     connection_status='success'
+    # ).order_by('equipment', 'recorded_at')
+    # ✅ FIXED: Add secondary sort by ID for stable ordering
     query = ConnectionStatus.objects.filter(
         equipment__in=equipment_list,
         shift_date__gte=from_date,
         shift_date__lte=to_date,
         connection_status='success'
-    ).order_by('equipment', 'recorded_at')
+    ).order_by('equipment', 'recorded_at', 'id')  # ✅ ADD 'id' as tiebreaker!
     
     if shift != 'all':
         query = query.filter(shift=shift)

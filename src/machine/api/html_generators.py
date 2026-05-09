@@ -243,6 +243,115 @@
 from datetime import datetime
 
 
+# def json_to_html_table(report_data):
+#     """
+#     Convert productivity report JSON to HTML table format
+    
+#     Args:
+#         report_data: Dict from get_productivity_report_daily response
+    
+#     Returns:
+#         HTML string of formatted table
+#     """
+    
+#     if not report_data.get('daily_reports') or len(report_data['daily_reports']) == 0:
+#         return '<p>No data available</p>'
+    
+#     html = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">\n'
+    
+#     # Header row
+#     html += '<thead>\n<tr style="background-color: #2c3e50; color: white;">\n'
+#     html += '  <th>Date</th>\n'
+#     html += '  <th>Equipment</th>\n'
+#     html += '  <th colspan="3">Morning (08:00-20:00)</th>\n'
+#     html += '  <th colspan="3">Night (20:00-08:00)</th>\n'
+#     html += '  <th colspan="3">Total</th>\n'
+#     html += '</tr>\n<tr style="background-color: #2c3e50; color: white;">\n'
+#     html += '  <th></th>\n'
+#     html += '  <th></th>\n'
+#     html += '  <th>Hour</th>\n'
+#     html += '  <th>Move</th>\n'
+#     html += '  <th>Prod</th>\n'
+#     html += '  <th>Hour</th>\n'
+#     html += '  <th>Move</th>\n'
+#     html += '  <th>Prod</th>\n'
+#     html += '  <th>Hour</th>\n'
+#     html += '  <th>Move</th>\n'
+#     html += '  <th>Prod</th>\n'
+#     html += '</tr>\n</thead>\n'
+    
+#     # Body rows
+#     html += '<tbody>\n'
+    
+#     for day_report in report_data['daily_reports']:
+#         date = day_report['date']
+#         equipment_list = day_report['equipment']
+        
+#         for eq_idx, equipment in enumerate(equipment_list):
+#             eq_name = equipment['equipment']
+            
+#             # Determine row styling
+#             if eq_idx == 0:
+#                 row_style = 'style="border-top: 2px solid #666;"'
+#             else:
+#                 row_style = ''
+            
+#             html += f'<tr {row_style}>\n'
+            
+#             # Date cell (only for first equipment)
+#             if eq_idx == 0:
+#                 html += f'  <td rowspan="{len(equipment_list)}" style="font-weight: bold; background-color: #f0f0f0;">{date}</td>\n'
+            
+#             # Equipment cell
+#             html += f'  <td style="font-weight: bold; background-color: #f9f9f9;">{eq_name}</td>\n'
+            
+#             # Morning shift
+#             morning = equipment.get('morning') or {}  # ✅ FIX: Handle None
+#             if morning:
+#                 morning_hour = morning.get('crane_on_minute', 0) / 60
+#                 morning_move = morning.get('number_of_move', '-')
+#                 morning_prod = round(morning.get('productivity', 0), 2) if morning.get('productivity') else '-'
+#                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_hour:.2f}</td>\n'
+#                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_move}</td>\n'
+#                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_prod}</td>\n'
+#             else:
+#                 html += '  <td style="background-color: #e3f2fd; text-align: center;">-</td>\n'
+#                 html += '  <td style="background-color: #e3f2fd; text-align: center;">-</td>\n'
+#                 html += '  <td style="background-color: #e3f2fd; text-align: center;">-</td>\n'
+            
+#             # Night shift
+#             night = equipment.get('night') or {}  # ✅ FIX: Handle None
+#             if night:
+#                 night_hour = night.get('crane_on_minute', 0) / 60
+#                 night_move = night.get('number_of_move', '-')
+#                 night_prod = round(night.get('productivity', 0), 2) if night.get('productivity') else '-'
+#                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_hour:.2f}</td>\n'
+#                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_move}</td>\n'
+#                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_prod}</td>\n'
+#             else:
+#                 html += '  <td style="background-color: #f5f5f5; text-align: center;">-</td>\n'
+#                 html += '  <td style="background-color: #f5f5f5; text-align: center;">-</td>\n'
+#                 html += '  <td style="background-color: #f5f5f5; text-align: center;">-</td>\n'
+            
+#             # Total
+#             total = equipment.get('total') or {}  # ✅ FIX: Handle None
+#             if total:
+#                 total_hour = total.get('crane_on_minute', 0) / 60
+#                 total_move = total.get('number_of_move', '-')
+#                 total_prod = round(total.get('productivity', 0), 2) if total.get('productivity') else '-'
+#                 html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_hour:.2f}</td>\n'
+#                 html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_move}</td>\n'
+#                 html += f'  <td style="background-color: #fff9e6; text-align: center; font-weight: bold;">{total_prod}</td>\n'
+#             else:
+#                 html += '  <td style="background-color: #fff9e6; text-align: center;">-</td>\n'
+#                 html += '  <td style="background-color: #fff9e6; text-align: center;">-</td>\n'
+#                 html += '  <td style="background-color: #fff9e6; text-align: center;">-</td>\n'
+            
+#             html += '</tr>\n'
+    
+#     html += '</tbody>\n</table>\n'
+    
+#     return html
 def json_to_html_table(report_data):
     """
     Convert productivity report JSON to HTML table format
@@ -307,7 +416,7 @@ def json_to_html_table(report_data):
             
             # Morning shift
             morning = equipment.get('morning') or {}  # ✅ FIX: Handle None
-            if morning:
+            if morning is not None:  # ✅ Check for None, not truthiness
                 morning_hour = morning.get('crane_on_minute', 0) / 60
                 morning_move = morning.get('number_of_move', '-')
                 morning_prod = round(morning.get('productivity', 0), 2) if morning.get('productivity') else '-'
@@ -315,13 +424,14 @@ def json_to_html_table(report_data):
                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_move}</td>\n'
                 html += f'  <td style="background-color: #e3f2fd; text-align: center;">{morning_prod}</td>\n'
             else:
+                # ✅ EXPLICITLY OUTPUT BLANK CELLS
                 html += '  <td style="background-color: #e3f2fd; text-align: center;">-</td>\n'
                 html += '  <td style="background-color: #e3f2fd; text-align: center;">-</td>\n'
                 html += '  <td style="background-color: #e3f2fd; text-align: center;">-</td>\n'
             
             # Night shift
             night = equipment.get('night') or {}  # ✅ FIX: Handle None
-            if night:
+            if night is not None:  # ✅ Check for None, not truthiness
                 night_hour = night.get('crane_on_minute', 0) / 60
                 night_move = night.get('number_of_move', '-')
                 night_prod = round(night.get('productivity', 0), 2) if night.get('productivity') else '-'
@@ -329,13 +439,14 @@ def json_to_html_table(report_data):
                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_move}</td>\n'
                 html += f'  <td style="background-color: #f5f5f5; text-align: center;">{night_prod}</td>\n'
             else:
+                # ✅ EXPLICITLY OUTPUT BLANK CELLS
                 html += '  <td style="background-color: #f5f5f5; text-align: center;">-</td>\n'
                 html += '  <td style="background-color: #f5f5f5; text-align: center;">-</td>\n'
                 html += '  <td style="background-color: #f5f5f5; text-align: center;">-</td>\n'
             
             # Total
             total = equipment.get('total') or {}  # ✅ FIX: Handle None
-            if total:
+            if total is not None:  # ✅ Check for None, not truthiness
                 total_hour = total.get('crane_on_minute', 0) / 60
                 total_move = total.get('number_of_move', '-')
                 total_prod = round(total.get('productivity', 0), 2) if total.get('productivity') else '-'
