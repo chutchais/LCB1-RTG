@@ -653,3 +653,590 @@ def productivity_report_daily_excel(request):
         return response
     except Exception as e:
         return HttpResponse(f'Error generating Excel: {str(e)}', content_type='text/plain', status=500)
+
+
+# =========== DIAGNOSTIC ENDPOINTS ============
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from machine.api.report_services import get_productivity_report
+from machine.api.services import get_items_data_filtered
+import logging
+
+logger = logging.getLogger(__name__)
+
+@require_http_methods(["GET"])
+def productivity_diagnostic(request):
+    """
+    Diagnostic page to investigate productivity calculations
+    
+    Shows:
+    1. Productivity report (summary with hour, move, productivity)
+    2. Raw items-data-smart (detailed segments and all_values)
+    3. Side-by-side comparison to identify calculation errors
+    4. ✅ Connection status timeline (24 hours by shift)
+    
+    Usage:
+    ?date=2026-05-09&equipment=RTG21
+    """
+    
+    from machine.models import ConnectionStatus
+    import pytz
+    from datetime import datetime, timedelta
+    
+    # Get parameters
+    date_str = request.GET.get('date')
+    equipment_name = request.GET.get('equipment')
+    
+    if not date_str or not equipment_name:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'Missing parameters: date and equipment required',
+            'example': '/machine/api/productivity-diagnostic/?date=2026-05-09&equipment=RTG21'
+        }, status=400)
+    
+    logger.info(f"🔍 Diagnostic request: date={date_str}, equipment={equipment_name}")
+    
+    try:
+        # Get productivity report (summary)
+        report_result = get_productivity_report(
+            equipment_name=equipment_name,
+            target_date=date_str,
+            shift='all'
+        )
+        
+        logger.info(f"📊 Report result: {report_result['status']}")
+        if report_result['status'] == 'error':
+            return JsonResponse(report_result, status=400)
+        
+        # Get raw items data (with details)
+        items_result = get_items_data_filtered(
+            equipment_name=equipment_name,
+            target_date=date_str,
+            shift='all',
+            include_details=True
+        )
+        
+        logger.info(f"📊 Items result: {items_result['status']}")
+        if items_result['status'] == 'error':
+            return JsonResponse(items_result, status=400)
+        
+        # Build diagnostic response
+        diagnostic_data = {
+            'status': 'success',
+            'parameters': {
+                'date': date_str,
+                'equipment': equipment_name,
+            },
+            'summary': {
+                'morning': None,
+                'night': None,
+                'total': None,
+            },
+            'raw_data': {},
+            'comparison': {},
+            'timeline': {}  # ✅ NEW: Timeline data
+        }
+        
+        # ✅ EXTRACT SUMMARY DATA FROM REPORT
+        logger.info(f"📋 Extracting summary from report...")
+        if report_result['data'].get('daily_reports'):
+            for day_report in report_result['data']['daily_reports']:
+                logger.info(f"📅 Checking day: {day_report.get('date')}")
+                for eq_stat in day_report.get('equipment', []):
+                    if eq_stat.get('equipment') == equipment_name:
+                        logger.info(f"✅ Found equipment: {equipment_name}")
+                        
+                        diagnostic_data['summary'] = {
+                            'equipment': equipment_name,
+                            'morning': eq_stat.get('morning'),
+                            'night': eq_stat.get('night'),
+                            'total': eq_stat.get('total'),
+                        }
+        
+        # ✅ EXTRACT RAW DATA FROM ITEMS
+        logger.info(f"📋 Extracting raw data from items...")
+        if items_result['data'].get('equipment_stats'):
+            for eq_stat in items_result['data']['equipment_stats']:
+                if eq_stat.get('equipment') == equipment_name:
+                    shift_key = eq_stat['shift']
+                    logger.info(f"✅ Found shift: {shift_key}")
+                    
+                    diagnostic_data['raw_data'][shift_key] = {
+                        'equipment': eq_stat['equipment'],
+                        'shift': eq_stat['shift'],
+                        'shift_label': eq_stat.get('shift_label', ''),
+                        'first_record_time': eq_stat.get('first_record_time', ''),
+                        'last_record_time': eq_stat.get('last_record_time', ''),
+                        'record_count': eq_stat.get('record_count', 0),
+                        'duration_minutes': eq_stat.get('duration_minutes', 0),
+                        'items': {}
+                    }
+                    
+                    for item in eq_stat.get('items', []):
+                        item_name = item.get('name', 'Unknown')
+                        
+                        diagnostic_data['raw_data'][shift_key]['items'][item_name] = {
+                            'first_value': item.get('first_value'),
+                            'last_value': item.get('last_value'),
+                            'difference': float(item.get('difference', 0) or 0),
+                            'reset_detected': item.get('reset_detected', False),
+                            'reset_count': item.get('reset_count', 0),
+                            'count': item.get('count', 0),
+                            'segments': item.get('segments', []),
+                            'all_values': item.get('all_values', [])
+                        }
+        
+        # ✅ BUILD COMPARISON/VERIFICATION
+        logger.info(f"📋 Building comparisons...")
+        for shift_key in ['morning', 'night']:
+            summary_shift = diagnostic_data['summary'].get(shift_key)
+            raw_shift = diagnostic_data['raw_data'].get(shift_key)
+            
+            if summary_shift and raw_shift:
+                logger.info(f"✅ Creating comparison for {shift_key}")
+                verification = _verify_calculation(summary_shift, raw_shift)
+                
+                diagnostic_data['comparison'][shift_key] = {
+                    'summary': summary_shift,
+                    'raw': raw_shift,
+                    'verification': verification
+                }
+        
+        # ✅ BUILD TIMELINE (24 hours by shift)
+        logger.info(f"📋 Building timeline...")
+        diagnostic_data['timeline'] = _build_connection_timeline(equipment_name, date_str)
+        logger.info(f"   Timeline: {len(diagnostic_data['timeline']['hours'])} hour records")
+        
+        logger.info(f"✅ Diagnostic complete")
+        return JsonResponse(diagnostic_data, safe=False)
+    
+    except Exception as e:
+        logger.error(f"Error in diagnostic: {e}", exc_info=True)
+        return JsonResponse({
+            'status': 'error',
+            'error': f'Diagnostic error: {str(e)}'
+        }, status=500)
+
+
+def _build_connection_timeline(equipment_name, date_str):
+    """
+    Build 24-hour timeline of connection status records
+    
+    Shows:
+    - Morning shift: 08:00 - 19:59 (12 hours)
+    - Night shift: 20:00 - 07:59 (12 hours)
+    
+    Each hour is represented by all records in that hour
+    Status: success=green, failed=red, timeout=orange, partial=yellow
+    """
+    from machine.models import ConnectionStatus, Equipment
+    from datetime import datetime, timedelta
+    import pytz
+    
+    try:
+        equipment = Equipment.objects.get(name=equipment_name)
+    except Equipment.DoesNotExist:
+        return {'status': 'error', 'message': f'Equipment not found: {equipment_name}'}
+    
+    # Parse date
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return {'status': 'error', 'message': f'Invalid date format: {date_str}'}
+    
+    tz = pytz.timezone('Asia/Bangkok')
+    
+    # Get all records for this equipment on this date
+    # Include records from both shifts (morning: target_date, night: previous day's night shift)
+    records = ConnectionStatus.objects.filter(
+        equipment=equipment,
+        shift_date__in=[target_date, target_date - timedelta(days=1)]
+    ).order_by('recorded_at')
+    
+    timeline_data = {
+        'date': date_str,
+        'equipment': equipment_name,
+        'hours': [],
+        'summary': {
+            'total_records': 0,
+            'success_count': 0,
+            'failed_count': 0,
+            'timeout_count': 0,
+            'partial_count': 0,
+        }
+    }
+    
+    # Build 24 hour timeline
+    # Morning: 08:00 - 20:00 (start at 8am)
+    # Night: 20:00 - 08:00 (8pm to 8am next day)
+    
+    hours_data = {}
+    
+    # Initialize 24 hours (0-23 in Bangkok time)
+    for hour in range(24):
+        hours_data[hour] = {
+            'hour': hour,
+            'hour_display': f'{hour:02d}:00',
+            'shift': 'morning' if 8 <= hour < 20 else 'night',
+            'records': [],
+            'status': 'no_data',  # no_data, success, failed, mixed
+            'status_color': '#cccccc',
+            'success_count': 0,
+            'failed_count': 0,
+            'timeout_count': 0,
+            'partial_count': 0,
+        }
+    
+    # Group records by hour
+    for record in records:
+        record_time = record.recorded_at.astimezone(tz)
+        
+        # Only include if it's from target_date or night shift from previous day
+        record_date = record_time.date()
+        record_hour = record_time.hour
+        
+        # Check if this record belongs to our timeline
+        is_in_timeline = False
+        if record_date == target_date and 8 <= record_hour < 20:
+            # Morning shift on target_date
+            is_in_timeline = True
+        elif record_date == target_date and 20 <= record_hour < 24:
+            # Night shift on target_date (20:00 onwards)
+            is_in_timeline = True
+        elif record_date == target_date - timedelta(days=1) and 0 <= record_hour < 8:
+            # Night shift from previous day (00:00 to 08:00 on target_date)
+            is_in_timeline = True
+        
+        if not is_in_timeline:
+            continue
+        
+        timeline_data['summary']['total_records'] += 1
+        
+        status = record.connection_status
+        if status == 'success':
+            timeline_data['summary']['success_count'] += 1
+        elif status == 'failed':
+            timeline_data['summary']['failed_count'] += 1
+        elif status == 'timeout':
+            timeline_data['summary']['timeout_count'] += 1
+        elif status == 'partial':
+            timeline_data['summary']['partial_count'] += 1
+        
+        hour_key = record_hour
+        
+        hours_data[hour_key]['records'].append({
+            'time': record_time.strftime('%H:%M:%S'),
+            'status': status,
+            'error_message': record.error_message or '',
+        })
+        
+        # Update hour counts
+        if status == 'success':
+            hours_data[hour_key]['success_count'] += 1
+        elif status == 'failed':
+            hours_data[hour_key]['failed_count'] += 1
+        elif status == 'timeout':
+            hours_data[hour_key]['timeout_count'] += 1
+        elif status == 'partial':
+            hours_data[hour_key]['partial_count'] += 1
+    
+    # Determine status for each hour
+    for hour_key in sorted(hours_data.keys()):
+        hour_data = hours_data[hour_key]
+        
+        if len(hour_data['records']) == 0:
+            hour_data['status'] = 'no_data'
+            hour_data['status_color'] = '#cccccc'  # Gray
+        elif hour_data['success_count'] > 0 and hour_data['failed_count'] == 0 and hour_data['timeout_count'] == 0:
+            hour_data['status'] = 'success'
+            hour_data['status_color'] = '#4CAF50'  # Green
+        elif hour_data['failed_count'] > 0:
+            hour_data['status'] = 'failed'
+            hour_data['status_color'] = '#f44336'  # Red
+        elif hour_data['timeout_count'] > 0:
+            hour_data['status'] = 'timeout'
+            hour_data['status_color'] = '#ff9800'  # Orange
+        elif hour_data['partial_count'] > 0:
+            hour_data['status'] = 'partial'
+            hour_data['status_color'] = '#ffeb3b'  # Yellow
+        else:
+            hour_data['status'] = 'mixed'
+            hour_data['status_color'] = '#9e9e9e'  # Gray
+        
+        timeline_data['hours'].append(hour_data)
+    
+    logger.info(f"Timeline complete: {timeline_data['summary']['total_records']} records, "
+                f"Success: {timeline_data['summary']['success_count']}, "
+                f"Failed: {timeline_data['summary']['failed_count']}")
+    
+    return timeline_data
+# @require_http_methods(["GET"])
+# def productivity_diagnostic(request):
+#     """
+#     Diagnostic page to investigate productivity calculations
+    
+#     Shows:
+#     1. Productivity report (summary with hour, move, productivity)
+#     2. Raw items-data-smart (detailed segments and all_values)
+#     3. Side-by-side comparison to identify calculation errors
+    
+#     Usage:
+#     ?date=2026-05-09&equipment=RTG21
+#     """
+    
+#     # Get parameters
+#     date_str = request.GET.get('date')
+#     equipment_name = request.GET.get('equipment')
+    
+#     if not date_str or not equipment_name:
+#         return JsonResponse({
+#             'status': 'error',
+#             'error': 'Missing parameters: date and equipment required',
+#             'example': '/machine/api/productivity-diagnostic/?date=2026-05-09&equipment=RTG21'
+#         }, status=400)
+    
+#     logger.info(f"🔍 Diagnostic request: date={date_str}, equipment={equipment_name}")
+    
+#     try:
+#         # Get productivity report (summary)
+#         report_result = get_productivity_report(
+#             equipment_name=equipment_name,
+#             target_date=date_str,
+#             shift='all'
+#         )
+        
+#         logger.info(f"📊 Report result: {report_result['status']}")
+#         if report_result['status'] == 'error':
+#             return JsonResponse(report_result, status=400)
+        
+#         # Get raw items data (with details)
+#         items_result = get_items_data_filtered(
+#             equipment_name=equipment_name,
+#             target_date=date_str,
+#             shift='all',
+#             include_details=True  # ✅ Include detailed segments
+#         )
+        
+#         logger.info(f"📊 Items result: {items_result['status']}")
+#         if items_result['status'] == 'error':
+#             return JsonResponse(items_result, status=400)
+        
+#         # Build diagnostic response
+#         diagnostic_data = {
+#             'status': 'success',
+#             'parameters': {
+#                 'date': date_str,
+#                 'equipment': equipment_name,
+#             },
+#             'summary': {
+#                 'morning': None,
+#                 'night': None,
+#                 'total': None,
+#             },
+#             'raw_data': {},
+#             'comparison': {}
+#         }
+        
+#         # ✅ EXTRACT SUMMARY DATA FROM REPORT
+#         logger.info(f"📋 Extracting summary from report...")
+#         if report_result['data'].get('daily_reports'):
+#             for day_report in report_result['data']['daily_reports']:
+#                 logger.info(f"📅 Checking day: {day_report.get('date')}")
+#                 for eq_stat in day_report.get('equipment', []):
+#                     if eq_stat.get('equipment') == equipment_name:
+#                         logger.info(f"✅ Found equipment: {equipment_name}")
+                        
+#                         diagnostic_data['summary'] = {
+#                             'equipment': equipment_name,
+#                             'morning': eq_stat.get('morning'),
+#                             'night': eq_stat.get('night'),
+#                             'total': eq_stat.get('total'),
+#                         }
+                        
+#                         logger.info(f"   Morning: {eq_stat.get('morning')}")
+#                         logger.info(f"   Night: {eq_stat.get('night')}")
+#                         logger.info(f"   Total: {eq_stat.get('total')}")
+        
+#         # ✅ EXTRACT RAW DATA FROM ITEMS
+#         logger.info(f"📋 Extracting raw data from items...")
+#         if items_result['data'].get('equipment_stats'):
+#             for eq_stat in items_result['data']['equipment_stats']:
+#                 if eq_stat.get('equipment') == equipment_name:
+#                     shift_key = eq_stat['shift']
+#                     logger.info(f"✅ Found shift: {shift_key}")
+                    
+#                     diagnostic_data['raw_data'][shift_key] = {
+#                         'equipment': eq_stat['equipment'],
+#                         'shift': eq_stat['shift'],
+#                         'shift_label': eq_stat.get('shift_label', ''),
+#                         'first_record_time': eq_stat.get('first_record_time', ''),
+#                         'last_record_time': eq_stat.get('last_record_time', ''),
+#                         'record_count': eq_stat.get('record_count', 0),
+#                         'duration_minutes': eq_stat.get('duration_minutes', 0),
+#                         'items': {}
+#                     }
+                    
+#                     for item in eq_stat.get('items', []):
+#                         item_name = item.get('name', 'Unknown')
+#                         logger.info(f"   Item: {item_name}, Diff: {item.get('difference')}")
+                        
+#                         diagnostic_data['raw_data'][shift_key]['items'][item_name] = {
+#                             'first_value': item.get('first_value'),
+#                             'last_value': item.get('last_value'),
+#                             'difference': float(item.get('difference', 0) or 0),
+#                             'reset_detected': item.get('reset_detected', False),
+#                             'reset_count': item.get('reset_count', 0),
+#                             'count': item.get('count', 0),
+#                             'segments': item.get('segments', []),
+#                             'all_values': item.get('all_values', [])
+#                         }
+        
+#         # ✅ BUILD COMPARISON/VERIFICATION
+#         logger.info(f"📋 Building comparisons...")
+#         for shift_key in ['morning', 'night']:
+#             summary_shift = diagnostic_data['summary'].get(shift_key)
+#             raw_shift = diagnostic_data['raw_data'].get(shift_key)
+            
+#             if summary_shift and raw_shift:
+#                 logger.info(f"✅ Creating comparison for {shift_key}")
+#                 verification = _verify_calculation(summary_shift, raw_shift)
+                
+#                 diagnostic_data['comparison'][shift_key] = {
+#                     'summary': summary_shift,
+#                     'raw': raw_shift,
+#                     'verification': verification
+#                 }
+#                 logger.info(f"   Verification status: {verification.get('status')}")
+#             else:
+#                 logger.info(f"⏭️  Skipping {shift_key} - missing summary={bool(summary_shift)} or raw={bool(raw_shift)}")
+        
+#         logger.info(f"✅ Diagnostic complete. Comparisons: {list(diagnostic_data['comparison'].keys())}")
+#         return JsonResponse(diagnostic_data, safe=False)
+    
+#     except Exception as e:
+#         logger.error(f"Error in diagnostic: {e}", exc_info=True)
+#         return JsonResponse({
+#             'status': 'error',
+#             'error': f'Diagnostic error: {str(e)}'
+#         }, status=500)
+
+
+def _verify_calculation(summary, raw_data):
+    """
+    Verify if summary calculations match raw data
+    
+    Returns verification status and any discrepancies
+    """
+    if not summary or not raw_data:
+        return {
+            'status': 'incomplete',
+            'message': 'Missing summary or raw data',
+            'checks': [],
+            'discrepancies': []
+        }
+    
+    verification = {
+        'status': 'ok',
+        'checks': [],
+        'discrepancies': []
+    }
+    
+    try:
+        # Check Crane On Minute
+        if 'Crane On Minute' in raw_data['items']:
+            crane_item = raw_data['items']['Crane On Minute']
+            crane_diff = crane_item.get('difference', 0)
+            summary_crane = summary.get('crane_on_minute', 0)
+            
+            check = {
+                'field': 'Crane On Minute',
+                'raw_difference': float(crane_diff) if crane_diff is not None else 0,
+                'summary_value': float(summary_crane) if summary_crane is not None else 0,
+                'match': abs(float(crane_diff or 0) - float(summary_crane or 0)) < 0.01
+            }
+            verification['checks'].append(check)
+            
+            if not check['match']:
+                verification['discrepancies'].append({
+                    'field': 'Crane On Minute',
+                    'issue': f"Raw difference ({crane_diff}) ≠ Summary ({summary_crane})",
+                    'possible_causes': [
+                        'Reset detection error',
+                        'Data ordering issue',
+                        'Calculation rounding error'
+                    ]
+                })
+        
+        # Check Number of Move
+        if 'Number of Move' in raw_data['items']:
+            move_item = raw_data['items']['Number of Move']
+            move_diff = move_item.get('difference', 0)
+            summary_move = summary.get('number_of_move', 0)
+            
+            check = {
+                'field': 'Number of Move',
+                'raw_difference': float(move_diff) if move_diff is not None else 0,
+                'summary_value': float(summary_move) if summary_move is not None else 0,
+                'match': abs(float(move_diff or 0) - float(summary_move or 0)) < 0.01
+            }
+            verification['checks'].append(check)
+            
+            if not check['match']:
+                verification['discrepancies'].append({
+                    'field': 'Number of Move',
+                    'issue': f"Raw difference ({move_diff}) ≠ Summary ({summary_move})",
+                    'possible_causes': [
+                        'Reset detection error',
+                        'Data ordering issue',
+                        'Calculation rounding error'
+                    ]
+                })
+        
+        # Check Productivity calculation
+        if 'Crane On Minute' in raw_data['items'] and 'Number of Move' in raw_data['items']:
+            crane_diff = float(raw_data['items']['Crane On Minute'].get('difference', 0) or 0)
+            move_diff = float(raw_data['items']['Number of Move'].get('difference', 0) or 0)
+            
+            if crane_diff > 0:
+                calculated_productivity = move_diff / (crane_diff / 60)
+                summary_productivity = float(summary.get('productivity', 0) or 0)
+                
+                check = {
+                    'field': 'Productivity',
+                    'calculation': f"{move_diff} / ({crane_diff} / 60) = {round(calculated_productivity, 2)}",
+                    'calculated_value': round(calculated_productivity, 2),
+                    'summary_value': round(summary_productivity, 2),
+                    'match': abs(calculated_productivity - summary_productivity) < 0.01
+                }
+                verification['checks'].append(check)
+                
+                if not check['match']:
+                    verification['discrepancies'].append({
+                        'field': 'Productivity',
+                        'issue': f"Calculated ({round(calculated_productivity, 2)}) ≠ Summary ({round(summary_productivity, 2)})",
+                        'possible_causes': [
+                            'Rounding error in hour calculation',
+                            'Wrong hour/move values used',
+                            'Precision loss in division'
+                        ]
+                    })
+        
+        # Set overall status
+        if verification['discrepancies']:
+            verification['status'] = 'error'
+        
+        return verification
+    
+    except Exception as e:
+        logger.error(f"Error in verification: {e}", exc_info=True)
+        return {
+            'status': 'error',
+            'message': f'Verification error: {str(e)}',
+            'checks': [],
+            'discrepancies': []
+        }
+
+from django.shortcuts import render
+def productivity_diagnostic_html(request):
+    """Render diagnostic page"""
+    return render(request, 'machine/productivity_diagnostic.html')

@@ -23,6 +23,10 @@ urlpatterns = [
     path('productivity-report-daily-text/', views.productivity_report_daily_text, name='productivity_report_daily_text'),
     path('productivity-report-daily-csv/', views.productivity_report_daily_csv_api, name='productivity_report_daily_csv'),
     path('productivity-report-daily-excel/', views.productivity_report_daily_excel, name='productivity_report_daily_excel'),  # ✅ ADD THIS
+
+    # Diagnostic endpoints
+    path('productivity-diagnostic/', views.productivity_diagnostic, name='productivity-diagnostic'),  # JSON API
+    path('productivity-diagnostic-html/', views.productivity_diagnostic_html, name='productivity-diagnostic-html'),  # HTML page
     # Equipment endpoints
     path('equipment/', views.available_equipment_api, name='available_equipment'),
 ]
