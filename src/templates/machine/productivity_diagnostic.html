@@ -585,6 +585,143 @@
                 function renderDiagnostic(data) {
             let html = '';
 
+                               // Summary vs Raw Comparison
+            html += '<div class="section"><h2>📈 Summary vs Raw Data Comparison</h2>';
+            
+            for (const shift of ['morning', 'night']) {
+                if (!data.comparison[shift]) continue;
+
+                const comp = data.comparison[shift];
+                const verification = comp.verification;
+
+                html += `<div class="shift-box ${shift}">`;
+                html += `<div class="shift-title">${shift.toUpperCase()} SHIFT</div>`;
+
+                if (verification.status === 'ok') {
+                    html += '<div class="ok">✅ All calculations match</div>';
+                } else {
+                    html += '<div class="warning">⚠️ Discrepancies found!</div>';
+                }
+
+                // Verification checks
+                html += '<table>';
+                html += '<tr><th>Field</th><th>Raw Value</th><th>Summary Value</th><th>Match</th></tr>';
+
+                for (const check of verification.checks) {
+                    const match = check.match ? 'match' : 'mismatch';
+                    const rawVal = check.raw_difference !== undefined ? check.raw_difference : check.calculated_value;
+                    const summaryVal = check.summary_value;
+                    
+                    html += `<tr>`;
+                    html += `<td>${check.field}</td>`;
+                    html += `<td class="value">${typeof rawVal === 'number' ? rawVal.toFixed(2) : rawVal}</td>`;
+                    html += `<td class="value">${typeof summaryVal === 'number' ? summaryVal.toFixed(2) : summaryVal}</td>`;
+                    html += `<td class="${match}">${check.match ? '✅' : '❌'}</td>`;
+                    html += `</tr>`;
+                }
+
+                html += '</table>';
+
+                // Discrepancies
+                if (verification.discrepancies.length > 0) {
+                    html += '<div style="margin-top: 15px;">';
+                    for (const disc of verification.discrepancies) {
+                        html += `<div class="warning">`;
+                        html += `<strong>${disc.field}</strong><br>`;
+                        html += `Issue: ${disc.issue}<br>`;
+                        html += `Possible causes:<ul>`;
+                        for (const cause of disc.possible_causes) {
+                            html += `<li>${cause}</li>`;
+                        }
+                        html += `</ul></div>`;
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+
+            // Raw Data Details
+            html += '<div class="section"><h2>📋 Raw Items Data Details</h2>';
+
+            for (const shift of ['morning', 'night']) {
+                if (!data.raw_data[shift]) continue;
+
+                const rawShift = data.raw_data[shift];
+                html += `<div class="shift-box ${shift}">`;
+                html += `<div class="shift-title">${shift.toUpperCase()} - ${rawShift.shift_label}</div>`;
+                
+                html += '<div class="data-row">';
+                html += `<div class="data-label">First Record:</div>`;
+                html += `<div class="data-value">${rawShift.first_record_time}</div>`;
+                html += '</div>';
+                
+                html += '<div class="data-row">';
+                html += `<div class="data-label">Last Record:</div>`;
+                html += `<div class="data-value">${rawShift.last_record_time}</div>`;
+                html += '</div>';
+                
+                html += '<div class="data-row">';
+                html += `<div class="data-label">Record Count:</div>`;
+                html += `<div class="data-value">${rawShift.record_count}</div>`;
+                html += '</div>';
+                
+                html += '<div class="data-row">';
+                html += `<div class="data-label">Duration:</div>`;
+                html += `<div class="data-value">${rawShift.duration_minutes} minutes</div>`;
+                html += '</div>';
+
+                // Items breakdown
+                for (const [itemName, itemData] of Object.entries(rawShift.items)) {
+                    html += `<div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">`;
+                    html += `<strong>${itemName}</strong><br>`;
+                    html += `<table style="font-size: 12px;">`;
+                    html += `<tr><td>First Value:</td><td class="value">${itemData.first_value}</td></tr>`;
+                    html += `<tr><td>Last Value:</td><td class="value">${itemData.last_value}</td></tr>`;
+                    html += `<tr><td>Difference:</td><td class="value">${itemData.difference.toFixed(2)}</td></tr>`;
+                    html += `<tr><td>Reset Detected:</td><td>${itemData.reset_detected ? '⚠️ YES' : '✅ NO'}</td></tr>`;
+                    if (itemData.reset_detected) {
+                        html += `<tr><td>Reset Count:</td><td class="value">${itemData.reset_count}</td></tr>`;
+                    }
+                    html += `<tr><td>Data Points:</td><td class="value">${itemData.count}</td></tr>`;
+                    html += `</table>`;
+
+                    // Segments
+                    if (itemData.segments.length > 0) {
+                        html += `<div style="margin-top: 10px;"><strong>Segments:</strong>`;
+                        html += '<div class="segments-box">';
+                        for (const segment of itemData.segments) {
+                            const segClass = segment.type === 'reset' ? 'segment reset' : 'segment';
+                            html += `<div class="${segClass}">`;
+                            html += `<strong>${segment.type.toUpperCase()}</strong> (${segment.calculation})<br>`;
+                            html += `</div>`;
+                        }
+                        html += '</div></div>';
+                    }
+
+                    // All values preview
+                    if (itemData.all_values.length > 0) {
+                        html += `<div style="margin-top: 10px;"><strong>Data Points (${itemData.all_values.length}):</strong>`;
+                        html += '<div class="segments-box">';
+                        const preview = itemData.all_values.slice(0, 20);
+                        html += preview.map(v => `<code>${v}</code>`).join(', ');
+                        if (itemData.all_values.length > 20) {
+                            html += ` ... +${itemData.all_values.length - 20} more`;
+                        }
+                        html += '</div></div>';
+                    }
+
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+            document.getElementById('content').innerHTML = html;
+
             // ✅ CONNECTION STATUS TIMELINE
             if (data.timeline && data.timeline.hours) {
                 html += '<div class="section"><h2>⏱️ Connection Status Timeline (24 Hours)</h2>';
