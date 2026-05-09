@@ -161,146 +161,429 @@
             }
         }
 
-        function renderDiagnostic(data) {
-            let html = '';
+        // function renderDiagnostic(data) {
+        //     let html = '';
 
-                   // Summary vs Raw Comparison
-            html += '<div class="section"><h2>📈 Summary vs Raw Data Comparison</h2>';
+        //            // Summary vs Raw Comparison
+        //     html += '<div class="section"><h2>📈 Summary vs Raw Data Comparison</h2>';
             
-            for (const shift of ['morning', 'night']) {
-                if (!data.comparison[shift]) continue;
+        //     for (const shift of ['morning', 'night']) {
+        //         if (!data.comparison[shift]) continue;
 
-                const comp = data.comparison[shift];
-                const verification = comp.verification;
+        //         const comp = data.comparison[shift];
+        //         const verification = comp.verification;
 
-                html += `<div class="shift-box ${shift}">`;
-                html += `<div class="shift-title">${shift.toUpperCase()} SHIFT</div>`;
+        //         html += `<div class="shift-box ${shift}">`;
+        //         html += `<div class="shift-title">${shift.toUpperCase()} SHIFT</div>`;
 
-                if (verification.status === 'ok') {
-                    html += '<div class="ok">✅ All calculations match</div>';
-                } else {
-                    html += '<div class="warning">⚠️ Discrepancies found!</div>';
-                }
+        //         if (verification.status === 'ok') {
+        //             html += '<div class="ok">✅ All calculations match</div>';
+        //         } else {
+        //             html += '<div class="warning">⚠️ Discrepancies found!</div>';
+        //         }
 
-                // Verification checks
-                html += '<table>';
-                html += '<tr><th>Field</th><th>Raw Value</th><th>Summary Value</th><th>Match</th></tr>';
+        //         // Verification checks
+        //         html += '<table>';
+        //         html += '<tr><th>Field</th><th>Raw Value</th><th>Summary Value</th><th>Match</th></tr>';
 
-                for (const check of verification.checks) {
-                    const match = check.match ? 'match' : 'mismatch';
-                    const rawVal = check.raw_difference !== undefined ? check.raw_difference : check.calculated_value;
-                    const summaryVal = check.summary_value;
+        //         for (const check of verification.checks) {
+        //             const match = check.match ? 'match' : 'mismatch';
+        //             const rawVal = check.raw_difference !== undefined ? check.raw_difference : check.calculated_value;
+        //             const summaryVal = check.summary_value;
                     
-                    html += `<tr>`;
-                    html += `<td>${check.field}</td>`;
-                    html += `<td class="value">${typeof rawVal === 'number' ? rawVal.toFixed(2) : rawVal}</td>`;
-                    html += `<td class="value">${typeof summaryVal === 'number' ? summaryVal.toFixed(2) : summaryVal}</td>`;
-                    html += `<td class="${match}">${check.match ? '✅' : '❌'}</td>`;
-                    html += `</tr>`;
-                }
+        //             html += `<tr>`;
+        //             html += `<td>${check.field}</td>`;
+        //             html += `<td class="value">${typeof rawVal === 'number' ? rawVal.toFixed(2) : rawVal}</td>`;
+        //             html += `<td class="value">${typeof summaryVal === 'number' ? summaryVal.toFixed(2) : summaryVal}</td>`;
+        //             html += `<td class="${match}">${check.match ? '✅' : '❌'}</td>`;
+        //             html += `</tr>`;
+        //         }
 
-                html += '</table>';
+        //         html += '</table>';
 
-                // Discrepancies
-                if (verification.discrepancies.length > 0) {
-                    html += '<div style="margin-top: 15px;">';
-                    for (const disc of verification.discrepancies) {
-                        html += `<div class="warning">`;
-                        html += `<strong>${disc.field}</strong><br>`;
-                        html += `Issue: ${disc.issue}<br>`;
-                        html += `Possible causes:<ul>`;
-                        for (const cause of disc.possible_causes) {
-                            html += `<li>${cause}</li>`;
-                        }
-                        html += `</ul></div>`;
-                    }
-                    html += '</div>';
-                }
+        //         // Discrepancies
+        //         if (verification.discrepancies.length > 0) {
+        //             html += '<div style="margin-top: 15px;">';
+        //             for (const disc of verification.discrepancies) {
+        //                 html += `<div class="warning">`;
+        //                 html += `<strong>${disc.field}</strong><br>`;
+        //                 html += `Issue: ${disc.issue}<br>`;
+        //                 html += `Possible causes:<ul>`;
+        //                 for (const cause of disc.possible_causes) {
+        //                     html += `<li>${cause}</li>`;
+        //                 }
+        //                 html += `</ul></div>`;
+        //             }
+        //             html += '</div>';
+        //         }
 
-                html += '</div>';
-            }
+        //         html += '</div>';
+        //     }
 
-            html += '</div>';
+        //     html += '</div>';
 
-            // Raw Data Details
-            html += '<div class="section"><h2>📋 Raw Items Data Details</h2>';
+        //     // Raw Data Details
+        //     html += '<div class="section"><h2>📋 Raw Items Data Details</h2>';
 
-            for (const shift of ['morning', 'night']) {
-                if (!data.raw_data[shift]) continue;
+        //     for (const shift of ['morning', 'night']) {
+        //         if (!data.raw_data[shift]) continue;
 
-                const rawShift = data.raw_data[shift];
-                html += `<div class="shift-box ${shift}">`;
-                html += `<div class="shift-title">${shift.toUpperCase()} - ${rawShift.shift_label}</div>`;
+        //         const rawShift = data.raw_data[shift];
+        //         html += `<div class="shift-box ${shift}">`;
+        //         html += `<div class="shift-title">${shift.toUpperCase()} - ${rawShift.shift_label}</div>`;
                 
-                html += '<div class="data-row">';
-                html += `<div class="data-label">First Record:</div>`;
-                html += `<div class="data-value">${rawShift.first_record_time}</div>`;
-                html += '</div>';
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">First Record:</div>`;
+        //         html += `<div class="data-value">${rawShift.first_record_time}</div>`;
+        //         html += '</div>';
                 
-                html += '<div class="data-row">';
-                html += `<div class="data-label">Last Record:</div>`;
-                html += `<div class="data-value">${rawShift.last_record_time}</div>`;
-                html += '</div>';
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">Last Record:</div>`;
+        //         html += `<div class="data-value">${rawShift.last_record_time}</div>`;
+        //         html += '</div>';
                 
-                html += '<div class="data-row">';
-                html += `<div class="data-label">Record Count:</div>`;
-                html += `<div class="data-value">${rawShift.record_count}</div>`;
-                html += '</div>';
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">Record Count:</div>`;
+        //         html += `<div class="data-value">${rawShift.record_count}</div>`;
+        //         html += '</div>';
                 
-                html += '<div class="data-row">';
-                html += `<div class="data-label">Duration:</div>`;
-                html += `<div class="data-value">${rawShift.duration_minutes} minutes</div>`;
-                html += '</div>';
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">Duration:</div>`;
+        //         html += `<div class="data-value">${rawShift.duration_minutes} minutes</div>`;
+        //         html += '</div>';
 
-                // Items breakdown
-                for (const [itemName, itemData] of Object.entries(rawShift.items)) {
-                    html += `<div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">`;
-                    html += `<strong>${itemName}</strong><br>`;
-                    html += `<table style="font-size: 12px;">`;
-                    html += `<tr><td>First Value:</td><td class="value">${itemData.first_value}</td></tr>`;
-                    html += `<tr><td>Last Value:</td><td class="value">${itemData.last_value}</td></tr>`;
-                    html += `<tr><td>Difference:</td><td class="value">${itemData.difference.toFixed(2)}</td></tr>`;
-                    html += `<tr><td>Reset Detected:</td><td>${itemData.reset_detected ? '⚠️ YES' : '✅ NO'}</td></tr>`;
-                    if (itemData.reset_detected) {
-                        html += `<tr><td>Reset Count:</td><td class="value">${itemData.reset_count}</td></tr>`;
-                    }
-                    html += `<tr><td>Data Points:</td><td class="value">${itemData.count}</td></tr>`;
-                    html += `</table>`;
+        //         // Items breakdown
+        //         for (const [itemName, itemData] of Object.entries(rawShift.items)) {
+        //             html += `<div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">`;
+        //             html += `<strong>${itemName}</strong><br>`;
+        //             html += `<table style="font-size: 12px;">`;
+        //             html += `<tr><td>First Value:</td><td class="value">${itemData.first_value}</td></tr>`;
+        //             html += `<tr><td>Last Value:</td><td class="value">${itemData.last_value}</td></tr>`;
+        //             html += `<tr><td>Difference:</td><td class="value">${itemData.difference.toFixed(2)}</td></tr>`;
+        //             html += `<tr><td>Reset Detected:</td><td>${itemData.reset_detected ? '⚠️ YES' : '✅ NO'}</td></tr>`;
+        //             if (itemData.reset_detected) {
+        //                 html += `<tr><td>Reset Count:</td><td class="value">${itemData.reset_count}</td></tr>`;
+        //             }
+        //             html += `<tr><td>Data Points:</td><td class="value">${itemData.count}</td></tr>`;
+        //             html += `</table>`;
 
-                    // Segments
-                    if (itemData.segments.length > 0) {
-                        html += `<div style="margin-top: 10px;"><strong>Segments:</strong>`;
-                        html += '<div class="segments-box">';
-                        for (const segment of itemData.segments) {
-                            const segClass = segment.type === 'reset' ? 'segment reset' : 'segment';
-                            html += `<div class="${segClass}">`;
-                            html += `<strong>${segment.type.toUpperCase()}</strong> (${segment.calculation})<br>`;
-                            html += `</div>`;
-                        }
-                        html += '</div></div>';
-                    }
+        //             // Segments
+        //             if (itemData.segments.length > 0) {
+        //                 html += `<div style="margin-top: 10px;"><strong>Segments:</strong>`;
+        //                 html += '<div class="segments-box">';
+        //                 for (const segment of itemData.segments) {
+        //                     const segClass = segment.type === 'reset' ? 'segment reset' : 'segment';
+        //                     html += `<div class="${segClass}">`;
+        //                     html += `<strong>${segment.type.toUpperCase()}</strong> (${segment.calculation})<br>`;
+        //                     html += `</div>`;
+        //                 }
+        //                 html += '</div></div>';
+        //             }
 
-                    // All values preview
-                    if (itemData.all_values.length > 0) {
-                        html += `<div style="margin-top: 10px;"><strong>Data Points (${itemData.all_values.length}):</strong>`;
-                        html += '<div class="segments-box">';
-                        const preview = itemData.all_values.slice(0, 20);
-                        html += preview.map(v => `<code>${v}</code>`).join(', ');
-                        if (itemData.all_values.length > 20) {
-                            html += ` ... +${itemData.all_values.length - 20} more`;
-                        }
-                        html += '</div></div>';
-                    }
+        //             // All values preview
+        //             if (itemData.all_values.length > 0) {
+        //                 html += `<div style="margin-top: 10px;"><strong>Data Points (${itemData.all_values.length}):</strong>`;
+        //                 html += '<div class="segments-box">';
+        //                 const preview = itemData.all_values.slice(0, 20);
+        //                 html += preview.map(v => `<code>${v}</code>`).join(', ');
+        //                 if (itemData.all_values.length > 20) {
+        //                     html += ` ... +${itemData.all_values.length - 20} more`;
+        //                 }
+        //                 html += '</div></div>';
+        //             }
 
-                    html += '</div>';
-                }
+        //             html += '</div>';
+        //         }
 
-                html += '</div>';
-            }
+        //         html += '</div>';
+        //     }
 
-            html += '</div>';
+        //     html += '</div>';
 
-            document.getElementById('content').innerHTML = html;
+        //     document.getElementById('content').innerHTML = html;
+
+        //     // ✅ CONNECTION STATUS TIMELINE
+        //     if (data.timeline && data.timeline.hours) {
+        //         html += '<div class="section"><h2>⏱️ Connection Status Timeline (24 Hours)</h2>';
+        //         html += '<p style="font-size: 12px; color: #666;">Each row represents 1 hour. Each dot = 1 record. Green = Success, Red = Failed, Orange = Timeout, Yellow = Partial, Gray = No Data</p>';
+                
+        //         html += '<div style="display: grid; gap: 12px;">';
+                
+        //         for (const hour of data.timeline.hours) {
+        //             const recordCount = hour.records.length;
+        //             const tooltip = `${hour.hour_display}: ${recordCount} record(s) - ${hour.status.toUpperCase()}`;
+                    
+        //             html += `<div style="display: grid; grid-template-columns: 60px 1fr 100px; gap: 10px; align-items: center;">`;
+                    
+        //             // Time label (08:00, 09:00, etc.)
+        //             html += `<div style="font-weight: bold; font-size: 14px; color: #333;">${hour.hour_display}</div>`;
+                    
+        //             // Dots container
+        //             html += `<div style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center; min-height: 30px;">`;
+                    
+        //             if (recordCount === 0) {
+        //                 // No data
+        //                 html += `<div style="color: #999; font-size: 12px; font-style: italic;">No data</div>`;
+        //             } else {
+        //                 // Show one dot per record
+        //                 for (let i = 0; i < recordCount; i++) {
+        //                     const record = hour.records[i];
+                            
+        //                     const dotColor = {
+        //                         'success': '#4CAF50',
+        //                         'failed': '#f44336',
+        //                         'timeout': '#ff9800',
+        //                         'partial': '#ffeb3b'
+        //                     }[record.status] || '#999';
+                            
+        //                     const dotStatus = {
+        //                         'success': '✓',
+        //                         'failed': '✗',
+        //                         'timeout': '⚠',
+        //                         'partial': '◐'
+        //                     }[record.status] || '?';
+                            
+        //                     const tooltipText = `${record.time} - ${record.status.toUpperCase()}${record.error_message ? ' - ' + record.error_message : ''}`;
+                            
+        //                     html += `<div style="
+        //                         width: 24px; 
+        //                         height: 24px; 
+        //                         border-radius: 50%; 
+        //                         background-color: ${dotColor}; 
+        //                         display: flex; 
+        //                         align-items: center; 
+        //                         justify-content: center; 
+        //                         color: white; 
+        //                         font-size: 12px; 
+        //                         font-weight: bold;
+        //                         cursor: pointer;
+        //                         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        //                         transition: transform 0.2s, box-shadow 0.2s;
+        //                     " 
+        //                     onmouseover="this.style.transform='scale(1.3)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.4)';"
+        //                     onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+        //                     title="${tooltipText}">
+        //                         ${dotStatus}
+        //                     </div>`;
+        //                 }
+                        
+        //                 // Count indicator
+        //                 html += `<span style="font-size: 12px; color: #666; margin-left: 8px;">
+        //                     (${recordCount})
+        //                 </span>`;
+        //             }
+                    
+        //             html += `</div>`;
+                    
+        //             // Status summary
+        //             html += `<div style="text-align: right; font-size: 12px; color: #666;">`;
+        //             html += `<strong>${hour.status}</strong><br>`;
+                    
+        //             // Show breakdown if multiple statuses
+        //             const statuses = [];
+        //             if (hour.success_count > 0) statuses.push(`<span style="color: #4CAF50;">✓${hour.success_count}</span>`);
+        //             if (hour.failed_count > 0) statuses.push(`<span style="color: #f44336;">✗${hour.failed_count}</span>`);
+        //             if (hour.timeout_count > 0) statuses.push(`<span style="color: #ff9800;">⚠${hour.timeout_count}</span>`);
+        //             if (hour.partial_count > 0) statuses.push(`<span style="color: #ffeb3b; text-shadow: 0 0 1px #333;">◐${hour.partial_count}</span>`);
+                    
+        //             if (statuses.length > 0) {
+        //                 html += statuses.join(' ');
+        //             }
+                    
+        //             html += `</div>`;
+                    
+        //             html += `</div>`;
+        //         }
+                
+        //         html += '</div>';
+                
+        //         // Legend
+        //         html += '<div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px; border-left: 4px solid #2196F3;">';
+        //         html += '<strong>📋 Legend:</strong><br>';
+        //         html += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-top: 10px; font-size: 12px;">';
+        //         html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #4CAF50; vertical-align: middle;"></span> <strong style="color: #4CAF50;">Success (✓)</strong></div>';
+        //         html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #f44336; vertical-align: middle;"></span> <strong style="color: #f44336;">Failed (✗)</strong></div>';
+        //         html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #ff9800; vertical-align: middle;"></span> <strong style="color: #ff9800;">Timeout (⚠)</strong></div>';
+        //         html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #ffeb3b; vertical-align: middle;"></span> <strong style="color: #ffeb3b; text-shadow: 0 0 1px #333;">Partial (◐)</strong></div>';
+        //         html += '</div>';
+        //         html += '</div>';
+                
+        //         // Summary statistics
+        //         html += '<div style="margin-top: 15px; padding: 15px; background-color: #f0f0f0; border-radius: 4px;">';
+        //         html += '<strong>📊 Summary Statistics:</strong><br>';
+        //         html += `<div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; font-size: 12px;">`;
+        //         html += `<div>Total Records: <strong style="font-size: 16px; color: #2196F3;">${data.timeline.summary.total_records}</strong></div>`;
+        //         html += `<div><span style="color: #4CAF50;">✓ Success:</span> <strong style="font-size: 16px; color: #4CAF50;">${data.timeline.summary.success_count}</strong></div>`;
+        //         html += `<div><span style="color: #f44336;">✗ Failed:</span> <strong style="font-size: 16px; color: #f44336;">${data.timeline.summary.failed_count}</strong></div>`;
+        //         html += `<div><span style="color: #ff9800;">⚠ Timeout:</span> <strong style="font-size: 16px; color: #ff9800;">${data.timeline.summary.timeout_count}</strong></div>`;
+        //         html += `</div>`;
+        //         html += '</div>';
+                
+        //         html += '</div>';
+        //     }
+
+        //     // Check if we have comparison data
+        //     if (!data.comparison || Object.keys(data.comparison).length === 0) {
+        //         html += '<div class="section">';
+        //         html += '<div class="warning">⚠️ No productivity data found for this date/equipment combination</div>';
+        //         html += '</div>';
+        //         document.getElementById('content').innerHTML = html;
+        //         return;
+        //     }
+
+        //     // Summary vs Raw Comparison
+        //     html += '<div class="section"><h2>📈 Summary vs Raw Data Comparison</h2>';
+            
+        //     for (const shift of ['morning', 'night']) {
+        //         if (!data.comparison[shift]) continue;
+
+        //         const comp = data.comparison[shift];
+        //         if (!comp.verification) continue;
+                
+        //         const verification = comp.verification;
+
+        //         html += `<div class="shift-box ${shift}">`;
+        //         html += `<div class="shift-title">🕐 ${shift.toUpperCase()} SHIFT</div>`;
+
+        //         if (verification.status === 'ok') {
+        //             html += '<div class="ok">✅ All calculations match perfectly</div>';
+        //         } else if (verification.status === 'incomplete') {
+        //             html += '<div class="warning">⚠️ No data for this shift</div>';
+        //         } else {
+        //             html += '<div class="warning">⚠️ Discrepancies found - see details below</div>';
+        //         }
+
+        //         // Verification checks table
+        //         if (verification.checks && verification.checks.length > 0) {
+        //             html += '<table>';
+        //             html += '<tr><th>Field</th><th>Raw Value</th><th>Summary Value</th><th>Status</th></tr>';
+
+        //             for (const check of verification.checks) {
+        //                 const match = check.match ? 'match' : 'mismatch';
+        //                 const rawVal = check.raw_difference !== undefined ? check.raw_difference : check.calculated_value;
+        //                 const summaryVal = check.summary_value;
+                        
+        //                 html += `<tr>`;
+        //                 html += `<td><strong>${check.field}</strong></td>`;
+        //                 html += `<td class="value">${typeof rawVal === 'number' ? rawVal.toFixed(2) : rawVal}</td>`;
+        //                 html += `<td class="value">${typeof summaryVal === 'number' ? summaryVal.toFixed(2) : summaryVal}</td>`;
+        //                 html += `<td class="${match}">${check.match ? '✅ Match' : '❌ Mismatch'}</td>`;
+        //                 html += `</tr>`;
+        //             }
+
+        //             html += '</table>';
+        //         }
+
+        //         // Discrepancies
+        //         if (verification.discrepancies && verification.discrepancies.length > 0) {
+        //             html += '<div style="margin-top: 15px;">';
+        //             for (const disc of verification.discrepancies) {
+        //                 html += `<div class="warning">`;
+        //                 html += `<strong>❌ ${disc.field} Issue</strong><br>`;
+        //                 html += `<strong>Problem:</strong> ${disc.issue}<br>`;
+        //                 html += `<strong>Possible causes:</strong><ul>`;
+        //                 for (const cause of disc.possible_causes) {
+        //                     html += `<li>${cause}</li>`;
+        //                 }
+        //                 html += `</ul></div>`;
+        //             }
+        //             html += '</div>';
+        //         }
+
+        //         html += '</div>';
+        //     }
+
+        //     html += '</div>';
+
+        //     // Raw Data Details (collapsed by default)
+        //     html += '<div class="section"><h2>📋 Raw Items Data Details</h2>';
+        //     html += '<p style="font-size: 12px; color: #666;">Detailed breakdown of raw data and calculations</p>';
+
+        //     for (const shift of ['morning', 'night']) {
+        //         if (!data.raw_data || !data.raw_data[shift]) continue;
+
+        //         const rawShift = data.raw_data[shift];
+        //         html += `<div class="shift-box ${shift}">`;
+        //         html += `<div class="shift-title">🕐 ${shift.toUpperCase()} - ${rawShift.shift_label}</div>`;
+                
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">⏰ First Record:</div>`;
+        //         html += `<div class="data-value">${rawShift.first_record_time || '-'}</div>`;
+        //         html += '</div>';
+                
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">⏰ Last Record:</div>`;
+        //         html += `<div class="data-value">${rawShift.last_record_time || '-'}</div>`;
+        //         html += '</div>';
+                
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">📊 Record Count:</div>`;
+        //         html += `<div class="data-value">${rawShift.record_count}</div>`;
+        //         html += '</div>';
+                
+        //         html += '<div class="data-row">';
+        //         html += `<div class="data-label">⏱️ Duration:</div>`;
+        //         html += `<div class="data-value">${rawShift.duration_minutes} minutes</div>`;
+        //         html += '</div>';
+
+        //         // Items breakdown
+        //         if (rawShift.items && Object.keys(rawShift.items).length > 0) {
+        //             for (const [itemName, itemData] of Object.entries(rawShift.items)) {
+        //                 html += `<div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">`;
+        //                 html += `<strong>📌 ${itemName}</strong><br>`;
+        //                 html += `<table style="font-size: 12px; margin-top: 10px;">`;
+        //                 html += `<tr><td>First Value</td><td class="value">${itemData.first_value}</td></tr>`;
+        //                 html += `<tr><td>Last Value</td><td class="value">${itemData.last_value}</td></tr>`;
+        //                 html += `<tr><td>Difference</td><td class="value">${(itemData.difference || 0).toFixed(2)}</td></tr>`;
+        //                 html += `<tr><td>Reset Detected</td><td>${itemData.reset_detected ? '⚠️ YES' : '✅ NO'}</td></tr>`;
+        //                 if (itemData.reset_detected) {
+        //                     html += `<tr><td>Reset Count</td><td class="value">${itemData.reset_count}</td></tr>`;
+        //                 }
+        //                 html += `<tr><td>Data Points</td><td class="value">${itemData.count}</td></tr>`;
+        //                 html += `</table>`;
+
+        //                 // Segments (collapsed)
+        //                 if (itemData.segments && itemData.segments.length > 0) {
+        //                     html += `<div style="margin-top: 10px;"><strong>📊 Segments (${itemData.segments.length}):</strong>`;
+        //                     html += '<div class="segments-box">';
+        //                     for (const segment of itemData.segments) {
+        //                         const segClass = segment.type === 'reset' ? 'segment reset' : 'segment';
+        //                         html += `<div class="${segClass}">`;
+        //                         html += `<strong>${segment.type.toUpperCase()}</strong><br>`;
+        //                         html += `${segment.calculation || ''}`;
+        //                         html += `</div>`;
+        //                     }
+        //                     html += '</div></div>';
+        //                 }
+
+        //                 // All values preview (first 30)
+        //                 if (itemData.all_values && itemData.all_values.length > 0) {
+        //                     html += `<div style="margin-top: 10px;"><strong>📈 Data Points (${itemData.all_values.length}):</strong>`;
+        //                     html += '<div class="segments-box">';
+        //                     const preview = itemData.all_values.slice(0, 30);
+        //                     html += preview.map(v => `<code>${v}</code>`).join(', ');
+        //                     if (itemData.all_values.length > 30) {
+        //                         html += ` ... +${itemData.all_values.length - 30} more`;
+        //                     }
+        //                     html += '</div></div>';
+        //                 }
+
+        //                 html += '</div>';
+        //             }
+        //         } else {
+        //             html += '<p>No items data</p>';
+        //         }
+
+        //         html += '</div>';
+        //     }
+
+        //     html += '</div>';
+
+        //     document.getElementById('content').innerHTML = html;
+        // }
+
+                function renderDiagnostic(data) {
+            let html = '';
 
             // ✅ CONNECTION STATUS TIMELINE
             if (data.timeline && data.timeline.hours) {
@@ -311,7 +594,6 @@
                 
                 for (const hour of data.timeline.hours) {
                     const recordCount = hour.records.length;
-                    const tooltip = `${hour.hour_display}: ${recordCount} record(s) - ${hour.status.toUpperCase()}`;
                     
                     html += `<div style="display: grid; grid-template-columns: 60px 1fr 100px; gap: 10px; align-items: center;">`;
                     
@@ -343,7 +625,49 @@
                                 'partial': '◐'
                             }[record.status] || '?';
                             
-                            const tooltipText = `${record.time} - ${record.status.toUpperCase()}${record.error_message ? ' - ' + record.error_message : ''}`;
+                            // ✅ BUILD DETAILED TOOLTIP
+                            let tooltipText = `${record.time}`;
+                            
+                            if (record.status === 'success') {
+                                // Success: show time, crane minute, move count
+                                tooltipText += `\n${record.status.toUpperCase()}`;
+                                if (record.items && record.items.crane_on_minute !== undefined) {
+                                    tooltipText += `\nCrane On Minute: ${record.items.crane_on_minute}`;
+                                }
+                                if (record.items && record.items.number_of_move !== undefined) {
+                                    tooltipText += `\nNumber of Move: ${record.items.number_of_move}`;
+                                }
+                            } else if (record.status === 'failed') {
+                                // Failed: show time, status, error message
+                                tooltipText += `\n❌ FAILED`;
+                                if (record.error_message) {
+                                    tooltipText += `\nError: ${record.error_message}`;
+                                }
+                            } else if (record.status === 'timeout') {
+                                // Timeout: show time, status, error message
+                                tooltipText += `\n⚠️ TIMEOUT`;
+                                if (record.error_message) {
+                                    tooltipText += `\nError: ${record.error_message}`;
+                                }
+                            } else if (record.status === 'partial') {
+                                // Partial: show time, status, what data was available
+                                tooltipText += `\n◐ PARTIAL`;
+                                let hasData = false;
+                                if (record.items && record.items.crane_on_minute !== undefined) {
+                                    tooltipText += `\nCrane On Minute: ${record.items.crane_on_minute}`;
+                                    hasData = true;
+                                }
+                                if (record.items && record.items.number_of_move !== undefined) {
+                                    tooltipText += `\nNumber of Move: ${record.items.number_of_move}`;
+                                    hasData = true;
+                                }
+                                if (!hasData && record.error_message) {
+                                    tooltipText += `\nNote: ${record.error_message}`;
+                                }
+                            }
+                            
+                            // Create tooltip element with line breaks
+                            const tooltipTitle = tooltipText.replace(/\n/g, ' | ');
                             
                             html += `<div style="
                                 width: 24px; 
@@ -359,10 +683,19 @@
                                 cursor: pointer;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                                 transition: transform 0.2s, box-shadow 0.2s;
+                                position: relative;
                             " 
-                            onmouseover="this.style.transform='scale(1.3)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.4)';"
-                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
-                            title="${tooltipText}">
+                            onmouseover="
+                                this.style.transform='scale(1.3)'; 
+                                this.style.boxShadow='0 4px 8px rgba(0,0,0,0.4)';
+                                showTooltip(event, \`${tooltipTitle.replace(/`/g, '\\`')}\`);
+                            "
+                            onmouseout="
+                                this.style.transform='scale(1)'; 
+                                this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';
+                                hideTooltip();
+                            "
+                            title="${tooltipTitle}">
                                 ${dotStatus}
                             </div>`;
                         }
@@ -401,10 +734,10 @@
                 html += '<div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px; border-left: 4px solid #2196F3;">';
                 html += '<strong>📋 Legend:</strong><br>';
                 html += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-top: 10px; font-size: 12px;">';
-                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #4CAF50; vertical-align: middle;"></span> <strong style="color: #4CAF50;">Success (✓)</strong></div>';
-                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #f44336; vertical-align: middle;"></span> <strong style="color: #f44336;">Failed (✗)</strong></div>';
-                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #ff9800; vertical-align: middle;"></span> <strong style="color: #ff9800;">Timeout (⚠)</strong></div>';
-                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #ffeb3b; vertical-align: middle;"></span> <strong style="color: #ffeb3b; text-shadow: 0 0 1px #333;">Partial (◐)</strong></div>';
+                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #4CAF50; vertical-align: middle;"></span> <strong style="color: #4CAF50;">Success (✓)</strong> - Data received & processed</div>';
+                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #f44336; vertical-align: middle;"></span> <strong style="color: #f44336;">Failed (✗)</strong> - Connection error</div>';
+                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #ff9800; vertical-align: middle;"></span> <strong style="color: #ff9800;">Timeout (⚠)</strong> - Connection timeout</div>';
+                html += '<div><span style="display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: #ffeb3b; vertical-align: middle;"></span> <strong style="color: #ffeb3b; text-shadow: 0 0 1px #333;">Partial (◐)</strong> - Incomplete data</div>';
                 html += '</div>';
                 html += '</div>';
                 
@@ -422,6 +755,9 @@
                 html += '</div>';
             }
 
+            // Rest of the diagnostic content...
+            // (Keep the rest of the renderDiagnostic function as is)
+            
             // Check if we have comparison data
             if (!data.comparison || Object.keys(data.comparison).length === 0) {
                 html += '<div class="section">';
@@ -582,6 +918,37 @@
             document.getElementById('content').innerHTML = html;
         }
 
+        // ✅ ADD TOOLTIP FUNCTIONS
+        function showTooltip(event, text) {
+            const tooltip = document.getElementById('custom-tooltip') || document.createElement('div');
+            tooltip.id = 'custom-tooltip';
+            tooltip.innerHTML = text.replace(/\|/g, '<br>');
+            tooltip.style.cssText = `
+                position: fixed;
+                background-color: #333;
+                color: white;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 10000;
+                white-space: nowrap;
+                pointer-events: none;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                max-width: 300px;
+                white-space: normal;
+            `;
+            document.body.appendChild(tooltip);
+            
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY + 10) + 'px';
+        }
+
+        function hideTooltip() {
+            const tooltip = document.getElementById('custom-tooltip');
+            if (tooltip) {
+                tooltip.remove();
+            }
+        }
         // Load on page load
         window.onload = loadDiagnostic;
     </script>

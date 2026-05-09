@@ -509,7 +509,7 @@ def json_to_plain_text_table(report_data):
             # Morning ✅ FIX: Handle None
             morning = equipment.get('morning') or {}
             if morning:
-                m_hr = round(morning.get('crane_on_minute', 0) / 60, 2)
+                m_hr = morning.get('crane_on_minute', 0) / 60
                 m_mv = morning.get('number_of_move', 0)
                 m_prod = round(morning.get('productivity', 0), 2) if morning.get('productivity') else 0
             else:
@@ -518,7 +518,7 @@ def json_to_plain_text_table(report_data):
             # Night ✅ FIX: Handle None
             night = equipment.get('night') or {}
             if night:
-                n_hr = round(night.get('crane_on_minute', 0) / 60, 2)
+                n_hr = night.get('crane_on_minute', 0) / 60
                 n_mv = night.get('number_of_move', 0)
                 n_prod = round(night.get('productivity', 0), 2) if night.get('productivity') else 0
             else:
@@ -527,7 +527,7 @@ def json_to_plain_text_table(report_data):
             # Total ✅ FIX: Handle None
             total = equipment.get('total') or {}
             if total:
-                t_hr = round(total.get('crane_on_minute', 0) / 60, 2)
+                t_hr = total.get('crane_on_minute', 0) / 60
                 t_mv = total.get('number_of_move', 0)
                 t_prod = round(total.get('productivity', 0), 2) if total.get('productivity') else 0
             else:
@@ -573,27 +573,27 @@ def json_to_csv(report_data):
             # Morning ✅ FIX: Handle None
             morning = equipment.get('morning') or {}
             if morning:
-                m_hr = round(morning.get('crane_on_minute', 0) / 60, 2)
+                m_hr = morning.get('crane_on_minute', 0) / 60
                 m_mv = morning.get('number_of_move', 0)
-                m_prod = round(morning.get('productivity', 0), 4) if morning.get('productivity') else ''
+                m_prod = round(morning.get('productivity', 0), 2) if morning.get('productivity') else ''
             else:
                 m_hr = m_mv = m_prod = ''
             
             # Night ✅ FIX: Handle None
             night = equipment.get('night') or {}
             if night:
-                n_hr = round(night.get('crane_on_minute', 0) / 60, 2)
+                n_hr = night.get('crane_on_minute', 0) / 60
                 n_mv = night.get('number_of_move', 0)
-                n_prod = round(night.get('productivity', 0), 4) if night.get('productivity') else ''
+                n_prod = round(night.get('productivity', 0), 2) if night.get('productivity') else ''
             else:
                 n_hr = n_mv = n_prod = ''
             
             # Total ✅ FIX: Handle None
             total = equipment.get('total') or {}
             if total:
-                t_hr = round(total.get('crane_on_minute', 0) / 60, 2)
+                t_hr = total.get('crane_on_minute', 0) / 60
                 t_mv = total.get('number_of_move', 0)
-                t_prod = round(total.get('productivity', 0), 4) if total.get('productivity') else ''
+                t_prod = round(total.get('productivity', 0), 2) if total.get('productivity') else ''
             else:
                 t_hr = t_mv = t_prod = ''
             
@@ -719,13 +719,13 @@ def json_to_excel(report_data):
             eq_cell.border = thin_border
             
             col = 3
-            
+
             # Morning shift
             morning = equipment.get('morning') or {}
             if morning:
-                m_hr = round(morning.get('crane_on_minute', 0) / 60, 2)
+                m_hr = morning.get('crane_on_minute', 0) / 60
                 m_mv = morning.get('number_of_move', 0)
-                m_prod = round(morning.get('productivity', 0), 4) if morning.get('productivity') else None
+                m_prod = round(morning.get('productivity', 0), 2) if morning.get('productivity') else None
             else:
                 m_hr = m_mv = m_prod = None
             
@@ -742,9 +742,9 @@ def json_to_excel(report_data):
             # Night shift
             night = equipment.get('night') or {}
             if night:
-                n_hr = round(night.get('crane_on_minute', 0) / 60, 2)
+                n_hr = night.get('crane_on_minute', 0) / 60
                 n_mv = night.get('number_of_move', 0)
-                n_prod = round(night.get('productivity', 0), 4) if night.get('productivity') else None
+                n_prod = round(night.get('productivity', 0), 2) if night.get('productivity') else None
             else:
                 n_hr = n_mv = n_prod = None
             
@@ -761,9 +761,9 @@ def json_to_excel(report_data):
             # Total
             total = equipment.get('total') or {}
             if total:
-                t_hr = round(total.get('crane_on_minute', 0) / 60, 2)
+                t_hr = total.get('crane_on_minute', 0) / 60
                 t_mv = total.get('number_of_move', 0)
-                t_prod = round(total.get('productivity', 0), 4) if total.get('productivity') else None
+                t_prod = round(total.get('productivity', 0), 2) if total.get('productivity') else None
             else:
                 t_hr = t_mv = t_prod = None
             

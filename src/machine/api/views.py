@@ -818,6 +818,159 @@ def productivity_diagnostic(request):
         }, status=500)
 
 
+# def _build_connection_timeline(equipment_name, date_str):
+#     """
+#     Build 24-hour timeline of connection status records
+    
+#     Shows:
+#     - Morning shift: 08:00 - 19:59 (12 hours)
+#     - Night shift: 20:00 - 07:59 (12 hours)
+    
+#     Each hour is represented by all records in that hour
+#     Status: success=green, failed=red, timeout=orange, partial=yellow
+#     """
+#     from machine.models import ConnectionStatus, Equipment
+#     from datetime import datetime, timedelta
+#     import pytz
+    
+#     try:
+#         equipment = Equipment.objects.get(name=equipment_name)
+#     except Equipment.DoesNotExist:
+#         return {'status': 'error', 'message': f'Equipment not found: {equipment_name}'}
+    
+#     # Parse date
+#     try:
+#         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+#     except ValueError:
+#         return {'status': 'error', 'message': f'Invalid date format: {date_str}'}
+    
+#     tz = pytz.timezone('Asia/Bangkok')
+    
+#     # Get all records for this equipment on this date
+#     # Include records from both shifts (morning: target_date, night: previous day's night shift)
+#     records = ConnectionStatus.objects.filter(
+#         equipment=equipment,
+#         shift_date__in=[target_date, target_date - timedelta(days=1)]
+#     ).order_by('recorded_at')
+    
+#     timeline_data = {
+#         'date': date_str,
+#         'equipment': equipment_name,
+#         'hours': [],
+#         'summary': {
+#             'total_records': 0,
+#             'success_count': 0,
+#             'failed_count': 0,
+#             'timeout_count': 0,
+#             'partial_count': 0,
+#         }
+#     }
+    
+#     # Build 24 hour timeline
+#     # Morning: 08:00 - 20:00 (start at 8am)
+#     # Night: 20:00 - 08:00 (8pm to 8am next day)
+    
+#     hours_data = {}
+    
+#     # Initialize 24 hours (0-23 in Bangkok time)
+#     for hour in range(24):
+#         hours_data[hour] = {
+#             'hour': hour,
+#             'hour_display': f'{hour:02d}:00',
+#             'shift': 'morning' if 8 <= hour < 20 else 'night',
+#             'records': [],
+#             'status': 'no_data',  # no_data, success, failed, mixed
+#             'status_color': '#cccccc',
+#             'success_count': 0,
+#             'failed_count': 0,
+#             'timeout_count': 0,
+#             'partial_count': 0,
+#         }
+    
+#     # Group records by hour
+#     for record in records:
+#         record_time = record.recorded_at.astimezone(tz)
+        
+#         # Only include if it's from target_date or night shift from previous day
+#         record_date = record_time.date()
+#         record_hour = record_time.hour
+        
+#         # Check if this record belongs to our timeline
+#         is_in_timeline = False
+#         if record_date == target_date and 8 <= record_hour < 20:
+#             # Morning shift on target_date
+#             is_in_timeline = True
+#         elif record_date == target_date and 20 <= record_hour < 24:
+#             # Night shift on target_date (20:00 onwards)
+#             is_in_timeline = True
+#         elif record_date == target_date - timedelta(days=1) and 0 <= record_hour < 8:
+#             # Night shift from previous day (00:00 to 08:00 on target_date)
+#             is_in_timeline = True
+        
+#         if not is_in_timeline:
+#             continue
+        
+#         timeline_data['summary']['total_records'] += 1
+        
+#         status = record.connection_status
+#         if status == 'success':
+#             timeline_data['summary']['success_count'] += 1
+#         elif status == 'failed':
+#             timeline_data['summary']['failed_count'] += 1
+#         elif status == 'timeout':
+#             timeline_data['summary']['timeout_count'] += 1
+#         elif status == 'partial':
+#             timeline_data['summary']['partial_count'] += 1
+        
+#         hour_key = record_hour
+        
+#         hours_data[hour_key]['records'].append({
+#             'time': record_time.strftime('%H:%M:%S'),
+#             'status': status,
+#             'error_message': record.error_message or '',
+#         })
+        
+#         # Update hour counts
+#         if status == 'success':
+#             hours_data[hour_key]['success_count'] += 1
+#         elif status == 'failed':
+#             hours_data[hour_key]['failed_count'] += 1
+#         elif status == 'timeout':
+#             hours_data[hour_key]['timeout_count'] += 1
+#         elif status == 'partial':
+#             hours_data[hour_key]['partial_count'] += 1
+    
+#     # Determine status for each hour
+#     for hour_key in sorted(hours_data.keys()):
+#         hour_data = hours_data[hour_key]
+        
+#         if len(hour_data['records']) == 0:
+#             hour_data['status'] = 'no_data'
+#             hour_data['status_color'] = '#cccccc'  # Gray
+#         elif hour_data['success_count'] > 0 and hour_data['failed_count'] == 0 and hour_data['timeout_count'] == 0:
+#             hour_data['status'] = 'success'
+#             hour_data['status_color'] = '#4CAF50'  # Green
+#         elif hour_data['failed_count'] > 0:
+#             hour_data['status'] = 'failed'
+#             hour_data['status_color'] = '#f44336'  # Red
+#         elif hour_data['timeout_count'] > 0:
+#             hour_data['status'] = 'timeout'
+#             hour_data['status_color'] = '#ff9800'  # Orange
+#         elif hour_data['partial_count'] > 0:
+#             hour_data['status'] = 'partial'
+#             hour_data['status_color'] = '#ffeb3b'  # Yellow
+#         else:
+#             hour_data['status'] = 'mixed'
+#             hour_data['status_color'] = '#9e9e9e'  # Gray
+        
+#         timeline_data['hours'].append(hour_data)
+    
+#     logger.info(f"Timeline complete: {timeline_data['summary']['total_records']} records, "
+#                 f"Success: {timeline_data['summary']['success_count']}, "
+#                 f"Failed: {timeline_data['summary']['failed_count']}")
+    
+#     return timeline_data
+
 def _build_connection_timeline(equipment_name, date_str):
     """
     Build 24-hour timeline of connection status records
@@ -847,11 +1000,10 @@ def _build_connection_timeline(equipment_name, date_str):
     tz = pytz.timezone('Asia/Bangkok')
     
     # Get all records for this equipment on this date
-    # Include records from both shifts (morning: target_date, night: previous day's night shift)
     records = ConnectionStatus.objects.filter(
         equipment=equipment,
         shift_date__in=[target_date, target_date - timedelta(days=1)]
-    ).order_by('recorded_at')
+    ).order_by('recorded_at','id')
     
     timeline_data = {
         'date': date_str,
@@ -866,20 +1018,16 @@ def _build_connection_timeline(equipment_name, date_str):
         }
     }
     
-    # Build 24 hour timeline
-    # Morning: 08:00 - 20:00 (start at 8am)
-    # Night: 20:00 - 08:00 (8pm to 8am next day)
-    
     hours_data = {}
     
-    # Initialize 24 hours (0-23 in Bangkok time)
+    # Initialize 24 hours
     for hour in range(24):
         hours_data[hour] = {
             'hour': hour,
             'hour_display': f'{hour:02d}:00',
             'shift': 'morning' if 8 <= hour < 20 else 'night',
             'records': [],
-            'status': 'no_data',  # no_data, success, failed, mixed
+            'status': 'no_data',
             'status_color': '#cccccc',
             'success_count': 0,
             'failed_count': 0,
@@ -891,20 +1039,16 @@ def _build_connection_timeline(equipment_name, date_str):
     for record in records:
         record_time = record.recorded_at.astimezone(tz)
         
-        # Only include if it's from target_date or night shift from previous day
         record_date = record_time.date()
         record_hour = record_time.hour
         
         # Check if this record belongs to our timeline
         is_in_timeline = False
         if record_date == target_date and 8 <= record_hour < 20:
-            # Morning shift on target_date
             is_in_timeline = True
         elif record_date == target_date and 20 <= record_hour < 24:
-            # Night shift on target_date (20:00 onwards)
             is_in_timeline = True
         elif record_date == target_date - timedelta(days=1) and 0 <= record_hour < 8:
-            # Night shift from previous day (00:00 to 08:00 on target_date)
             is_in_timeline = True
         
         if not is_in_timeline:
@@ -924,11 +1068,22 @@ def _build_connection_timeline(equipment_name, date_str):
         
         hour_key = record_hour
         
-        hours_data[hour_key]['records'].append({
+        # ✅ BUILD DETAILED RECORD INFO
+        record_detail = {
             'time': record_time.strftime('%H:%M:%S'),
             'status': status,
             'error_message': record.error_message or '',
-        })
+            'items': {}
+        }
+        
+        # Extract item data if available
+        if record.items_data:
+            if 'Crane On Minute' in record.items_data:
+                record_detail['items']['crane_on_minute'] = record.items_data['Crane On Minute']
+            if 'Number of Move' in record.items_data:
+                record_detail['items']['number_of_move'] = record.items_data['Number of Move']
+        
+        hours_data[hour_key]['records'].append(record_detail)
         
         # Update hour counts
         if status == 'success':
@@ -946,30 +1101,29 @@ def _build_connection_timeline(equipment_name, date_str):
         
         if len(hour_data['records']) == 0:
             hour_data['status'] = 'no_data'
-            hour_data['status_color'] = '#cccccc'  # Gray
+            hour_data['status_color'] = '#cccccc'
         elif hour_data['success_count'] > 0 and hour_data['failed_count'] == 0 and hour_data['timeout_count'] == 0:
             hour_data['status'] = 'success'
-            hour_data['status_color'] = '#4CAF50'  # Green
+            hour_data['status_color'] = '#4CAF50'
         elif hour_data['failed_count'] > 0:
             hour_data['status'] = 'failed'
-            hour_data['status_color'] = '#f44336'  # Red
+            hour_data['status_color'] = '#f44336'
         elif hour_data['timeout_count'] > 0:
             hour_data['status'] = 'timeout'
-            hour_data['status_color'] = '#ff9800'  # Orange
+            hour_data['status_color'] = '#ff9800'
         elif hour_data['partial_count'] > 0:
             hour_data['status'] = 'partial'
-            hour_data['status_color'] = '#ffeb3b'  # Yellow
+            hour_data['status_color'] = '#ffeb3b'
         else:
             hour_data['status'] = 'mixed'
-            hour_data['status_color'] = '#9e9e9e'  # Gray
+            hour_data['status_color'] = '#9e9e9e'
         
         timeline_data['hours'].append(hour_data)
     
-    logger.info(f"Timeline complete: {timeline_data['summary']['total_records']} records, "
-                f"Success: {timeline_data['summary']['success_count']}, "
-                f"Failed: {timeline_data['summary']['failed_count']}")
+    logger.info(f"Timeline complete: {timeline_data['summary']['total_records']} records")
     
     return timeline_data
+
 # @require_http_methods(["GET"])
 # def productivity_diagnostic(request):
 #     """
