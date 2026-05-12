@@ -33,7 +33,7 @@ def send_rtg_productivity_report(
     current_hour = now_tz.hour
     
     # ✅ Smart date logic
-    if 8 <= current_hour < 20:
+    if 9 <= current_hour < 20:
         report_date = (now_tz - timedelta(days=1)).date()
         logger.info(f"📅 Morning run: Sending yesterday's report ({report_date})")
         mail_topic_shift = 'Morning and Night shifts' 
