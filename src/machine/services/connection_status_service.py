@@ -350,33 +350,34 @@ class ConnectionStatusService:
             logger.debug(f"🕐 Current time (Bangkok): {now_tz}")
             logger.debug(f"📅 Shift: {shift}, Shift Date: {shift_date}")
             
-            # ✅ CHECK FOR SHIFT CHANGE AND CREATE INITIAL RECORD
-            shift_changed = ConnectionStatusService.check_shift_change(equipment_name)
+            # ✅ Cancelled shift change check to avoid performance issues
+            # # ✅ CHECK FOR SHIFT CHANGE AND CREATE INITIAL RECORD
+            # shift_changed = ConnectionStatusService.check_shift_change(equipment_name)
             
-            if shift_changed:
-                # Get last successful record to copy
-                last_success = ConnectionStatus.objects.filter(
-                    equipment=equipment,
-                    connection_status='success'
-                ).order_by('-recorded_at').first()
+            # if shift_changed:
+            #     # Get last successful record to copy
+            #     last_success = ConnectionStatus.objects.filter(
+            #         equipment=equipment,
+            #         connection_status='success'
+            #     ).order_by('-recorded_at').first()
                 
-                if last_success and last_success.items_data:
-                    logger.info(f"✅ Creating initial record for shift change: {equipment_name}")
+            #     if last_success and last_success.items_data:
+            #         logger.info(f"✅ Creating initial record for shift change: {equipment_name}")
                     
-                    # Create new initial record with copied items data
-                    initial_record = ConnectionStatus.objects.create(
-                        equipment=equipment,
-                        connection_status='success',
-                        error_message='',  # No error for initial record
-                        items_data=last_success.items_data,  # ✅ COPY ITEMS DATA
-                        recorded_at=now_tz,
-                        shift=shift,
-                        shift_date=shift_date
-                    )
+            #         # Create new initial record with copied items data
+            #         initial_record = ConnectionStatus.objects.create(
+            #             equipment=equipment,
+            #             connection_status='success',
+            #             error_message='',  # No error for initial record
+            #             items_data=last_success.items_data,  # ✅ COPY ITEMS DATA
+            #             recorded_at=now_tz,
+            #             shift=shift,
+            #             shift_date=shift_date
+            #         )
                     
-                    logger.info(f"✅ Initial record created (ID: {initial_record.id}) for shift change")
-                    logger.info(f"   Equipment: {equipment_name}, Shift: {shift}, Shift Date: {shift_date}")
-                    logger.info(f"   Copied items data from previous shift")
+            #         logger.info(f"✅ Initial record created (ID: {initial_record.id}) for shift change")
+            #         logger.info(f"   Equipment: {equipment_name}, Shift: {shift}, Shift Date: {shift_date}")
+            #         logger.info(f"   Copied items data from previous shift")
             
             # Prepare items data
             if items_data is None:
