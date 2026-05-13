@@ -33,13 +33,15 @@ def send_rtg_productivity_report(
     current_hour = now_tz.hour
     
     # ✅ Smart date logic
-    mail_topic_shift = f'created on {report_date.strftime("%d-%b-%Y %H:%M")}'
+    
     if current_hour== 8 :# if run at 08:00 to 08:59, send yesterday's report
         report_date = (now_tz - timedelta(days=1)).date()
         logger.info(f"📅 Morning run: Sending yesterday's report ({report_date})")
     else:
         report_date = now_tz.date()
         logger.info(f"📅 Evening run: Sending today's report ({report_date})")
+
+    mail_topic_shift = f'created on {now_tz.strftime("%d-%b-%Y %H:%M")}'
     
     try:
         # ✅ Get productivity report (SAME as views.productivity_report_daily_html)
