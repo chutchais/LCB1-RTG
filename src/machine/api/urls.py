@@ -1,6 +1,12 @@
 from django.urls import path
 from machine.api import views
 
+from machine.api.views import (
+    item_summary_api,
+    item_summary_html,
+    item_summary_excel,
+)
+
 app_name = 'api'
 
 urlpatterns = [
@@ -29,4 +35,9 @@ urlpatterns = [
     path('productivity-diagnostic-html/', views.productivity_diagnostic_html, name='productivity-diagnostic-html'),  # HTML page
     # Equipment endpoints
     path('equipment/', views.available_equipment_api, name='available_equipment'),
+
+    # Item Summary Report
+    path('item-summary/', item_summary_api, name='item-summary'),
+    path('item-summary-html/', item_summary_html, name='item-summary-html'),
+    path('item-summary-excel/', item_summary_excel, name='item-summary-excel'),
 ]

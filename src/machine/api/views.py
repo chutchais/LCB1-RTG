@@ -1415,3 +1415,156 @@ from django.shortcuts import render
 def productivity_diagnostic_html(request):
     """Render diagnostic page"""
     return render(request, 'machine/productivity_diagnostic.html')
+
+
+from machine.api.item_summary_service import get_item_summary_report
+from machine.api.item_summary_html_generators import item_summary_to_html, item_summary_to_excel
+
+# ============ ITEM SUMMARY ENDPOINTS ============
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def item_summary_api(request):
+    """
+    Get item summary report as JSON
+    
+    Query Parameters (all optional):
+    - date: None (this week), 'YYYY-MM-DD' (single date), or 'YYYY-MM' (month)
+    
+    Examples:
+    - GET /api/item-summary/
+      → This week data
+    
+    - GET /api/item-summary/?date=2026-05-09
+      → Single date (2026-05-09)
+    
+    - GET /api/item-summary/?date=2026-05
+      → Entire month (May 2026)
+    """
+    
+    date_param = request.query_params.get('date')
+    
+    result = get_item_summary_report(date_param)
+    
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        'status': 'success',
+        'data': result['data']
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def item_summary_html(request):
+    """
+    Get item summary report as HTML table
+    
+    Query Parameters (all optional):
+    - date: None (this week), 'YYYY-MM-DD' (single date), or 'YYYY-MM' (month)
+    
+    Examples:
+    - GET /api/item-summary-html/
+    - GET /api/item-summary-html/?date=2026-05-09
+    - GET /api/item-summary-html/?date=2026-05
+    """
+    
+    date_param = request.query_params.get('date')
+    
+    result = get_item_summary_report(date_param)
+    
+    if result['status'] == 'error':
+        html = f'<p style="color: red;">Error: {result["error"]}</p>'
+        return HttpResponse(html, content_type='text/html')
+    
+    # Convert to HTML table
+    html_table = item_summary_to_html(result['data'])
+    
+    # Wrap in HTML page
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Item Summary Report</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            table {{
+                margin: 20px 0;
+                width: 100%;
+            }}
+            td, th {{
+                padding: 8px 12px;
+                text-align: center;
+            }}
+            @media print {{
+                body {{
+                    background-color: white;
+                }}
+                .container {{
+                    box-shadow: none;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            {html_table}
+        </div>
+    </body>
+    </html>
+    '''
+    
+    return HttpResponse(html, content_type='text/html')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def item_summary_excel(request):
+    """
+    Get item summary report as Excel file
+    
+    Query Parameters (all optional):
+    - date: None (this week), 'YYYY-MM-DD' (single date), or 'YYYY-MM' (month)
+    
+    Examples:
+    - GET /api/item-summary-excel/
+    - GET /api/item-summary-excel/?date=2026-05-09
+    - GET /api/item-summary-excel/?date=2026-05
+    """
+    
+    date_param = request.query_params.get('date')
+    
+    result = get_item_summary_report(date_param)
+    
+    if result['status'] == 'error':
+        return HttpResponse(f'Error: {result["error"]}', content_type='text/plain', status=404)
+    
+    # Convert to Excel
+    try:
+        excel_bytes = item_summary_to_excel(result['data'])
+        
+        # Return as downloadable file
+        filename = f"item-summary-{date_param or 'week'}.xlsx"
+        response = HttpResponse(
+            excel_bytes,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+    except Exception as e:
+        return HttpResponse(f'Error generating Excel: {str(e)}', content_type='text/plain', status=500)
