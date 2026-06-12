@@ -99,74 +99,24 @@ def get_engine(name: str):
     return JSONResponse(content=r.hgetall(key))
 
 # WebSocket connection manager
-# class ConnectionManager:
-#     def __init__(self):
-#         self.active_connections: List[WebSocket] = []
-
-#     async def connect(self, websocket: WebSocket):
-#         await websocket.accept()
-#         self.active_connections.append(websocket)
-
-#     def disconnect(self, websocket: WebSocket):
-#         if websocket in self.active_connections:
-#             self.active_connections.remove(websocket)
-
-#     async def broadcast(self, message: str):
-#         for connection in self.active_connections:
-#             try:
-#                 await connection.send_text(message)
-#             except Exception as e:
-#                 print("Send error:", e)
-
-# manager = ConnectionManager()
-
-# Added on June 11,2026 -- To support new management of WebSocket connections and error handling
-# Active WebSocket connections management
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Set[WebSocket] = set()
-    
+        self.active_connections: List[WebSocket] = []
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections.add(websocket)
-        print(f"WebSocket connected. Total connections: {len(self.active_connections)}")
-    
+        self.active_connections.append(websocket)
+
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            print(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
-    
-    async def send_message(self, message: dict, websocket: WebSocket):
-        """Send message to a specific websocket with error handling"""
-        try:
-            await websocket.send_json(message)
-        except RuntimeError as e:
-            if "Cannot call 'send' once a close message has been sent" in str(e):
-                # Connection is closing, remove it
-                self.disconnect(websocket)
-            else:
-                print(f"Unexpected error sending message: {e}")
-        except WebSocketDisconnect:
-            self.disconnect(websocket)
-        except Exception as e:
-            print(f"Error sending message: {e}")
-    
-    async def broadcast(self, message: dict):
-        """Broadcast message to all connected clients"""
-        disconnected = set()
+
+    async def broadcast(self, message: str):
         for connection in self.active_connections:
             try:
-                await connection.send_json(message)
-            except (RuntimeError, WebSocketDisconnect) as e:
-                # Mark for removal
-                disconnected.add(connection)
+                await connection.send_text(message)
             except Exception as e:
-                print(f"Broadcast error: {e}")
-                disconnected.add(connection)
-        
-        # Clean up disconnected clients
-        for connection in disconnected:
-            self.disconnect(connection)
+                print("Send error:", e)
 
 manager = ConnectionManager()
 
@@ -174,38 +124,89 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        # Keep the connection alive and handle incoming messages
         while True:
-            # Wait for any message from client (ping/pong)
-            data = await websocket.receive_text()
-            
-            # Optional: Handle client pings
-            if data == "ping":
-                await manager.send_message({"type": "pong"}, websocket)
-                
-    except WebSocketDisconnect:
+            await asyncio.sleep(1)  # Keep connection alive
+    except:
+        pass
+    finally:
         manager.disconnect(websocket)
-    except RuntimeError as e:
-        if "Cannot call 'send' once a close message has been sent" in str(e):
-            manager.disconnect(websocket)
-        else:
-            print(f"WebSocket error: {e}")
-            manager.disconnect(websocket)
-    except Exception as e:
-        print(f"Unexpected WebSocket error: {e}")
-        manager.disconnect(websocket)
+# # Added on June 11,2026 -- To support new management of WebSocket connections and error handling
+# # Active WebSocket connections management
+# class ConnectionManager:
+#     def __init__(self):
+#         self.active_connections: Set[WebSocket] = set()
+    
+#     async def connect(self, websocket: WebSocket):
+#         await websocket.accept()
+#         self.active_connections.add(websocket)
+#         print(f"WebSocket connected. Total connections: {len(self.active_connections)}")
+    
+#     def disconnect(self, websocket: WebSocket):
+#         if websocket in self.active_connections:
+#             self.active_connections.remove(websocket)
+#             print(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
+    
+#     async def send_message(self, message: dict, websocket: WebSocket):
+#         """Send message to a specific websocket with error handling"""
+#         try:
+#             await websocket.send_json(message)
+#         except RuntimeError as e:
+#             if "Cannot call 'send' once a close message has been sent" in str(e):
+#                 # Connection is closing, remove it
+#                 self.disconnect(websocket)
+#             else:
+#                 print(f"Unexpected error sending message: {e}")
+#         except WebSocketDisconnect:
+#             self.disconnect(websocket)
+#         except Exception as e:
+#             print(f"Error sending message: {e}")
+    
+#     async def broadcast(self, message: dict):
+#         """Broadcast message to all connected clients"""
+#         disconnected = set()
+#         for connection in self.active_connections:
+#             try:
+#                 await connection.send_json(message)
+#             except (RuntimeError, WebSocketDisconnect) as e:
+#                 # Mark for removal
+#                 disconnected.add(connection)
+#             except Exception as e:
+#                 print(f"Broadcast error: {e}")
+#                 disconnected.add(connection)
+        
+#         # Clean up disconnected clients
+#         for connection in disconnected:
+#             self.disconnect(connection)
 
+# manager = ConnectionManager()
 
 # @app.websocket("/ws/engine")
 # async def websocket_endpoint(websocket: WebSocket):
 #     await manager.connect(websocket)
 #     try:
+#         # Keep the connection alive and handle incoming messages
 #         while True:
-#             await asyncio.sleep(1)  # Keep connection alive
-#     except:
-#         pass
-#     finally:
+#             # Wait for any message from client (ping/pong)
+#             data = await websocket.receive_text()
+            
+#             # Optional: Handle client pings
+#             if data == "ping":
+#                 await manager.send_message({"type": "pong"}, websocket)
+                
+#     except WebSocketDisconnect:
 #         manager.disconnect(websocket)
+#     except RuntimeError as e:
+#         if "Cannot call 'send' once a close message has been sent" in str(e):
+#             manager.disconnect(websocket)
+#         else:
+#             print(f"WebSocket error: {e}")
+#             manager.disconnect(websocket)
+#     except Exception as e:
+#         print(f"Unexpected WebSocket error: {e}")
+#         manager.disconnect(websocket)
+
+
+
 
 # Async wrapper for sending to WS
 async def send_to_websockets(engine_name, data):
