@@ -6,7 +6,8 @@ services:
   redis:
     container_name: rtg-redis
     restart: always
-    image: redis:5.0.6-alpine
+    # image: redis:5.0.6-alpine
+    image: redis:7.2-alpine  # or redis:6.2-alpine
     networks:
       - main
     volumes:
@@ -101,8 +102,24 @@ services:
     ports:
         - ${NOTIFY_PORT}:3000 
 
+  # mosquitto:
+  #   image: eclipse-mosquitto:latest
+  #   container_name: mosquitto
+  #   ports:
+  #     - "1883:1883"      # MQTT
+  #     - "9001:9001"      # WebSocket (optional)
+  #   volumes:
+  #     # - ./mosquitto/config:/mosquitto/config
+  #     - mosquitto_data:/mosquitto/data
+  #     # Comment on Sep 11,2025  -- Disable logging to improve performance
+  #     # - mosquitto_log:/mosquitto/log
+  #   networks:
+  #     - main
+  #   build: ./mosquitto
+  #   restart: unless-stopped
+  # Modify on 11 June 2026  -- To fix max depth exceeded problem when building the image
   mosquitto:
-    image: eclipse-mosquitto:latest
+    image: my-mosquitto-custom:latest
     container_name: mosquitto
     ports:
       - "1883:1883"      # MQTT
@@ -116,7 +133,6 @@ services:
       - main
     build: ./mosquitto
     restart: unless-stopped
-
 
   mqtt-client:
     restart: always
