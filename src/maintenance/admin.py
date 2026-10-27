@@ -643,9 +643,10 @@ class FailureAdmin(ImportExportModelAdmin, ImportExportActionModelAdmin, admin.M
                     'expect_date','start_date','end_date','is_human_error','status','image_count',
                               'defect_count','user')
 
+# Modify on July 14,2026 -- remove engine_hour from readonly_fields to allow editing
     readonly_fields = ('created','updated','user','defect_count',
                     'operation_date','operation_shift','repairing_time','lead_time','waitting_time',
-                    'engine_hour','engine_move','engine_malfunction')
+                    'engine_move','engine_malfunction')
     
     autocomplete_fields = ['machine','vendor']
     
