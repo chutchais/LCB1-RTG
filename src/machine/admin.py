@@ -7,7 +7,7 @@ from django.utils import timezone
 import json
 
 # Register your models here.
-from .models import Equipment,Item,DataLogger,ConnectionStatus
+from .models import Equipment,Item,DataLogger,ConnectionStatus,EquipmentItemShiftSummary
 
 class ItemInline(admin.TabularInline):
 	model = Item
@@ -431,3 +431,36 @@ class ConnectionStatusAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = 'attachment; filename="night_shift.json"'
         return response
     export_night_shift.short_description = '🌙 Export night shift'
+
+
+@admin.register(EquipmentItemShiftSummary)
+class EquipmentItemShiftSummaryAdmin(admin.ModelAdmin):
+    list_display = (
+        'equipment', 'shift_date', 'shift', 'item_name',
+        'first_value', 'last_value', 'difference',
+        'reset_count', 'has_reset', 'record_count',
+    )
+    list_filter = ('shift', 'shift_date', 'equipment__name', 'has_reset')
+    search_fields = ('equipment__name', 'item_name')
+    ordering = ('-shift_date', 'equipment__name', 'shift', 'item_name')
+    readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 50
+
+    fieldsets = (
+        ('Reference', {
+            'fields': ('equipment', 'shift_date', 'shift', 'item_name')
+        }),
+        ('Values', {
+            'fields': (
+                ('first_value', 'last_value'),
+                ('difference', 'record_count'),
+                ('has_reset', 'reset_count'),
+            )
+        }),
+        ('Reset Detail', {
+            'fields': ('segments_json',)
+        }),
+        ('System Information', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )

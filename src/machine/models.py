@@ -703,3 +703,56 @@ class ConnectionStatus(models.Model):
             'morning': ConnectionStatus.get_shift_stats('morning', date),
             'night': ConnectionStatus.get_shift_stats('night', date)
         }
+
+
+class EquipmentItemShiftSummary(models.Model):
+    """
+    Pre-aggregated item summary per equipment/shift/day for fast reporting.
+    """
+
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='item_shift_summaries'
+    )
+    shift_date = models.DateField(
+        help_text="Date of shift start (morning: same day, night: previous day)"
+    )
+    shift = models.CharField(
+        max_length=10,
+        choices=ConnectionStatus.SHIFT_CHOICES,
+        help_text="Shift this summary belongs to"
+    )
+    item_name = models.CharField(
+        max_length=100,
+        help_text="Item name from items_data JSON"
+    )
+
+    first_value = models.FloatField(blank=True, null=True)
+    last_value = models.FloatField(blank=True, null=True)
+    difference = models.FloatField(default=0)
+    reset_count = models.IntegerField(default=0)
+    has_reset = models.BooleanField(default=False)
+    record_count = models.IntegerField(default=0)
+    segments_json = models.JSONField(default=list, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'equipment_item_shift_summary'
+        ordering = ['-shift_date', 'equipment', 'shift', 'item_name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['equipment', 'shift_date', 'shift', 'item_name'],
+                name='uniq_item_shift_summary'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['shift_date', 'equipment'], name='eiss_shift_date_equipment_idx'),
+            models.Index(fields=['shift_date', 'shift'], name='eiss_shift_date_shift_idx'),
+            models.Index(fields=['equipment', 'item_name'], name='eiss_equipment_item_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.equipment.name} | {self.shift_date} | {self.shift} | {self.item_name}"
