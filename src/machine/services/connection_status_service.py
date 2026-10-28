@@ -161,6 +161,7 @@
 
 import pytz
 from datetime import datetime, timedelta
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 import logging
 
@@ -238,6 +239,92 @@ class ConnectionStatusService:
             end = tz.localize(datetime.combine(next_day, datetime.min.time().replace(hour=8)))
         
         return start, end
+
+    @staticmethod
+    def _to_float(value):
+        """Convert item value to float, returning None if not numeric."""
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _upsert_item_shift_summaries(equipment, shift_date, shift, items_data, recorded_at):
+        """
+        Upsert EquipmentItemShiftSummary rows for one successful ConnectionStatus row.
+        Reset handling: when current value < previous last value, treat as reset-to-zero.
+        """
+        from machine.models import EquipmentItemShiftSummary
+
+        if not isinstance(items_data, dict) or not items_data:
+            return
+
+        with transaction.atomic():
+            for item_name, raw_value in items_data.items():
+                current_value = ConnectionStatusService._to_float(raw_value)
+                if current_value is None:
+                    continue
+
+                summary_filter = {
+                    'equipment': equipment,
+                    'shift_date': shift_date,
+                    'shift': shift,
+                    'item_name': item_name,
+                }
+
+                summary = EquipmentItemShiftSummary.objects.select_for_update().filter(**summary_filter).first()
+
+                if summary is None:
+                    try:
+                        EquipmentItemShiftSummary.objects.create(
+                            **summary_filter,
+                            first_value=current_value,
+                            last_value=current_value,
+                            difference=0,
+                            reset_count=0,
+                            has_reset=False,
+                            record_count=1,
+                            segments_json=[],
+                        )
+                        continue
+                    except IntegrityError:
+                        summary = EquipmentItemShiftSummary.objects.select_for_update().get(**summary_filter)
+
+                previous_last = summary.last_value
+                summary.record_count = (summary.record_count or 0) + 1
+
+                if previous_last is None:
+                    summary.first_value = current_value
+                    summary.last_value = current_value
+                    summary.save(update_fields=['first_value', 'last_value', 'record_count', 'updated_at'])
+                    continue
+
+                delta = current_value - previous_last
+                if delta < 0:
+                    delta = current_value
+                    summary.has_reset = True
+                    summary.reset_count = (summary.reset_count or 0) + 1
+                    segments = summary.segments_json if isinstance(summary.segments_json, list) else []
+                    segments.append({
+                        'type': 'reset',
+                        'recorded_at': recorded_at.isoformat(),
+                        'before_reset': previous_last,
+                        'after_reset': current_value,
+                        'difference': delta,
+                    })
+                    summary.segments_json = segments
+
+                summary.last_value = current_value
+                summary.difference = (summary.difference or 0) + delta
+                summary.save(update_fields=[
+                    'last_value',
+                    'difference',
+                    'record_count',
+                    'has_reset',
+                    'reset_count',
+                    'segments_json',
+                    'updated_at',
+                ])
     
     # 
     @staticmethod
@@ -397,6 +484,15 @@ class ConnectionStatusService:
             logger.info(f"✅ Status recorded - Equipment: {equipment_name}, "
                        f"Status: {connection_status}, Shift: {shift}, "
                        f"Shift Date: {shift_date}")
+
+            if connection_status == 'success' and items_data:
+                ConnectionStatusService._upsert_item_shift_summaries(
+                    equipment=equipment,
+                    shift_date=shift_date,
+                    shift=shift,
+                    items_data=items_data,
+                    recorded_at=now_tz,
+                )
             
             return status_record
         

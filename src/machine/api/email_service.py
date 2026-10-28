@@ -176,6 +176,7 @@ def _wrap_html_email(html_content, report_data, shift):
 # Added on June 2,2026 -
 from machine.api.item_summary_service import get_item_summary_report
 from machine.api.item_summary_html_generators import item_summary_to_html, item_summary_to_excel
+from machine.api.item_shift_summary_service import get_item_shift_summary_report
 
 def send_rtg_item_report(
     to_email,
@@ -317,7 +318,7 @@ def send_rtg_item_report_period_mode(
 
     try:
         logger.info(f"📊 Fetching item report for {report_label}")
-        report_result = get_item_summary_report(report_param)
+        report_result = get_item_shift_summary_report(period_mode=period_mode)
 
         if report_result['status'] == 'error':
             logger.error(f"Error: {report_result.get('error')}")

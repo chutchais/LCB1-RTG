@@ -1579,3 +1579,177 @@ def item_summary_excel(request):
         return response
     except Exception as e:
         return HttpResponse(f'Error generating Excel: {str(e)}', content_type='text/plain', status=500)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def item_shift_summary_api(request):
+    """
+    Get EquipmentItemShiftSummary report as JSON.
+
+    Query Parameters:
+    - from_date: YYYY-MM-DD (optional)
+    - to_date: YYYY-MM-DD (optional)
+    - period_mode: current_month_window | last_month_window (optional)
+    - equipment: Equipment name (optional)
+    - shift: morning | night | all (optional, default all)
+    - item_name: Item name (optional)
+    """
+    from machine.api.item_shift_summary_service import get_item_shift_summary_report
+
+    from_date_str = request.query_params.get('from_date')
+    to_date_str = request.query_params.get('to_date')
+    period_mode = request.query_params.get('period_mode')
+    equipment_name = request.query_params.get('equipment')
+    shift = request.query_params.get('shift', 'all')
+    item_name = request.query_params.get('item_name')
+
+    try:
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date() if from_date_str else None
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date() if to_date_str else None
+    except ValueError:
+        return Response({
+            'status': 'error',
+            'error': 'Invalid date format. Use YYYY-MM-DD for from_date and to_date'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    result = get_item_shift_summary_report(
+        period_mode=period_mode,
+        from_date=from_date,
+        to_date=to_date,
+        equipment_name=equipment_name,
+        shift=shift,
+        item_name=item_name
+    )
+
+    if result['status'] == 'error':
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def item_shift_summary_html(request):
+    """
+    Get EquipmentItemShiftSummary report as HTML page.
+    """
+    from machine.api.item_shift_summary_service import get_item_shift_summary_report
+
+    from_date_str = request.query_params.get('from_date')
+    to_date_str = request.query_params.get('to_date')
+    period_mode = request.query_params.get('period_mode')
+    equipment_name = request.query_params.get('equipment')
+    shift = request.query_params.get('shift', 'all')
+    item_name = request.query_params.get('item_name')
+
+    try:
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date() if from_date_str else None
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date() if to_date_str else None
+    except ValueError:
+        html = '<p style="color: red;">Invalid date format. Use YYYY-MM-DD for from_date and to_date</p>'
+        return HttpResponse(html, content_type='text/html', status=400)
+
+    result = get_item_shift_summary_report(
+        period_mode=period_mode,
+        from_date=from_date,
+        to_date=to_date,
+        equipment_name=equipment_name,
+        shift=shift,
+        item_name=item_name
+    )
+
+    if result['status'] == 'error':
+        html = f'<p style="color: red;">Error: {result["error"]}</p>'
+        return HttpResponse(html, content_type='text/html', status=404)
+
+    html_table = item_summary_to_html(result['data'])
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Item Shift Summary Report</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            table {{
+                margin: 20px 0;
+                width: 100%;
+            }}
+            td, th {{
+                padding: 8px 12px;
+                text-align: center;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            {html_table}
+        </div>
+    </body>
+    </html>
+    '''
+    return HttpResponse(html, content_type='text/html')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def item_shift_summary_excel(request):
+    """
+    Get EquipmentItemShiftSummary report as Excel.
+    """
+    from machine.api.item_shift_summary_service import get_item_shift_summary_report
+
+    from_date_str = request.query_params.get('from_date')
+    to_date_str = request.query_params.get('to_date')
+    period_mode = request.query_params.get('period_mode')
+    equipment_name = request.query_params.get('equipment')
+    shift = request.query_params.get('shift', 'all')
+    item_name = request.query_params.get('item_name')
+
+    try:
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date() if from_date_str else None
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date() if to_date_str else None
+    except ValueError:
+        return HttpResponse(
+            'Invalid date format. Use YYYY-MM-DD for from_date and to_date',
+            content_type='text/plain',
+            status=400
+        )
+
+    result = get_item_shift_summary_report(
+        period_mode=period_mode,
+        from_date=from_date,
+        to_date=to_date,
+        equipment_name=equipment_name,
+        shift=shift,
+        item_name=item_name
+    )
+
+    if result['status'] == 'error':
+        return HttpResponse(f'Error: {result["error"]}', content_type='text/plain', status=404)
+
+    try:
+        excel_bytes = item_summary_to_excel(result['data'])
+        suffix = period_mode or 'range'
+        filename = f'item-shift-summary-{suffix}.xlsx'
+        response = HttpResponse(
+            excel_bytes,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        return HttpResponse(f'Error generating Excel: {str(e)}', content_type='text/plain', status=500)

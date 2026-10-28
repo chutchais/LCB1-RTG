@@ -40,4 +40,7 @@ urlpatterns = [
     path('item-summary/', item_summary_api, name='item-summary'),
     path('item-summary-html/', item_summary_html, name='item-summary-html'),
     path('item-summary-excel/', item_summary_excel, name='item-summary-excel'),
+    path('item-shift-summary/', views.item_shift_summary_api, name='item-shift-summary'),
+    path('item-shift-summary-html/', views.item_shift_summary_html, name='item-shift-summary-html'),
+    path('item-shift-summary-excel/', views.item_shift_summary_excel, name='item-shift-summary-excel'),
 ]
