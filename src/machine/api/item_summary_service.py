@@ -12,6 +12,7 @@ Date handling:
 """
 
 from datetime import datetime, timedelta
+import calendar
 from django.utils import timezone
 from machine.api.services import get_items_data_filtered
 import pytz
@@ -25,7 +26,7 @@ def get_item_summary_report(date_param=None):
     Get item summary report across all equipment
     
     Args:
-        date_param: None (this week), 'YYYY-MM-DD' (single date)
+        date_param: None (this week), 'YYYY-MM-DD' (week of that date), 'YYYY-MM' (entire month)
     
     Returns:
         {
@@ -61,7 +62,8 @@ def get_item_summary_report(date_param=None):
         date_list = _get_date_range(start_date, end_date)
         
     else:
-        # Single date (YYYY-MM-DD) , meaning week of that date
+        # Single date (YYYY-MM-DD) => week of that date
+        # Month (YYYY-MM) => entire month
         try:
             target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
             start_date = target_date - timedelta(days=target_date.weekday())  # Monday of that week
@@ -70,10 +72,19 @@ def get_item_summary_report(date_param=None):
             period_label = f"Week of {target_date.strftime('%Y-%m-%d')}"
             date_list = _get_date_range(start_date, end_date)
         except ValueError:
-            return {
-                'status': 'error',
-                'error': f'Invalid date format: {date_param}. Use YYYY-MM-DD or YYYY-MM'
-            }
+            try:
+                target_month = datetime.strptime(date_param, '%Y-%m').date()
+                start_date = target_month.replace(day=1)
+                last_day = calendar.monthrange(target_month.year, target_month.month)[1]
+                end_date = target_month.replace(day=last_day)
+                period = 'month'
+                period_label = f"Month of {target_month.strftime('%Y-%m')}"
+                date_list = _get_date_range(start_date, end_date)
+            except ValueError:
+                return {
+                    'status': 'error',
+                    'error': f'Invalid date format: {date_param}. Use YYYY-MM-DD or YYYY-MM'
+                }
 
     
     logger.info(f"📊 Generating item summary for {period}: {start_date} to {end_date}")

@@ -1,6 +1,7 @@
 from machine.models import ConnectionStatus, Equipment
 from django.utils import timezone
 from datetime import datetime, timedelta, date
+import calendar
 import pytz
 
 
@@ -498,8 +499,9 @@ def get_items_data(equipment_name, target_date, shift='all', include_details=Fal
 #         }
 #     }
 
-def get_items_data_filtered(equipment_name=None, target_date=None, 
-                            shift='all', include_details=False,filter_items=REQUIRED_ITEMS):
+def get_items_data_filtered(equipment_name=None, target_date=None,
+                            shift='all', include_details=False,
+                            filter_items=REQUIRED_ITEMS, target_month=None):
     """
     Get items data with smart defaults
     Uses shift_date column and converts times to local timezone
@@ -508,7 +510,29 @@ def get_items_data_filtered(equipment_name=None, target_date=None,
     # ========== 1. HANDLE DATE RANGE ==========
     date_auto = False
     
-    if target_date is None:
+    if target_date is not None and target_month is not None:
+        return {
+            'status': 'error',
+            'error': 'Provide either target_date (YYYY-MM-DD) or target_month (YYYY-MM), not both.'
+        }
+
+    if target_month is not None:
+        # Parse target month (YYYY-MM) to full month date range
+        if isinstance(target_month, str):
+            try:
+                target_month = datetime.strptime(target_month, '%Y-%m').date()
+            except ValueError:
+                return {
+                    'status': 'error',
+                    'error': 'Invalid month format. Use YYYY-MM',
+                    'received': target_month
+                }
+
+        from_date = target_month.replace(day=1)
+        last_day = calendar.monthrange(target_month.year, target_month.month)[1]
+        to_date = target_month.replace(day=last_day)
+    elif target_date is None:
+
         # Get last 7 days (whole week)
         to_date = timezone.now().date()
         from_date = to_date - timedelta(days=6)  # Last 7 days including today

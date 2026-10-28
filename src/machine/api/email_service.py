@@ -273,3 +273,102 @@ def send_rtg_item_report(
     except Exception as e:
         logger.error(f"❌ Error: {e}", exc_info=True)
         return False
+
+
+def send_rtg_item_report_period_mode(
+    to_email,
+    send_email,
+    server='192.168.1.15',
+    equipment_list=None,
+    shift='all',
+    period_mode=None
+):
+    """
+    Send RTG item report with explicit period mode.
+
+    Period mode:
+    - None: current week
+    - current_month_window: current month (YYYY-MM)
+    - last_month_window: previous month (YYYY-MM)
+    """
+
+    tz = pytz.timezone('Asia/Bangkok')
+    now_tz = datetime.now(tz=tz)
+
+    if period_mode is None:
+        report_param = None
+        report_label = "current week"
+    elif period_mode == 'current_month_window':
+        target_month = now_tz.date().replace(day=1)
+        report_param = target_month.strftime('%Y-%m')
+        report_label = report_param
+    elif period_mode == 'last_month_window':
+        target_month = (now_tz.date().replace(day=1) - timedelta(days=1)).replace(day=1)
+        report_param = target_month.strftime('%Y-%m')
+        report_label = report_param
+    else:
+        logger.error(
+            "Invalid period_mode: %s. Use None, current_month_window, or last_month_window",
+            period_mode
+        )
+        return False
+
+    mail_topic_shift = f'created on {now_tz.strftime("%d-%b-%Y %H:%M")}'
+
+    try:
+        logger.info(f"📊 Fetching item report for {report_label}")
+        report_result = get_item_summary_report(report_param)
+
+        if report_result['status'] == 'error':
+            logger.error(f"Error: {report_result.get('error')}")
+            return False
+
+        report_data = report_result['data']
+        date_range = report_data.get('date_range', {})
+
+        if period_mode is None:
+            from_date = date_range.get('from', 'week')
+            to_date = date_range.get('to', 'week')
+            report_title = report_data.get('period_label', f'{from_date} to {to_date}')
+            report_file_suffix = f'week-{from_date}-to-{to_date}'
+        else:
+            report_title = report_param
+            report_file_suffix = report_param
+
+        logger.info("📄 Generating HTML")
+        html_table = item_summary_to_html(report_data)
+        if not html_table:
+            logger.error("Failed to generate HTML")
+            return False
+
+        html_body = html_table
+
+        logger.info("📑 Generating Excel")
+        excel_bytes = item_summary_to_excel(report_data)
+        if not excel_bytes:
+            logger.error("Failed to generate Excel")
+            return False
+
+        msg = EmailMessage()
+        msg['Subject'] = f'RTG Data item: {report_title} ({mail_topic_shift})'
+        msg['From'] = send_email
+        msg['To'] = to_email if isinstance(to_email, str) else ', '.join(to_email)
+
+        msg.set_content(html_body, subtype='html')
+        msg.add_attachment(
+            excel_bytes,
+            maintype='application',
+            subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            filename=f'item-report-{report_file_suffix}.xlsx'
+        )
+
+        logger.info(f"📧 Sending to {msg['To']}")
+        with smtplib.SMTP(server) as smtp_server:
+            smtp_server.send_message(msg)
+
+        logger.info("✅ Email sent successfully")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Error: {e}", exc_info=True)
+        return False

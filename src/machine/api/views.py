@@ -77,12 +77,13 @@ def items_data_smart_api(request):
     
     Features:
     1. equipment: Optional - If not specified, returns ALL equipment
-    2. date: Optional - If not specified, returns LAST 7 DAYS (whole week)
+    2. date/month: Optional - If not specified, returns LAST 7 DAYS (whole week)
     3. Items: Hard-coded to return only: Crane On Hour, Crane On Minute, Number of Move
     
     Query Parameters (all optional):
     - equipment: Equipment name (default: all equipment)
     - date: Date in format YYYY-MM-DD (default: last 7 days)
+    - month: Month in format YYYY-MM (mutually exclusive with date)
     - shift: 'morning', 'night', or 'all' (default: 'all')
     - include_details: 'true' to include segments (default: false)
     
@@ -95,6 +96,9 @@ def items_data_smart_api(request):
     
     - GET /api/items-data-smart/?date=2026-05-07
       → Get ALL equipment for 2026-05-07, only required items
+
+    - GET /api/items-data-smart/?month=2026-05
+      → Get ALL equipment for May 2026, only required items
     
     - GET /api/items-data-smart/?equipment=RTG25&date=2026-05-07&shift=morning
       → Get RTG25 on 2026-05-07 morning shift, only required items
@@ -103,6 +107,7 @@ def items_data_smart_api(request):
     # Get optional parameters
     equipment_name = request.query_params.get('equipment')  # None = all equipment
     target_date_str = request.query_params.get('date')      # None = last 7 days
+    target_month_str = request.query_params.get('month')
     shift = request.query_params.get('shift', 'all')
     include_details = request.query_params.get('include_details', 'false').lower() == 'true'
     
@@ -114,7 +119,13 @@ def items_data_smart_api(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Call service with smart defaults
-    result = get_items_data_filtered(equipment_name, target_date_str, shift, include_details)
+    result = get_items_data_filtered(
+        equipment_name=equipment_name,
+        target_date=target_date_str,
+        target_month=target_month_str,
+        shift=shift,
+        include_details=include_details
+    )
     
     if result['status'] == 'error':
         return Response(result, status=status.HTTP_404_NOT_FOUND)
