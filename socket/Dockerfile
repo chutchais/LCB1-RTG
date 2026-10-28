@@ -11,4 +11,7 @@ RUN npm install -g nodemon
 # RUN npm install -g redis
 RUN npm install
 RUN npm set strict-ssl true
-ENTRYPOINT ["nodemon", "/usr/src/notify/socket/notify_server.js"]
+
+# comment out nodemon entrypoint for production use on Oct 28,2026
+# ENTRYPOINT ["nodemon", "/usr/src/notify/socket/notify_server.js"]
+ENTRYPOINT ["node", "/usr/src/notify/socket/notify_server.js"]
