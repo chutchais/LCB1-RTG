@@ -580,6 +580,21 @@ def send_operation_report(to_email,send_email,server='192.168.1.15'):
     with smtplib.SMTP(server) as server:  
         server.send_message(msg)  
 
+def _set_availability_email_addresses(message, to_email, send_email):
+    recipients = [to_email] if isinstance(to_email, str) else list(to_email)
+    senders = [send_email] if isinstance(send_email, str) else list(send_email)
+    for addresses in (recipients, senders):
+        if not addresses or any(
+            not isinstance(address, str) or not address.strip() for address in addresses
+        ):
+            raise ValueError('Email addresses must be non-empty strings.')
+    message['To'] = ', '.join(recipients)
+    message['From'] = ', '.join(senders)
+    # Multiple authors require one Sender, also used as the SMTP envelope sender.
+    if len(message['From'].addresses) > 1:
+        message['Sender'] = message['From'].addresses[0]
+
+
 # 'Added on Oct 4,2024'
 def send_eq_availability_report(to_email,send_email,
                                 url='http://10.24.50.96:8080/maintenance/',
@@ -597,13 +612,126 @@ def send_eq_availability_report(to_email,send_email,
     
     msg = EmailMessage()  
     msg['Subject'] = f'Equipment Availability Report : {today_tz.strftime("%d-%b-%Y %H:%M")}'  
-    msg['From'] = send_email 
-    msg['To'] = to_email 
+    _set_availability_email_addresses(msg, to_email, send_email)
     msg.set_content(html, subtype='html')  
     # ส่งอีเมล  
     with smtplib.SMTP(server) as server:  
         server.send_message(msg)  
 
+
+
+def send_eq_availability_report_outlook(to_email, send_email,
+                                       url='http://10.24.50.96:8080/maintenance/',
+                                       server='192.168.1.15'):
+    """Send a self-contained availability snapshot suitable for Outlook."""
+    import smtplib
+    from email.message import EmailMessage
+
+    from django.db.models import Exists, F, OuterRef
+    from django.template.loader import render_to_string
+    from django.utils import timezone
+    from maintenance.models import Failure, Machine, MachineType, Preventive
+
+    now = timezone.localtime()
+
+    def relative_time(value):
+        if value is None:
+            return 'Not set'
+        seconds = int((value - now).total_seconds())
+        minutes = abs(seconds) // 60
+        if minutes == 0:
+            return 'Just now' if seconds <= 0 else 'In less than a minute'
+        if minutes < 60:
+            amount, unit = minutes, 'min'
+        elif minutes < 1440:
+            amount, unit = minutes // 60, 'hr'
+        else:
+            amount, unit = minutes // 1440, 'day'
+        duration = f'{amount} {unit}{"s" if amount != 1 else ""}'
+        return f'{duration} ago' if seconds < 0 else f'In {duration}'
+
+    totals = {'total': 0, 'available': 0, 'repair': 0, 'pm': 0}
+    by_type = {}
+    machines = Machine.objects.filter(machine_type__target__gt=0).annotate(
+        repairing=Exists(Failure.objects.filter(machine_id=OuterRef('pk'), status='OPEN')),
+        maintaining=Exists(Preventive.objects.filter(machine_id=OuterRef('pk'), status='WORKING')),
+    ).values('machine_type_id', 'repairing', 'maintaining')
+    for machine in machines:
+        counts = by_type.setdefault(machine['machine_type_id'], {
+            'total': 0, 'available': 0, 'repair': 0, 'pm': 0,
+        })
+        for bucket in (totals, counts):
+            bucket['total'] += 1
+            bucket['available'] += int(not (machine['repairing'] or machine['maintaining']))
+            bucket['repair'] += int(machine['repairing'])
+            bucket['pm'] += int(machine['maintaining'])
+
+    fleet = []
+    for machine_type in MachineType.objects.filter(target__gt=0).order_by('section_id', 'name'):
+        counts = by_type.get(machine_type.pk, {
+            'total': 0, 'available': 0, 'repair': 0, 'pm': 0,
+        })
+        fleet.append({
+            **counts,
+            'name': machine_type.name,
+            'section': machine_type.section_id or '-',
+            'target': machine_type.target,
+            'below_target': counts['available'] < machine_type.target,
+        })
+    repairs = Failure.objects.filter(status='OPEN', machine__machine_type__target__gt=0)
+    sections = []
+    preview_limit = 20
+    for title, queryset, is_repair in (
+        ('Open repair jobs', repairs, True),
+        ('Preventive maintenance in progress', Preventive.objects.filter(
+            status='WORKING', machine__machine_type__target__gt=0,
+        ), False),
+        ('Upcoming preventive maintenance', Preventive.objects.filter(
+            status='PLAN', machine__machine_type__target__gt=0,
+        ), False),
+    ):
+        rows = []
+        ordering = 'expect_date' if is_repair else 'start_date'
+        jobs = queryset.select_related('machine').order_by(
+            'machine__machine_type_id', F(ordering).asc(nulls_last=True), 'created', 'pk',
+        )[:preview_limit]
+        for job in jobs:
+            overdue = bool(is_repair and job.expect_date and job.expect_date < now)
+            if is_repair:
+                status = 'On Repairing'
+                date_label = 'Expected'
+                date = job.expect_date
+            else:
+                status = 'In progress' if job.status == 'WORKING' else 'Planned'
+                date_label = 'Started' if job.status == 'WORKING' else 'Scheduled'
+                date = job.start_date
+            rows.append({
+                'machine': job.machine_id or 'Unassigned', 'details': job.details or '-',
+                'status': status, 'overdue': overdue, 'date': date,
+                'date_label': date_label,
+                'start_date': job.start_date,
+                'start_relative': relative_time(job.start_date),
+                'date_relative': relative_time(date),
+            })
+        sections.append({
+            'title': title, 'count': queryset.count(), 'rows': rows, 'is_repair': is_repair,
+        })
+
+    context = {
+        'now': now, 'totals': totals, 'fleet': fleet,
+        'below_target_count': sum(row['below_target'] for row in fleet),
+        'overdue_count': repairs.filter(expect_date__lt=now).count(),
+        'sections': sections, 'preview_limit': preview_limit,
+    }
+    msg = EmailMessage()
+    msg['Subject'] = f'Equipment Availability Report : {now.strftime("%d-%b-%Y %H:%M")}'
+    _set_availability_email_addresses(msg, to_email, send_email)
+    msg.set_content(render_to_string('machine/email/equipment_availability.txt', context))
+    msg.add_alternative(
+        render_to_string('machine/email/equipment_availability.html', context), subtype='html',
+    )
+    with smtplib.SMTP(server, timeout=30) as smtp:
+        smtp.send_message(msg)
 
 
 # Added on Dec 30,2024 -- To create data frame of RTG productivity

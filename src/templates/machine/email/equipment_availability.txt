@@ -1,0 +1,26 @@
+LCB1 - EQUIPMENT AVAILABILITY REPORT
+Snapshot: {{ now|date:"d M Y H:i" }} (Asia/Bangkok)
+
+Types below target: {{ below_target_count }}
+Overdue repair jobs: {{ overdue_count }}
+
+FLEET READINESS
+{% for row in fleet %}
+{{ row.section }} / {{ row.name }}: {{ row.available }} available / {{ row.total }} total | Repair: {{ row.repair }} | PM: {{ row.pm }} | Target: {{ row.target|floatformat|default:"-" }}{% if row.below_target %} | BELOW TARGET{% endif %}
+{% empty %}
+No equipment types configured.
+{% endfor %}
+Equipment with both repair and PM is unavailable only once; repair and PM counts can overlap.
+Only equipment types with a target greater than zero are included.
+{% for section in sections %}
+
+{{ section.title|upper }} ({{ section.count }})
+{% if section.count > preview_limit %}Showing first {{ preview_limit }} jobs.
+{% endif %}{% for job in section.rows %}
+{{ job.machine }} | {{ job.status }} | {% if section.is_repair %}Started: {{ job.start_date|date:"d M Y H:i"|default:"Not set" }}{% if job.start_date %} ({{ job.start_relative }}){% endif %} | Expected: {{ job.date|date:"d M Y H:i"|default:"Not set" }}{% if job.date %} ({{ job.date_relative }}){% endif %}{% else %}{{ job.date_label }}: {{ job.date|date:"d M Y H:i"|default:"Not set" }}{% endif %}
+{{ job.details }}
+{% empty %}
+No jobs in this group.
+{% endfor %}{% endfor %}
+
+This email is a snapshot. Relative times are calculated at the snapshot time.

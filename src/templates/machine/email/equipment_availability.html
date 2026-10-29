@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Equipment Availability Report</title>
+    <!--[if mso]>
+    <xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+    <![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;color:#172d48;font-family:Tahoma,Arial,sans-serif;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f5f9" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+<tr><td align="center" style="padding:20px 8px;">
+<!--[if mso]><table role="presentation" width="900" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="max-width:900px;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+    <tr>
+        <td bgcolor="#112e48" style="padding:24px;color:#ffffff;">
+            <p style="margin:0 0 8px;font-size:12px;line-height:18px;color:#a8dbd4;">LCB1 &nbsp; / &nbsp; MAINTENANCE</p>
+            <h1 style="margin:0;font-size:24px;line-height:32px;font-weight:bold;">Equipment Availability Report</h1>
+            <p style="margin:8px 0 0;font-size:13px;line-height:20px;color:#d4e2ed;">Snapshot: {{ now|date:"d M Y, H:i" }} &nbsp; | &nbsp; Asia/Bangkok</p>
+        </td>
+    </tr>
+    <tr><td style="padding:12px 16px;">
+        <h2 style="margin:0 0 12px;font-size:18px;line-height:26px;">Fleet readiness by equipment type</h2>
+        <table width="100%" cellpadding="5" cellspacing="0" border="1" bordercolor="#dce5ed" style="border-collapse:collapse;border:1px solid #dce5ed;font-size:12px;line-height:18px;">
+            <thead>
+            <tr bgcolor="#e9eff5">
+                <th scope="col" align="left">Section / Type</th>
+                <th scope="col" align="center">Total</th>
+                <th scope="col" align="center">Repair</th>
+                <th scope="col" align="center">PM</th>
+                <th scope="col" align="center">Target</th>
+                <th scope="col" align="center">Available</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in fleet %}
+            <tr bgcolor="{% cycle '#ffffff' '#f7f9fc' %}">
+                <td nowrap style="white-space:nowrap;"><span style="color:#5e7084;">{{ row.section }}</span> / <strong>{{ row.name }}</strong></td>
+                <td align="center">{{ row.total }}</td>
+                <td align="center">{{ row.repair }}</td>
+                <td align="center">{{ row.pm }}</td>
+                <td align="center">{{ row.target|floatformat|default:"-" }}</td>
+                <td align="center" bgcolor="{% if row.below_target %}#c62828{% else %}#e3f5ec{% endif %}" style="background-color:{% if row.below_target %}#c62828{% else %}#e3f5ec{% endif %};font-weight:bold;color:{% if row.below_target %}#ffffff{% else %}#12634c{% endif %};">
+                    <span style="white-space:nowrap;">{{ row.available }}{% if row.below_target %} · Below target{% endif %}</span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" align="center" style="padding:16px;">No equipment types configured.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p style="margin:8px 0 0;font-size:11px;line-height:17px;color:#5e7084;">Only equipment types with a target greater than zero are included. Equipment with both repair and PM is counted as unavailable only once. Repair and PM columns may overlap.</p>
+    </td></tr>
+    {% for section in sections %}
+    <tr><td style="padding:16px;">
+        <h2 style="margin:0 0 6px;font-size:18px;line-height:26px;">{{ section.title }} <span style="color:#5e7084;font-size:14px;">({{ section.count }})</span></h2>
+        <p style="margin:0 0 10px;font-size:11px;line-height:17px;color:#5e7084;">Ordered by machine type, then {% if section.is_repair %}expected completion. Relative times use the snapshot time.{% else %}start date.{% endif %} {% if section.count > preview_limit %}Showing the first {{ preview_limit }} of {{ section.count }} jobs.{% endif %}</p>
+        <table width="100%" cellpadding="10" cellspacing="0" border="1" bordercolor="#dce5ed" style="border-collapse:collapse;border:1px solid #dce5ed;font-size:12px;line-height:19px;table-layout:fixed;">
+            <thead>
+            <tr bgcolor="#e9eff5">
+                <th scope="col" width="15%" align="left">Equipment</th>
+                <th scope="col" width="{% if section.is_repair %}34{% else %}49{% endif %}%" align="left">Details</th>
+                {% if section.is_repair %}<th scope="col" width="17%" align="left">Started</th>{% endif %}
+                <th scope="col" width="19%" align="left">{% if section.is_repair %}Expected{% else %}Date / Time{% endif %}</th>
+                <th scope="col" width="15%" align="left">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for job in section.rows %}
+            <tr bgcolor="{% if job.overdue %}#fff4ee{% else %}#ffffff{% endif %}">
+                <td valign="top" style="word-wrap:break-word;font-weight:bold;">{{ job.machine }}</td>
+                <td valign="top" style="word-wrap:break-word;">{{ job.details|linebreaksbr }}</td>
+                {% if section.is_repair %}
+                <td valign="top">{{ job.start_date|date:"d M Y H:i"|default:"Not set" }}{% if job.start_date %}<br><span style="font-size:11px;color:#5e7084;">{{ job.start_relative }}</span>{% endif %}</td>
+                <td valign="top">{{ job.date|date:"d M Y H:i"|default:"Not set" }}{% if job.date %}<br><span style="font-size:11px;color:#5e7084;">{{ job.date_relative }}</span>{% endif %}</td>
+                {% else %}
+                <td valign="top"><span style="font-size:11px;color:#5e7084;">{{ job.date_label }}</span><br>{{ job.date|date:"d M Y"|default:"Not set" }}{% if job.date %}<br>{{ job.date|date:"H:i" }}{% endif %}</td>
+                {% endif %}
+                <td valign="top" style="font-weight:bold;color:{% if job.overdue %}#a23923{% else %}#34536e{% endif %};">{{ job.status }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="{% if section.is_repair %}5{% else %}4{% endif %}" align="center" style="padding:18px;color:#5e7084;">No jobs in this group.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </td></tr>
+    {% endfor %}
+    <tr><td align="center" style="padding:16px 16px 24px;">
+        <p style="margin:0;font-size:11px;line-height:18px;color:#5e7084;">This email is a snapshot, not a live view. Relative times are calculated at the snapshot time.</p>
+    </td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>
