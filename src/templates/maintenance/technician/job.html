@@ -1,0 +1,137 @@
+{% extends "maintenance/technician/base.html" %}
+{% block title %}งาน #{{ job.pk }} · {{ job.machine_id|default:"ไม่ระบุเครื่อง" }}{% endblock %}
+{% block main_class %}job-workspace{% endblock %}
+{% block content %}
+<div class="job-toolbar">
+<a class="back-link" href="{% url 'maintenance:technician-board' %}">← กลับรายการงาน</a><br>
+<div class="card-heading">
+    <h1>{{ job.machine_id|default:"ไม่ระบุเครื่อง" }} - {{ job.details|default:"ไม่มีรายละเอียด" }}</h1>
+    <span class="badge {% if job.status == 'CLOSED' %}done{% elif job.start_date %}working{% endif %}">
+        {% if job.status == 'CLOSED' %}ซ่อมเสร็จแล้ว{% elif job.start_date %}กำลังซ่อม{% else %}รอเริ่มซ่อม{% endif %}
+    </span>
+</div>
+<p class="muted">งาน #{{ job.pk }}</p>
+</div>
+<div class="job-workspace-grid">
+<section class="panel job-information">
+    <h2>อาการเสีย</h2>
+    <ol class="timeline">
+        <li>แจ้งซ่อม <strong>{{ job.receiving_date|default:job.created|date:"d/m/Y H:i" }}</strong></li>
+        <li>เริ่มซ่อม <strong>{{ job.start_date|date:"d/m/Y H:i"|default:"ยังไม่เริ่ม" }}</strong></li>
+        <li>ซ่อมเสร็จ <strong>{{ job.end_date|date:"d/m/Y H:i"|default:"ยังไม่เสร็จ" }}</strong></li>
+    </ol>
+    {% if job.repair_action %}<h2>สิ่งที่ซ่อม</h2><p class="description">{{ job.repair_action }}</p>{% endif %}
+    {% if job.rootcause %}<h2>สาเหตุที่ทำให้เครื่องเสีย</h2><p class="description">{{ job.rootcause }}</p>{% endif %}
+    {% if job.is_human_error %}
+        <h2>เกี่ยวข้องกับความผิดพลาดของคน</h2>
+        {% if job.human_error_details %}<p class="description">{{ job.human_error_details }}</p>{% endif %}
+    {% endif %}
+    {% if job.vendor_id or job.repair_cost != None or job.service_cost != None %}
+    <h2>ผู้รับเหมาซ่อมและค่าใช้จ่าย</h2>
+    <dl class="job-cost-summary">
+        <dt>ผู้รับเหมาซ่อม</dt><dd>{{ job.vendor|default:"ไม่ระบุ / ซ่อมเอง" }}</dd>
+        <dt>ค่าซ่อม</dt><dd>{{ job.repair_cost|floatformat:2|default:"ไม่ระบุ" }} บาท</dd>
+        <dt>ค่าบริการ</dt><dd>{{ job.service_cost|floatformat:2|default:"ไม่ระบุ" }} บาท</dd>
+    </dl>
+    {% endif %}
+</section>
+{% if perms.maintenance.change_failure and job.status != 'CLOSED' %}
+<section class="panel job-completion">
+    {% if not job.start_date %}
+    <h2>พร้อมเริ่มซ่อมหรือยัง?</h2>
+    <form method="post" action="{% url 'maintenance:technician-action' job.pk %}" data-action-form>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start">
+        <button type="submit" class="button primary wide">เริ่มซ่อม</button>
+    </form>
+    {% else %}
+    <h2>เมื่อซ่อมและทดสอบเสร็จแล้ว</h2>
+    <form method="post" action="{% url 'maintenance:technician-action' job.pk %}" data-dirty-form data-complete-form>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="complete">
+        <div data-category-fallback>
+            <label for="{{ complete_form.failure_category.id_for_label }}">{{ complete_form.failure_category.label }} (ไม่บังคับ)</label>
+            {{ complete_form.failure_category }}
+        </div>
+        <fieldset data-category-picker hidden aria-describedby="category-help">
+            <legend>ประเภทอาการเสีย (ไม่บังคับ)</legend>
+            <p id="category-help" class="muted">เลือกกลุ่มใหญ่ก่อน แล้วเลือกอาการย่อยเท่าที่ทราบ ไม่ต้องเลือกครบทุกขั้น</p>
+            <div data-category-levels></div>
+            <p data-category-summary class="notice" role="status"></p>
+        </fieldset>
+        {{ failure_category_tree|json_script:"failure-category-tree" }}
+        {{ complete_form.failure_category.errors }}
+        <div class="repair-text-fields">
+        <div>
+        <label for="{{ complete_form.rootcause.id_for_label }}">{{ complete_form.rootcause.label }} (จำเป็น)</label>
+        {{ complete_form.rootcause }}
+        {{ complete_form.rootcause.errors }}
+        </div>
+        <div>
+        <label for="{{ complete_form.repair_action.id_for_label }}">{{ complete_form.repair_action.label }}</label>
+        {{ complete_form.repair_action }}
+        {{ complete_form.repair_action.errors }}
+        </div>
+        </div>
+        <label class="checkbox-label" for="{{ complete_form.is_human_error.id_for_label }}">
+            {{ complete_form.is_human_error }}
+            <span>{{ complete_form.is_human_error.label }} (ไม่บังคับ)</span>
+        </label>
+        {{ complete_form.is_human_error.errors }}
+        <div id="human-error-details">
+            <label for="{{ complete_form.human_error_details.id_for_label }}">{{ complete_form.human_error_details.label }} (ไม่บังคับ)</label>
+            {{ complete_form.human_error_details }}
+            {{ complete_form.human_error_details.errors }}
+        </div>
+        <details class="optional-costs" {% if complete_form.vendor.value or complete_form.repair_cost.value or complete_form.service_cost.value or complete_form.vendor.errors or complete_form.repair_cost.errors or complete_form.service_cost.errors %}open{% endif %}>
+            <summary>ผู้รับเหมาซ่อมและค่าใช้จ่าย <span class="optional">(ไม่บังคับ)</span></summary>
+            <label for="{{ complete_form.vendor.id_for_label }}">{{ complete_form.vendor.label }}</label>
+            {{ complete_form.vendor }}
+            {{ complete_form.vendor.errors }}
+            <div class="cost-fields">
+                <div>
+                    <label for="{{ complete_form.repair_cost.id_for_label }}">{{ complete_form.repair_cost.label }}</label>
+                    {{ complete_form.repair_cost }}
+                    {{ complete_form.repair_cost.errors }}
+                </div>
+                <div>
+                    <label for="{{ complete_form.service_cost.id_for_label }}">{{ complete_form.service_cost.label }}</label>
+                    {{ complete_form.service_cost }}
+                    {{ complete_form.service_cost.errors }}
+                </div>
+            </div>
+        </details>
+        <button type="submit" class="button primary wide">ยืนยันซ่อมเสร็จ</button>
+    </form>
+    {% endif %}
+</section>
+{% endif %}
+<section class="panel job-photos">
+    <h2>รูปภาพของงานนี้</h2>
+    <div class="saved-photos">
+    {% for photo in job.images.all %}
+        <a href="{{ photo.image.url }}" target="_blank" rel="noopener">
+            <img src="{{ photo.image.url }}" alt="รูปประกอบงาน #{{ job.pk }}" loading="lazy">
+            <span>แตะเพื่อดูรูปใหญ่</span>
+        </a>
+    {% empty %}
+        <p class="muted">ยังไม่มีรูปภาพ</p>
+    {% endfor %}
+    </div>
+    {% if perms.maintenance.add_failureimage and perms.maintenance.change_failure %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'maintenance:technician-photo' job.pk %}"
+          id="photo-form" data-upload-url="{% url 'maintenance:technician-photo' job.pk %}">
+        {% csrf_token %}
+        {{ photo_form.errors }}
+        {% include "maintenance/technician/photo_picker.html" %}
+        <button type="submit" class="button secondary wide" data-upload-button hidden>ส่งรูปที่เลือก</button>
+        <noscript>
+            <label for="{{ photo_form.image.id_for_label }}">เพิ่มรูปภาพ (ครั้งละ 1 รูป)</label>
+            {{ photo_form.image }}
+            <button type="submit" class="button secondary wide">บันทึกรูป</button>
+        </noscript>
+    </form>
+    {% endif %}
+</section>
+</div>
+{% endblock %}

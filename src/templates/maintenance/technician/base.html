@@ -1,0 +1,21 @@
+{% load static %}
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}แจ้งซ่อมเครื่องจักร{% endblock %} | LCB1</title>
+    <link rel="stylesheet" href="{% static 'css/technician.css' %}">
+    <link rel="stylesheet" href="{% static 'css/maintenance_header.css' %}">
+    <script src="{% static 'js/technician.js' %}" defer></script>
+</head>
+<body>
+    {% include "maintenance/header.html" with active_page="jobs" show_logout=True %}
+    <main class="{% block main_class %}{% endblock %}">
+        {% for message in messages %}
+        <div class="notice {{ message.tags }}" role="status">{{ message }}</div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

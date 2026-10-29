@@ -1,0 +1,68 @@
+{% extends "maintenance/technician/base.html" %}
+{% block main_class %}jobs-board{% endblock %}
+{% block content %}
+<div class="board-heading">
+<h1>งานซ่อมเครื่องจักร</h1>
+{% if perms.maintenance.add_failure %}
+<a class="button primary" href="{% url 'maintenance:technician-report' %}">＋ แจ้งเครื่องเสีย</a>
+{% endif %}
+</div>
+<div class="board-controls">
+<nav class="tabs" aria-label="สถานะงาน">
+    <a href="{% url 'maintenance:technician-board' %}" {% if not closed %}aria-current="page"{% endif %}>งานที่ยังไม่เสร็จ</a>
+    <a href="?status=closed" {% if closed %}aria-current="page"{% endif %}>ซ่อมเสร็จแล้ว</a>
+</nav>
+<form method="get" class="search">
+    {% if closed %}<input type="hidden" name="status" value="closed">{% endif %}
+    <label for="job-search" class="sr-only">ค้นหาหมายเลขเครื่องหรืออาการเสีย</label>
+    <input id="job-search" type="search" name="q" value="{{ query }}" placeholder="หมายเลขเครื่อง / อาการเสีย">
+    <button class="button secondary" type="submit">ค้นหา</button>
+</form>
+</div>
+{% if closed %}
+<p class="muted">
+    {% if query %}ผลการค้นหางานที่ซ่อมเสร็จแล้วจากทุกช่วงเวลา
+    {% else %}แสดงงานที่ซ่อมเสร็จใน 24 ชั่วโมงล่าสุด · ค้นหาเพื่อดูงานเก่า{% endif %}
+</p>
+{% endif %}
+<div class="board-summary">
+    <p class="muted">{{ page_obj.paginator.count }} งาน · แยกตามประเภทเครื่อง · แตะการ์ดเพื่อเปิดงาน</p>
+    <div class="status-legend" aria-label="สีสถานะงาน">
+        <span class="legend-item waiting">รอเริ่มซ่อม</span>
+        <span class="legend-item working">กำลังซ่อม</span>
+        <span class="legend-item done">ซ่อมเสร็จแล้ว</span>
+    </div>
+</div>
+<div class="machine-columns">
+{% for column in job_columns %}
+<section class="machine-column" aria-labelledby="machine-column-{{ forloop.counter }}">
+    <h2 id="machine-column-{{ forloop.counter }}">{{ column.name }} <span>{{ column.jobs|length }} งานในหน้านี้</span></h2>
+    <div class="job-list">
+    {% for job in column.jobs %}
+    <a class="job-card compact-card {% if job.status == 'CLOSED' %}status-done{% elif job.start_date %}status-working{% else %}status-waiting{% endif %}" href="{% url 'maintenance:technician-job' job.pk %}">
+        <div class="card-heading">
+            <strong>{{ job.machine_id|default:"ไม่ระบุเครื่อง" }}</strong>
+            <span class="badge {% if job.status == 'CLOSED' %}done{% elif job.start_date %}working{% endif %}">
+                {% if job.status == 'CLOSED' %}ซ่อมเสร็จแล้ว{% elif job.start_date %}กำลังซ่อม{% else %}รอเริ่มซ่อม{% endif %}
+            </span>
+        </div>
+        <p>{{ job.details|default:"ไม่มีรายละเอียด" }}</p>
+        <small>งาน #{{ job.pk }} · แจ้ง {{ job.receiving_date|default:job.created|date:"d/m/Y H:i" }}</small>
+        {% if closed %}<small>ซ่อมเสร็จ {{ job.end_date|date:"d/m/Y H:i"|default:"ไม่ระบุเวลา" }}</small>{% endif %}
+        {% if job.expect_date %}<small>คาดว่าเสร็จ {{ job.expect_date|date:"d/m/Y H:i" }}</small>{% endif %}
+    </a>
+    {% endfor %}
+    </div>
+</section>
+{% empty %}
+    <div class="panel">ไม่พบงาน{% if query %} ลองค้นหาด้วยหมายเลขเครื่องอีกครั้ง{% endif %}</div>
+{% endfor %}
+</div>
+{% if page_obj.has_other_pages %}
+<nav class="pagination" aria-label="หน้ารายการ">
+    {% if page_obj.has_previous %}<a class="button secondary" href="?q={{ query|urlencode }}&amp;status={% if closed %}closed{% endif %}&amp;page={{ page_obj.previous_page_number }}">ก่อนหน้า</a>{% endif %}
+    <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="button secondary" href="?q={{ query|urlencode }}&amp;status={% if closed %}closed{% endif %}&amp;page={{ page_obj.next_page_number }}">ถัดไป</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

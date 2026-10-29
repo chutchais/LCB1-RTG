@@ -1,0 +1,13 @@
+<div data-photo-picker hidden>
+    <h2>รูปภาพ <span class="optional">(ไม่บังคับ)</span></h2>
+    <p class="muted">ถ่ายอาการเสียหรือชิ้นส่วนที่ซ่อม เลือกได้หลายรูป ไม่ต้องตั้งชื่อไฟล์</p>
+    <div class="photo-buttons">
+        <button type="button" class="button secondary" data-camera-button>ถ่ายรูป</button>
+        <button type="button" class="button secondary" data-gallery-button>เลือกรูปในเครื่อง</button>
+    </div>
+    <input type="file" accept="image/*" capture="environment" data-camera hidden>
+    <input type="file" accept="image/*" multiple data-gallery hidden>
+    <p class="muted">มือถือจะเปิดกล้องหรือตัวเลือกรูปตามที่เครื่องรองรับ</p>
+    <div data-photo-list class="photo-list" aria-live="polite"></div>
+    <p data-photo-feedback role="status"></p>
+</div>

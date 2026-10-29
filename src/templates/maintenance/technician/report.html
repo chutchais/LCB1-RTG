@@ -1,0 +1,46 @@
+{% extends "maintenance/technician/base.html" %}
+{% block title %}แจ้งเครื่องเสีย{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'maintenance:technician-board' %}">← กลับรายการงาน</a>
+<h1>แจ้งเครื่องเสีย</h1>
+<p>เลือกเครื่อง บอกอาการ แล้วกดบันทึก</p>
+<div id="saved-panel" class="notice success" role="status" hidden>
+    <h2>บันทึกแจ้งซ่อมแล้ว</h2>
+    <p>งานถูกบันทึกแล้ว แม้รูปจะยังส่งไม่สำเร็จ</p>
+    <a id="saved-job-link" class="button primary wide">เปิดงานที่บันทึก →</a>
+</div>
+<div id="form-feedback" class="notice error" role="alert" tabindex="-1" hidden></div>
+<form method="post" class="panel" id="report-form" data-dirty-form>
+    {% csrf_token %}
+    <fieldset id="report-fields">
+        <legend class="sr-only">ข้อมูลแจ้งซ่อม</legend>
+        {{ form.non_field_errors }}
+        <label for="{{ form.machine.id_for_label }}">1. {{ form.machine.label }}</label>
+        <div data-machine-search hidden>
+            <label for="machine-search" class="sr-only">พิมพ์ค้นหาเครื่อง</label>
+            <input id="machine-search" type="search" placeholder="พิมพ์หมายเลขเพื่อหาเครื่อง" autocomplete="off">
+            <p id="machine-results" class="muted" role="status"></p>
+        </div>
+        {{ form.machine }}
+        {{ form.machine.errors }}
+        <p id="duplicate-warning" class="notice" hidden>
+            เครื่องนี้มีงานที่ยังไม่เสร็จ <a id="duplicate-link">เปิดงานเดิม</a>
+            หากเป็นอาการใหม่ สามารถแจ้งเพิ่มได้
+        </p>
+        <label for="{{ form.details.id_for_label }}">2. {{ form.details.label }}</label>
+        {{ form.details }}
+        {{ form.details.errors }}
+        <p id="details-help" class="muted">ไม่เกิน 200 ตัวอักษร ไม่ต้องระบุสาเหตุทางเทคนิค</p>
+        <label for="{{ form.category.id_for_label }}">3. {{ form.category.label }}</label>
+        {{ form.category }}
+        {{ form.category.errors }}
+    </fieldset>
+    {% if perms.maintenance.add_failureimage and perms.maintenance.change_failure %}
+        {% include "maintenance/technician/photo_picker.html" %}
+    {% endif %}
+    <noscript><p>บันทึกงานก่อน แล้วเพิ่มรูปภาพในหน้ารายละเอียดงานได้</p></noscript>
+    <p class="muted">ระบบบันทึกเวลาแจ้งและชื่อผู้แจ้งให้อัตโนมัติ</p>
+    <button type="submit" class="button primary wide" id="save-report">บันทึกแจ้งซ่อม</button>
+</form>
+{{ open_jobs|json_script:"open-jobs" }}
+{% endblock %}

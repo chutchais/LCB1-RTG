@@ -1,0 +1,15 @@
+<header class="maintenance-header">
+    <a class="maintenance-brand" href="{% url 'maintenance:index' %}"><span class="maintenance-brand-mark">M</span> LCB1 <span>Maintenance</span></a>
+    <nav aria-label="เมนูหลัก">
+        <a href="{% url 'maintenance:index' %}" {% if active_page == 'overview' %}aria-current="page"{% endif %}>ภาพรวม</a>
+        <a href="{% url 'maintenance:technician-board' %}" {% if active_page == 'jobs' %}aria-current="page"{% endif %}>งานซ่อม</a>
+        <a href="{% url 'maintenance:machine-list' %}">เครื่องจักร</a>
+        <a href="{% url 'maintenance:report-date-range' %}">รายงาน</a>
+    </nav>
+    {% if show_logout and user.is_authenticated %}
+    <form method="post" action="{% url 'maintenance:technician-logout' %}">
+        {% csrf_token %}
+        <button type="submit">ออกจากระบบ</button>
+    </form>
+    {% endif %}
+</header>

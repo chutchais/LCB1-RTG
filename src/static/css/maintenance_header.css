@@ -1,0 +1,14 @@
+.maintenance-header { background: #112e48; color: white; display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 14px 32px; font-size: 16px; line-height: 1.55; }
+.maintenance-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: white; font-size: 1.2em; font-weight: 750; }
+.maintenance-brand > span:last-child { color: #b6ccde; font-size: .75em; font-weight: 400; }
+.maintenance-brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #22b5a2; color: #082d36; font-weight: 900; }
+.maintenance-header nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.maintenance-header nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; color: #d7e5ef; text-decoration: none; border-radius: 8px; }
+.maintenance-header nav a[aria-current], .maintenance-header nav a:hover { color: white; background: #29475f; }
+.maintenance-header form { margin: 0; }
+.maintenance-header button { font: inherit; background: transparent; border: 1px solid #a8c0db; border-radius: 8px; padding: 8px 12px; color: white; min-height: 44px; cursor: pointer; }
+@media (max-width: 600px) {
+    .maintenance-header { padding: 12px; flex-wrap: wrap; gap: 8px; }
+    .maintenance-header nav { width: 100%; justify-content: space-between; order: 2; }
+    .maintenance-header nav a { padding: 8px 10px; font-size: .85em; }
+}

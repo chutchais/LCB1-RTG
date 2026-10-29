@@ -17,6 +17,9 @@
 from django.urls import path, include
 from django.views.decorators.cache import cache_page
 from . import views
+from . import technician_views
+from django.contrib.auth.views import LoginView, LogoutView
+from django.views.decorators.http import require_POST
 from .report_views import (
     TodayFailureReportView,
     WeekFailureReportView,
@@ -41,6 +44,18 @@ from .views import (
 )
 
 urlpatterns = [
+    path('jobs/login/', LoginView.as_view(
+        template_name='maintenance/technician/login.html',
+        next_page='maintenance:technician-board',
+        redirect_authenticated_user=True,
+    ), name='technician-login'),
+    path('jobs/logout/', require_POST(LogoutView.as_view(next_page='maintenance:technician-login')),
+         name='technician-logout'),
+    path('jobs/', technician_views.job_board, name='technician-board'),
+    path('jobs/new/', technician_views.report_failure, name='technician-report'),
+    path('jobs/<int:pk>/', technician_views.job_detail, name='technician-job'),
+    path('jobs/<int:pk>/action/', technician_views.job_action, name='technician-action'),
+    path('jobs/<int:pk>/photos/', technician_views.upload_photo, name='technician-photo'),
     # Existing paths
     path('', index, name='index'),
     path('failures/', FailureListView.as_view(), name='failure-list'),

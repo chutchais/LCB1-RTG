@@ -1,4 +1,5 @@
 django
+Pillow>=9.2
 django-debug-toolbar
 django-cors-headers
 django-colorfield

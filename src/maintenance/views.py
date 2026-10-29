@@ -3,9 +3,10 @@ from django.shortcuts import render, get_object_or_404
 # Create your views here.
 from django.views.decorators.cache import cache_page
 from django.core.cache import cache
-from .models import MachineType,Machine,Failure,Preventive
+from .models import Section,MachineType,Machine,Failure,Preventive
 from django.views.generic import DetailView,CreateView,UpdateView,DeleteView,ListView
-from django.db.models import Q,F
+from django.db.models import Q,F,Exists,OuterRef
+from django.utils import timezone
 from django.http import JsonResponse
 import pytz
 from datetime import datetime, time, timedelta
@@ -38,11 +39,79 @@ def get_preventive_dataframe():
 
 # @cache_page(60 * 5)
 def index(request):
-    context = {}
-    context['overall']      = MachineType.objects.all().order_by('section__name','name')
-    context['repair']       = Failure.objects.filter(status='OPEN').order_by('start_date')
-    context['preventive']   = Preventive.objects.filter(status='WORKING').order_by('start_date')
-    context['plan']         = Preventive.objects.filter(status='PLAN').order_by('start_date')
+    now = timezone.now()
+    sections = list(Section.objects.order_by('name'))
+    machine_types = list(
+        MachineType.objects.select_related('section').order_by('section__name', 'name')
+    )
+    selected_section = request.GET.get('section', '')
+    if selected_section not in {section.pk for section in sections}:
+        selected_section = ''
+    machines = Machine.objects.all()
+    failures = Failure.objects.all()
+    pms = Preventive.objects.all()
+    if selected_section:
+        machines = machines.filter(machine_type__section_id=selected_section)
+        failures = failures.filter(machine__machine_type__section_id=selected_section)
+        pms = pms.filter(machine__machine_type__section_id=selected_section)
+
+    machine_states = machines.annotate(
+        repairing=Exists(Failure.objects.filter(machine_id=OuterRef('pk'), status='OPEN')),
+        maintaining=Exists(Preventive.objects.filter(machine_id=OuterRef('pk'), status='WORKING')),
+    ).values('machine_type_id', 'repairing', 'maintaining')
+    totals = {'total': 0, 'available': 0, 'repair': 0, 'pm': 0}
+    by_type = {}
+    for machine in machine_states:
+        counts = by_type.setdefault(machine['machine_type_id'], {
+            'total': 0, 'available': 0, 'repair': 0, 'pm': 0,
+        })
+        ready = not (machine['repairing'] or machine['maintaining'])
+        for bucket in (totals, counts):
+            bucket['total'] += 1
+            bucket['available'] += int(ready)
+            bucket['repair'] += int(machine['repairing'])
+            bucket['pm'] += int(machine['maintaining'])
+
+    fleet = []
+    for machine_type in machine_types:
+        if selected_section and machine_type.section_id != selected_section:
+            continue
+        counts = by_type.get(machine_type.pk, {
+            'total': 0, 'available': 0, 'repair': 0, 'pm': 0,
+        })
+        fleet.append({
+            **counts,
+            'machine_type': machine_type,
+            'percent': round(counts['available'] * 100 / counts['total']) if counts['total'] else 0,
+            'below_target': counts['available'] < machine_type.target,
+        })
+
+    repairs = failures.filter(status='OPEN')
+    overdue = repairs.filter(expect_date__lt=now)
+    working_pm = pms.filter(status='WORKING')
+    planned_pm = pms.filter(status='PLAN')
+    completed = failures.filter(status='CLOSED', end_date__gte=now - timedelta(days=1), end_date__lte=now)
+    context = {
+        'now': now, 'sections': sections,
+        'selected_section': selected_section, 'totals': totals, 'fleet': fleet,
+        'ready_percent': round(totals['available'] * 100 / totals['total']) if totals['total'] else 0,
+        'below_target_count': sum(row['below_target'] for row in fleet),
+        'repair_count': repairs.count(),
+        'waiting_count': repairs.filter(start_date__isnull=True).count(),
+        'overdue_count': overdue.count(),
+        'completed_count': completed.count(),
+        'pm_count': working_pm.count(), 'plan_count': planned_pm.count(),
+        'late_plan_count': planned_pm.filter(start_date__lt=now).count(),
+        'repair': repairs.select_related('machine').order_by(
+            F('expect_date').asc(nulls_last=True), 'created',
+        )[:8],
+        'preventive': working_pm.select_related('machine').order_by(
+            F('start_date').asc(nulls_last=True), 'pk',
+        )[:5],
+        'plan': planned_pm.select_related('machine').order_by(
+            F('start_date').asc(nulls_last=True), 'pk',
+        )[:5],
+    }
     return render(request, 'maintenance/index.html', context=context)
 
 def by_equipment(request,section):

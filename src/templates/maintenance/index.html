@@ -1,139 +1,141 @@
-{% load humanize %}
-
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js" integrity="sha384-cuYeSxntonz0PPNlHhBs68uyIAVpIIOZZ5JqeqvYYIcEL727kskC66kF92t6Xl2V" crossorigin="anonymous"></script>
-
-
+{% load static humanize %}
+<!doctype html>
+<html lang="th">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
-    <title>Equipment Availability Report</title>
-  </head>
+    <title>ภาพรวมงานซ่อมบำรุง | LCB1</title>
+    <link rel="stylesheet" href="{% static 'css/maintenance_dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/maintenance_header.css' %}">
+</head>
+<body>
+{% include "maintenance/header.html" with active_page="overview" %}
+<main>
+    <section class="page-heading" aria-labelledby="page-title">
+        <div>
+            <p class="eyebrow">MAINTENANCE OVERVIEW</p>
+            <h1 id="page-title">ภาพรวมงานซ่อมบำรุง</h1>
+            <p class="subtle">ความพร้อมเครื่องจักรและงานที่ต้องติดตาม · ข้อมูล ณ {{ now|date:"d/m/Y H:i" }} น.</p>
+        </div>
+        <div class="heading-actions">
+            <a class="button secondary" href="{% url 'maintenance:technician-board' %}">เปิดบอร์ดงานซ่อม →</a>
+            <a class="button primary" href="{% url 'maintenance:technician-report' %}">＋ แจ้งเครื่องเสีย</a>
+        </div>
+    </section>
 
-  <div class="container">
-  <body>
-<h1>Equipment Availability Report</h1>
-
-<p>    <a class="link-opacity-10-hover" href="/maintenance/">Main page</a> |
-    <a class="link-opacity-10-hover" href="/maintenance/failures/">Failures</a> |
-    <a class="link-opacity-10-hover" href="/maintenance/machines/">Machines</a>
-</p>
-
-<hr>
-<h4>By Equipment type</h4>
-<table class="table table-bordered">
-    <thead>
-    <tr class="table-primary">
-        <th style="text-align:center">Section</th>
-        <th style="text-align:center">Equipment</th>
-        <th style="text-align:center">Total</th>
-        <th style="text-align:center">Target</th>
-        <th style="text-align:center">On Repair</th>
-        <th style="text-align:center">On Preventive</th>
-        <th style="text-align:center">Available</th>
-    </tr>
-</thead>
-<tbody>
-    {% for m in overall %}
-              <tr>
-                      
-                      <td style="text-align:center">
-                        {{m.section}}
-                        </td>
-                        <td style="text-align:center">
-                            <a href="{% url 'maintenance:machinetype-detail' m.name %}">{{m.name}}</a>
-                        </td>
-                      <td style="text-align:center">{{m.machine_count}}</td>
-                      <td style="text-align:center">{{m.target|floatformat}}</td>
-                      <td style="text-align:center">{{m.machine_on_working}}</td>
-                      <td style="text-align:center">{{m.machine_on_preventive}}</td>
-                      {% if m.machine_available < m.target  %}
-                      <td style="text-align:center;background-color:Tomato;">
-                        {{m.machine_available}}
-                      </td>
-                      {% else %}
-                      <td style="text-align:center;background-color:MediumSeaGreen;">
-                        {{m.machine_available}}
-                      </td>
-                      {% endif %}
-              </tr>
-    {% endfor %}
-</tbody>
-    </table>
-
-
-    <hr>
-    <h4>On Repair Process</h4>
-    <table class="table table-bordered">
-        <thead>
-        <tr class="table-primary">
-            <th style="text-align:center">EQ number</th>
-            <th style="text-align:center">Details</th>
-            <th style="text-align:center">Start Date</th>
-            <th style="text-align:center">Expect Date</th>
-            <th style="text-align:center">Status</th>
-        </tr>
-        </thead>
-        {% for r in repair %}
-                  <tr>
-                          <td style="text-align:center"><a href="{{r.get_absolute_url}}">{{r.machine}}</a></td>
-                          <td style="text-align:left">{{r.details}}</td>
-                          <td style="text-align:center">{{r.start_date|date:"j M H:s"}}</td>
-                          <td style="text-align:center">{{r.expect_date|date:"j M H:s"}}
-                            <span class="text-muted">
-                                ({{ r.expect_date|naturaltime }})
-                            </span>
-                          </td>
-                          <td style="text-align:center">On Repairing</td>
-                  </tr>
-        {% endfor %}
-        </table>
-        <hr>
-        <h4>On Preventive Process</h4>
-        <table class="table table-bordered">
-            <thead>
-            <tr class="table-primary">
-                <th style="text-align:center">EQ number</th>
-                <th style="text-align:center">Details</th>
-                <th style="text-align:center">Start Date</th>
-                <th style="text-align:center">End Date</th>
-                <th style="text-align:center">Status</th>
-            </tr>
-            </thead>
-            {% for p in preventive %}
-                      <tr>
-                              <td style="text-align:center">{{p.machine}}</td>
-                              <td style="text-align:left">{{p.details}}</td>
-                              <td style="text-align:center">{{p.start_date|date:"j M H:s"}}</td>
-                              <td style="text-align:center">{{p.end_date|date:"j M H:s"}}</td>
-                              <td style="text-align:center">On process</td>
-                      </tr>
-            {% endfor %}
-            </table>
-            <hr>
-            <h4>Next Preventive Plan</h4>
-
-
-                <table class="table table-bordered">
-        <thead>
-            <tr class="table-primary">
-                    <th style="text-align:center">Equipment</th>
-                    <th style="text-align:center">Details</th>
-                    <th style="text-align:center">Start Date</th>
-                    <th style="text-align:center">End Date</th>
-                    <th style="text-align:center">Status</th>
-                </tr>
-                </thead>
-                {% for p in plan %}
-                          <tr>
-                                  <td style="text-align:center">{{p.machine}}</td>
-                                  <td style="text-align:left">{{p.details}}</td>
-                                  <td style="text-align:center">{{p.start_date}}</td>
-                                  <td style="text-align:center">{{p.end_date}}</td>
-                                  <td style="text-align:center">{{p.status}}</td>
-                          </tr>
+    <section class="scope-bar" aria-label="กรองข้อมูล">
+        <form method="get">
+            <label for="section">แผนกซ่อมบำรุง</label>
+            <select id="section" name="section">
+                <option value="" {% if not selected_section %}selected{% endif %}>ทุกแผนก</option>
+                {% for section in sections %}
+                <option value="{{ section.pk }}" {% if selected_section == section.pk %}selected{% endif %}>{{ section.title|default:section.name }}</option>
                 {% endfor %}
-                </table>
+            </select>
+            <button type="submit" class="button filter-button">แสดงข้อมูล</button>
+        </form>
+        <a class="refresh-link" href="?section={{ selected_section|urlencode }}">↻ อัปเดตข้อมูล</a>
+    </section>
+
+    <section class="metrics" aria-label="ตัวเลขสำคัญ">
+        <div class="metric readiness">
+            <span class="metric-label">เครื่องพร้อมใช้งาน</span>
+            <div class="metric-value">{{ totals.available }} <span>/ {{ totals.total }} เครื่อง</span></div>
+            <div class="readiness-bar"><span style="width: {{ ready_percent }}%"></span></div>
+            <small>พร้อมใช้งาน {{ ready_percent }}% · ไม่นับเครื่องที่ซ่อมหรือทำ PM</small>
+        </div>
+        <a class="metric" href="{% url 'maintenance:technician-board' %}">
+            <span class="metric-label">งานซ่อมที่ยังไม่เสร็จ <span aria-hidden="true">↗</span></span>
+            <div class="metric-value">{{ repair_count }} <span>งาน</span></div>
+            <small>รอเริ่ม {{ waiting_count }} งาน · {{ totals.repair }} เครื่องอยู่ระหว่างซ่อม</small>
+        </a>
+        <div class="metric {% if overdue_count %}attention{% endif %}">
+            <span class="metric-label">เกินเวลาที่คาดว่าจะเสร็จ</span>
+            <div class="metric-value">{{ overdue_count }} <span>งาน</span></div>
+            <a class="metric-link" href="#repair-priority">{% if overdue_count %}ดูงานที่ต้องติดตาม ↓{% else %}ไม่มีงานซ่อมเกินกำหนด{% endif %}</a>
+        </div>
+        <a class="metric" href="{% url 'maintenance:technician-board' %}?status=closed">
+            <span class="metric-label">ซ่อมเสร็จใน 24 ชั่วโมง <span aria-hidden="true">↗</span></span>
+            <div class="metric-value">{{ completed_count }} <span>งาน</span></div>
+            <small>ดูงานที่ปิดล่าสุด</small>
+        </a>
+    </section>
+
+    <section class="dashboard-panel fleet-panel" aria-labelledby="fleet-heading">
+        <div class="section-heading">
+            <div><h2 id="fleet-heading">ความพร้อมตามประเภทเครื่อง</h2><p class="subtle">แตะประเภทเครื่องเพื่อดูรายละเอียดและประวัติ</p></div>
+            {% if below_target_count %}<span class="pill danger">{{ below_target_count }} ประเภทต่ำกว่าเป้าหมาย</span>
+            {% else %}<span class="pill success">ไม่มีประเภทต่ำกว่าเป้าหมาย</span>{% endif %}
+        </div>
+        <div class="fleet-grid">
+        {% for row in fleet %}
+            <a class="fleet-card {% if row.below_target %}below-target{% endif %}" href="{% url 'maintenance:machinetype-detail' row.machine_type.pk %}">
+                <div class="fleet-title">
+                    <div><span class="section-name">{{ row.machine_type.section_id|default:"ทั่วไป" }}</span><h3>{{ row.machine_type.name }}</h3></div>
+                    <span class="pill {% if row.below_target %}danger{% elif not row.total %}neutral{% else %}success{% endif %}">{% if row.below_target %}ต่ำกว่าเป้าหมาย{% elif not row.total %}ยังไม่มีเครื่อง{% else %}พร้อม {{ row.percent }}%{% endif %}</span>
+                </div>
+                <div class="fleet-number">{{ row.available }} <span>/ {{ row.total }} พร้อมใช้งาน</span></div>
+                <div class="fleet-bar"><span style="width: {{ row.percent }}%"></span></div>
+                <div class="fleet-meta"><span>ซ่อม <b>{{ row.repair }}</b></span><span>PM <b>{{ row.pm }}</b></span><span>เป้าหมาย <b>{{ row.machine_type.target|floatformat }}</b></span></div>
+            </a>
+        {% empty %}
+            <p class="empty-state">ยังไม่มีประเภทเครื่องจักร</p>
+        {% endfor %}
+        </div>
+        <p class="footnote">เครื่องที่มีทั้งงานซ่อมและ PM จะนับว่าไม่พร้อมใช้งานเพียงครั้งเดียว · ตัวเลขงานซ่อมอาจมากกว่าจำนวนเครื่อง</p>
+    </section>
+
+    <div class="work-grid">
+        <section class="dashboard-panel repair-panel" aria-labelledby="repair-priority">
+            <div class="section-heading">
+                <div><h2 id="repair-priority">งานซ่อมที่ต้องติดตาม <span class="count">{{ repair_count }}</span></h2><p class="subtle">แสดงสูงสุด 8 งาน · เรียงตามเวลาคาดว่าจะเสร็จ งานเกินกำหนดขึ้นก่อน</p></div>
+                <a class="text-link" href="{% url 'maintenance:technician-board' %}">งานทั้งหมด →</a>
+            </div>
+            <div class="repair-list">
+            {% for job in repair %}
+                <a class="repair-row {% if job.expect_date and job.expect_date < now %}overdue{% endif %}" href="{% url 'maintenance:technician-job' job.pk %}">
+                    <div class="equipment"><strong>{{ job.machine_id|default:"ไม่ระบุเครื่อง" }}</strong><small>#{{ job.pk }} · {{ job.machine.terminal|default:"ไม่ระบุพื้นที่" }}</small></div>
+                    <div class="repair-description"><p>{{ job.details|default:"ไม่มีรายละเอียด" }}</p><small>แจ้ง {{ job.receiving_date|default:job.created|date:"d/m H:i" }}</small></div>
+                    <div class="repair-state">
+                        <span class="pill {% if job.expect_date and job.expect_date < now %}danger{% elif job.start_date %}info{% else %}warning{% endif %}">{% if job.expect_date and job.expect_date < now %}เกินกำหนด{% elif job.start_date %}กำลังซ่อม{% else %}รอเริ่มซ่อม{% endif %}</span>
+                        <small>{% if job.expect_date %}คาดเสร็จ {{ job.expect_date|date:"d/m H:i" }}{% else %}ยังไม่กำหนดเวลาเสร็จ{% endif %}</small>
+                    </div>
+                    <span class="row-arrow" aria-hidden="true">→</span>
+                </a>
+            {% empty %}
+                <div class="empty-state"><strong>ไม่มีงานซ่อมค้าง</strong><p>งานแจ้งซ่อมใหม่จะแสดงที่นี่</p></div>
+            {% endfor %}
+            </div>
+        </section>
+
+        <section class="dashboard-panel pm-panel" aria-labelledby="pm-heading">
+            <div class="section-heading">
+                <div><h2 id="pm-heading">บำรุงรักษาเชิงป้องกัน</h2><p class="subtle">กำลังทำ {{ pm_count }} งาน · รอดำเนินการ {{ plan_count }} งาน</p></div>
+            </div>
+            <h3 class="pm-group-heading"><span class="status-dot blue"></span>กำลังทำ PM <span class="count">{{ pm_count }}</span></h3>
+            {% for job in preventive %}
+            <div class="pm-row">
+                <div>{% if job.machine_id %}<a href="{% url 'maintenance:machine-detail' job.machine_id %}">{{ job.machine_id }}</a>{% else %}<strong>ไม่ระบุเครื่อง</strong>{% endif %}<p>{{ job.details|default:"บำรุงรักษาตามรอบ" }}</p></div>
+                <small>เริ่ม {{ job.start_date|date:"d/m H:i"|default:"ยังไม่ระบุ" }}</small>
+            </div>
+            {% empty %}<p class="empty-inline">ไม่มีงาน PM ที่กำลังดำเนินการ</p>{% endfor %}
+            <h3 class="pm-group-heading"><span class="status-dot amber"></span>แผน PM ถัดไป <span class="count">{{ plan_count }}</span></h3>
+            {% if late_plan_count %}<p class="plan-warning">{{ late_plan_count }} งานเลยเวลาเริ่มตามแผนแล้ว</p>{% endif %}
+            {% for job in plan %}
+            <div class="pm-row">
+                <div>{% if job.machine_id %}<a href="{% url 'maintenance:machine-detail' job.machine_id %}">{{ job.machine_id }}</a>{% else %}<strong>ไม่ระบุเครื่อง</strong>{% endif %}<p>{{ job.details|default:"บำรุงรักษาตามรอบ" }}</p></div>
+                <small class="{% if job.start_date and job.start_date < now %}late-date{% endif %}">{{ job.start_date|date:"d/m/Y H:i"|default:"ยังไม่กำหนดวัน" }}</small>
+            </div>
+            {% empty %}<p class="empty-inline">ยังไม่มีแผน PM</p>{% endfor %}
+            <p class="footnote">แสดงสูงสุดกลุ่มละ 5 งาน · เปิดเครื่องจักรเพื่อดูประวัติ PM</p>
+        </section>
+    </div>
+
+    <footer class="dashboard-footer">
+        <span>ข้อมูลอัปเดตเมื่อเปิดหรือรีเฟรชหน้า · เวลาไทย (Asia/Bangkok)</span>
+        <nav aria-label="รายงานเพิ่มเติม"><a href="{% url 'maintenance:report-today' %}">รายงานวันนี้</a><a href="{% url 'maintenance:report-week' %}">รายงานสัปดาห์นี้</a><a href="{% url 'maintenance:failure-list' %}">ประวัติการเสีย</a></nav>
+        {% if selected_section %}<p>ตัวเลขด้านบนกรองตามแผนก {{ selected_section }} · ลิงก์ไปบอร์ดงานและรายงานแสดงข้อมูลทุกแผนก</p>{% endif %}
+    </footer>
+</main>
 </body>
-</div>
+</html>
