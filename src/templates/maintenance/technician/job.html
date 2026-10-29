@@ -18,6 +18,7 @@
     <ol class="timeline">
         <li>แจ้งซ่อม <strong>{{ job.receiving_date|default:job.created|date:"d/m/Y H:i" }}</strong></li>
         <li>เริ่มซ่อม <strong>{{ job.start_date|date:"d/m/Y H:i"|default:"ยังไม่เริ่ม" }}</strong></li>
+        <li>คาดว่าจะซ่อมเสร็จ <strong>{{ job.expect_date|date:"d/m/Y H:i"|default:"ยังไม่กำหนด" }}</strong></li>
         <li>ซ่อมเสร็จ <strong>{{ job.end_date|date:"d/m/Y H:i"|default:"ยังไม่เสร็จ" }}</strong></li>
     </ol>
     {% if job.repair_action %}<h2>สิ่งที่ซ่อม</h2><p class="description">{{ job.repair_action }}</p>{% endif %}
@@ -39,12 +40,28 @@
 <section class="panel job-completion">
     {% if not job.start_date %}
     <h2>พร้อมเริ่มซ่อมหรือยัง?</h2>
-    <form method="post" action="{% url 'maintenance:technician-action' job.pk %}" data-action-form>
+    <form method="post" action="{% url 'maintenance:technician-action' job.pk %}" data-action-form data-dirty-form>
         {% csrf_token %}
         <input type="hidden" name="action" value="start">
+        <label for="{{ start_form.expect_date.id_for_label }}">{{ start_form.expect_date.label }}</label>
+        {{ start_form.expect_date }}
+        {{ start_form.expect_date.errors }}
+        <p id="expected-date-help" class="muted">ค่าเริ่มต้นอีก 2 ชั่วโมงจากตอนเปิดหน้า · เวลาไทย สามารถเปลี่ยนได้ก่อนเริ่มซ่อม</p>
         <button type="submit" class="button primary wide">เริ่มซ่อม</button>
     </form>
     {% else %}
+    <details class="optional-costs" {% if start_form.errors %}open{% endif %}>
+        <summary>เปลี่ยนเวลาคาดว่าจะซ่อมเสร็จ</summary>
+        <form method="post" action="{% url 'maintenance:technician-action' job.pk %}" data-action-form data-dirty-form>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_expected">
+            <label for="{{ start_form.expect_date.id_for_label }}">{{ start_form.expect_date.label }}</label>
+            {{ start_form.expect_date }}
+            {{ start_form.expect_date.errors }}
+            <p id="expected-date-help" class="muted">เวลาไทย · เลือกเวลาใหม่หลังเวลาปัจจุบัน โดยไม่เปลี่ยนเวลาเริ่มซ่อม</p>
+            <button type="submit" class="button secondary wide">บันทึกเวลาใหม่</button>
+        </form>
+    </details>
     <h2>เมื่อซ่อมและทดสอบเสร็จแล้ว</h2>
     <form method="post" action="{% url 'maintenance:technician-action' job.pk %}" data-dirty-form data-complete-form>
         {% csrf_token %}

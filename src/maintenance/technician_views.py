@@ -20,7 +20,7 @@ from redis import Redis
 from redis.exceptions import RedisError
 
 from base.utility import get_day_or_night_with_date
-from .forms import CompleteRepairForm, FailurePhotoForm, ReportFailureForm
+from .forms import CompleteRepairForm, FailurePhotoForm, ReportFailureForm, StartRepairForm
 from .models import Failure, FailureImage
 from .mosquitto import db as mqtt_db
 
@@ -122,11 +122,14 @@ def report_failure(request):
     })
 
 
-def _job_context(failure, complete_form=None, photo_form=None):
+def _job_context(failure, complete_form=None, photo_form=None, start_form=None):
     if complete_form is None:
         complete_form = CompleteRepairForm(failure=failure)
     return {
         "job": failure,
+        "start_form": start_form if start_form is not None else StartRepairForm(
+            initial={"expect_date": failure.expect_date} if failure.expect_date else None,
+        ),
         "complete_form": complete_form,
         "failure_category_tree": list(
             complete_form.fields["failure_category"].queryset.values("id", "name", "parent_id")
@@ -155,9 +158,26 @@ def job_action(request, pk):
             if failure.receiving_date and failure.receiving_date > now:
                 messages.error(request, "เวลาแจ้งซ่อมอยู่ในอนาคต กรุณาให้ผู้ดูแลตรวจสอบ")
             elif not failure.start_date:
+                form = StartRepairForm(request.POST)
+                if not form.is_valid():
+                    return render(
+                        request, "maintenance/technician/job.html",
+                        _job_context(failure, start_form=form), status=400,
+                    )
                 failure.start_date = now
-                failure.save(update_fields=["start_date", "updated"])
+                failure.expect_date = form.cleaned_data["expect_date"]
+                failure.save(update_fields=["start_date", "expect_date", "updated"])
                 messages.success(request, "บันทึกเริ่มซ่อมแล้ว")
+        elif request.POST.get("action") == "update_expected":
+            form = StartRepairForm(request.POST)
+            if not form.is_valid():
+                return render(
+                    request, "maintenance/technician/job.html",
+                    _job_context(failure, start_form=form), status=400,
+                )
+            failure.expect_date = form.cleaned_data["expect_date"]
+            failure.save(update_fields=["expect_date", "updated"])
+            messages.success(request, "เปลี่ยนเวลาคาดว่าจะซ่อมเสร็จแล้ว")
         elif request.POST.get("action") == "complete":
             form = CompleteRepairForm(request.POST, failure=failure)
             if not failure.start_date:

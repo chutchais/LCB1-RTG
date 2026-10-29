@@ -1,4 +1,6 @@
 from django import forms
+from datetime import timedelta
+from django.utils import timezone
 
 from .models import Failure, FailureCategory, Machine, Vendor
 
@@ -24,6 +26,31 @@ class ReportFailureForm(forms.ModelForm):
         model = Failure
         fields = ("machine", "details", "category")
         labels = {"category": "ประเภทงาน"}
+
+
+class StartRepairForm(forms.Form):
+    expect_date = forms.DateTimeField(
+        label="คาดว่าจะซ่อมเสร็จเมื่อไร?",
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(
+            format="%Y-%m-%dT%H:%M",
+            attrs={"type": "datetime-local", "aria-describedby": "expected-date-help"},
+        ),
+        error_messages={
+            "required": "กรุณาระบุเวลาที่คาดว่าจะซ่อมเสร็จ",
+            "invalid": "กรุณาระบุวันและเวลาให้ถูกต้อง",
+        },
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial.setdefault("expect_date", timezone.localtime(timezone.now() + timedelta(hours=2)))
+
+    def clean_expect_date(self):
+        value = self.cleaned_data["expect_date"]
+        if value <= timezone.now():
+            raise forms.ValidationError("เวลาที่คาดว่าจะซ่อมเสร็จต้องอยู่หลังเวลาปัจจุบัน")
+        return value
 
 
 class CompleteRepairForm(forms.Form):
