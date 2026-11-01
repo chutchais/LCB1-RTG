@@ -139,3 +139,47 @@ def send_engine_hour_report(to_email,send_email,server='192.168.1.15'):
     # ส่งอีเมล  
     with smtplib.SMTP(server) as server:  
         server.send_message(msg)  
+
+
+import datetime
+import calendar
+import pytz
+from datetime import datetime as dt, time
+
+def record_status_for_equipment_for_month(year: int, month: int):
+    tz = pytz.timezone('Asia/Bangkok')
+    from maintenance.models import Machine
+    machines = Machine.objects.all()
+    
+    # Get the total number of days in the specified month
+    _, num_days = calendar.monthrange(year, month)
+    
+    # Loop through each day of the target month
+    for day in range(1, num_days + 1):
+        # Construct the specific day naive date, then mix with time min/max
+        current_date = datetime.date(year, month, day)
+        
+        # Start and end of the specific day in the Bangkok timezone
+        day_start = tz.localize(dt.combine(current_date, time.min))
+        day_end = tz.localize(dt.combine(current_date, time.max))
+        
+        for mt in machines:
+            key = f'{mt.name}:STATUS'
+            status = 1  # Default is Running
+            
+            # 1. Check for Breakdown (BD)
+            # Active/occurring within this specific day, or still OPEN
+            if mt.failures.filter(start_date__lte=day_end, start_date__gte=day_start,category='BD').count() > 0 :
+                status = 0 
+                
+            # 2. Check for Corrective Maintenance (CM)
+            if mt.failures.filter(start_date__lte=day_end, start_date__gte=day_start, category='CM').count() > 0 :
+                status = -1 
+                
+            # # 3. Check for Preventive Maintenance (PM)
+            # if mt.pms.filter(start_date__lte=day_end, start_date__gte=day_start).count() > 0 or \
+            #    mt.on_preventive == 1:
+            #     status = -2 
+
+            # Save the historical data points using the localized start of that day
+            collect_daily_data(day_start, key, status)
