@@ -35,6 +35,21 @@
         <dt>ค่าบริการ</dt><dd>{{ job.service_cost|floatformat:2|default:"ไม่ระบุ" }} บาท</dd>
     </dl>
     {% endif %}
+    <h2>ประวัติการเสีย 10 ครั้งล่าสุด</h2>
+    {% if recent_failures %}
+    <ol class="recent-failures">
+        {% for failure in recent_failures %}
+        <li>
+            <a href="{% url 'maintenance:technician-job' failure.pk %}">
+                <strong>{{ failure.receiving_date|default:failure.created|date:"d/m/Y H:i" }}</strong>
+                <span>{{ failure.details|default:"ไม่มีรายละเอียด" }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p class="muted">ยังไม่มีประวัติการเสียก่อนหน้านี้</p>
+    {% endif %}
 </section>
 {% if perms.maintenance.change_failure and job.status != 'CLOSED' %}
 <section class="panel job-completion">
@@ -125,7 +140,7 @@
 {% endif %}
 <section class="panel job-photos">
     <h2>รูปภาพของงานนี้</h2>
-    <div class="saved-photos">
+    <div class="saved-photos photo-thumbnails">
     {% for photo in job.images.all %}
         <a href="{{ photo.image.url }}" target="_blank" rel="noopener">
             <img src="{{ photo.image.url }}" alt="รูปประกอบงาน #{{ job.pk }}" loading="lazy">

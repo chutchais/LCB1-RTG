@@ -142,7 +142,14 @@ def _job_context(failure, complete_form=None, photo_form=None, start_form=None):
 @permission_required("maintenance.view_failure", raise_exception=True)
 def job_detail(request, pk):
     failure = get_object_or_404(Failure.objects.select_related("machine"), pk=pk)
-    return render(request, "maintenance/technician/job.html", _job_context(failure))
+    context = _job_context(failure)
+    context["recent_failures"] = (
+        Failure.objects.filter(machine_id=failure.machine_id)
+        .exclude(pk=failure.pk)
+        .order_by("-receiving_date", "-created")[:10]
+        if failure.machine_id else Failure.objects.none()
+    )
+    return render(request, "maintenance/technician/job.html", context)
 
 
 @login_required(login_url=LOGIN_URL)

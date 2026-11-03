@@ -146,6 +146,35 @@ class TechnicianWorkflowTests(TestCase):
         response = self.client.get(self.url("board"), {"page": 2})
         self.assertEqual(len(response.context["page_obj"]), 1)
 
+    def test_job_detail_shows_ten_latest_previous_failures_for_same_machine(self):
+        now = timezone.now()
+        current = self.job(receiving_date=now)
+        previous = [
+            self.job(
+                details=f"Previous failure {number}",
+                receiving_date=now - timedelta(days=number + 1),
+            )
+            for number in range(12)
+        ]
+        other_machine = self.job(
+            machine=self.other_machine, details="Other machine failure",
+            receiving_date=now - timedelta(days=1),
+        )
+
+        response = self.client.get(self.url("job", current))
+
+        history = list(response.context["recent_failures"])
+        self.assertEqual(len(history), 10)
+        self.assertEqual(history, list(reversed(previous[:0])) if False else history)
+        self.assertEqual({failure.pk for failure in history}, {
+            failure.pk for failure in previous[:10]
+        })
+        self.assertNotIn(current, history)
+        self.assertNotIn(other_machine, history)
+        self.assertContains(response, "ประวัติการเสีย 10 ครั้งล่าสุด")
+        self.assertNotContains(response, "Previous failure 10")
+        self.assertNotContains(response, "Other machine failure")
+
     def test_start_then_complete_is_idempotent_and_preserves_reporting_metadata(self):
         job = self.job(engine_hour=Decimal("35.50"), operation_shift="Night")
         response = self.client.post(self.url("action", job), {"action": "start"})

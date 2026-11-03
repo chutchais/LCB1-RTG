@@ -106,6 +106,12 @@ button:disabled { cursor: wait; opacity: .65; }
 .job-workspace select, .job-workspace textarea { padding: 8px 10px; min-height: 46px; }
 .job-workspace .timeline { margin: 8px 0 12px; font-size: .85rem; }
 .job-workspace .timeline li { margin: 6px 0; }
+.job-workspace .recent-failures { margin: 8px 0 0; padding-left: 24px; font-size: .82rem; }
+.job-workspace .recent-failures li { margin: 6px 0; }
+.job-workspace .recent-failures a { display: block; padding: 6px 8px; border-radius: 6px; text-decoration: none; overflow-wrap: anywhere; }
+.job-workspace .recent-failures a:hover { background: #edf4ff; }
+.job-workspace .recent-failures strong, .job-workspace .recent-failures span { display: block; }
+.job-workspace .recent-failures strong { color: #172b45; }
 .job-workspace .notice { margin: 8px 0; padding: 10px; font-size: .85rem; }
 .job-workspace .muted, .job-workspace .optional { font-size: .8rem; }
 .job-workspace [data-category-levels], .repair-text-fields, .cost-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
@@ -117,6 +123,9 @@ button:disabled { cursor: wait; opacity: .65; }
 .job-cost-summary dd { margin: 0; overflow-wrap: anywhere; }
 .job-workspace .saved-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .job-workspace .saved-photos img, .job-workspace .photo-item img { height: 100px; }
+.job-workspace .job-photos .photo-thumbnails { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.job-workspace .job-photos .photo-thumbnails img { height: 140px; }
+.job-workspace .photo-thumbnails span { font-size: .7rem; line-height: 1.3; }
 .job-workspace .photo-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .job-workspace .photo-buttons { gap: 8px; }
 .job-workspace .photo-buttons .button { padding: 8px; font-size: .85rem; min-height: 48px; }
