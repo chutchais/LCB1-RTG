@@ -722,6 +722,37 @@ class FailureImage(BasicInfo):
         ordering = ('-created',)
 
 
+def failure_comment_upload_path(instance, filename):
+    return os.path.join('failure-comments/{}/{}'.format(instance.failure_id, filename))
+
+
+class FailureComment(BasicInfo):
+    failure = models.ForeignKey(
+        Failure,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='failure_comments',
+    )
+    text = models.TextField(blank=True, max_length=2000)
+    image = models.ImageField(
+        upload_to=failure_comment_upload_path,
+        blank=True,
+    )
+
+    def __str__(self):
+        return f'Comment on failure #{self.failure_id}'
+
+    class Meta(BasicInfo.Meta):
+        db_table = 'ma-failure-comment'
+        ordering = ('created', 'pk')
+
+
 class Accident(BasicInfo):
     machine             = models.ForeignKey(Machine,
                             on_delete=models.SET_NULL,

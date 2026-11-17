@@ -20,8 +20,8 @@ from redis import Redis
 from redis.exceptions import RedisError
 
 from base.utility import get_day_or_night_with_date
-from .forms import CompleteRepairForm, FailurePhotoForm, ReportFailureForm, StartRepairForm
-from .models import Failure, FailureImage
+from .forms import CompleteRepairForm, FailureCommentForm, FailurePhotoForm, ReportFailureForm, StartRepairForm
+from .models import Failure, FailureComment, FailureImage
 from .mosquitto import db as mqtt_db
 
 
@@ -122,7 +122,7 @@ def report_failure(request):
     })
 
 
-def _job_context(failure, complete_form=None, photo_form=None, start_form=None):
+def _job_context(failure, complete_form=None, photo_form=None, start_form=None, comment_form=None):
     if complete_form is None:
         complete_form = CompleteRepairForm(failure=failure)
     return {
@@ -135,6 +135,8 @@ def _job_context(failure, complete_form=None, photo_form=None, start_form=None):
             complete_form.fields["failure_category"].queryset.values("id", "name", "parent_id")
         ),
         "photo_form": photo_form if photo_form is not None else FailurePhotoForm(),
+        "comment_form": comment_form if comment_form is not None else FailureCommentForm(prefix="comment"),
+        "comments": failure.comments.select_related("user"),
     }
 
 
@@ -268,4 +270,48 @@ def upload_photo(request, pk):
     return render(
         request, "maintenance/technician/job.html",
         _job_context(failure, photo_form=form), status=400,
+    )
+
+
+@login_required(login_url=LOGIN_URL)
+@permission_required(
+    ("maintenance.view_failure", "maintenance.add_failurecomment"),
+    raise_exception=True,
+)
+@require_POST
+def add_comment(request, pk):
+    failure = get_object_or_404(Failure.objects.select_related("machine"), pk=pk)
+    form = FailureCommentForm(request.POST, request.FILES, prefix="comment")
+    if form.is_valid():
+        stored = None
+        try:
+            comment = form.save(commit=False)
+            comment.failure = failure
+            comment.user = request.user
+            source = form.cleaned_data.get("image")
+            if source:
+                source.seek(0)
+                with Image.open(source) as image:
+                    image = ImageOps.exif_transpose(image)
+                    image.thumbnail((1920, 1920))
+                    image = image.convert("RGB")
+                    output = BytesIO()
+                    image.save(output, format="JPEG", quality=82)
+                comment.image.save(f"{uuid4().hex}.jpg", ContentFile(output.getvalue()), save=False)
+                stored = comment.image
+            with transaction.atomic():
+                comment.save()
+        except (OSError, ValueError, DatabaseError):
+            if stored:
+                try:
+                    stored.delete(save=False)
+                except OSError:
+                    logger.exception("Could not remove failed comment image upload")
+            logger.exception("Could not save comment for repair job %s", failure.pk)
+            form.add_error(None, "บันทึกความคิดเห็นไม่สำเร็จ กรุณาลองอีกครั้ง")
+        else:
+            return redirect(reverse("maintenance:technician-job", args=[pk]) + "#job-comments")
+    return render(
+        request, "maintenance/technician/job.html",
+        _job_context(failure, comment_form=form), status=400,
     )

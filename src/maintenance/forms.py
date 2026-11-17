@@ -2,7 +2,7 @@ from django import forms
 from datetime import timedelta
 from django.utils import timezone
 
-from .models import Failure, FailureCategory, Machine, Vendor
+from .models import Failure, FailureCategory, FailureComment, Machine, Vendor
 
 
 class ReportFailureForm(forms.ModelForm):
@@ -152,3 +152,38 @@ class FailurePhotoForm(forms.Form):
         if image.image.format not in ("JPEG", "PNG", "WEBP"):
             raise forms.ValidationError("กรุณาใช้รูป JPG, PNG หรือ WebP")
         return image
+
+
+class FailureCommentForm(forms.ModelForm):
+    image = forms.ImageField(
+        label="รูปภาพ (ไม่บังคับ)",
+        required=False,
+        error_messages={"invalid_image": "เปิดรูปนี้ไม่ได้ กรุณาใช้รูป JPG หรือ PNG"},
+        widget=forms.ClearableFileInput(attrs={
+            "accept": "image/jpeg,image/png,image/webp",
+            "aria-describedby": "comment-help",
+        }),
+    )
+
+    class Meta:
+        model = FailureComment
+        fields = ("text", "image")
+        labels = {"text": "ความคิดเห็น"}
+        widgets = {
+            "text": forms.Textarea(attrs={
+                "rows": 3,
+                "placeholder": "เขียนความคิดเห็นหรืออัปเดตงานซ่อม...",
+                "aria-describedby": "comment-help",
+            }),
+        }
+
+    def clean_image(self):
+        if self.cleaned_data.get("image"):
+            return FailurePhotoForm.clean_image(self)
+        return self.cleaned_data.get("image")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get("text") and not cleaned_data.get("image") and not self.errors:
+            raise forms.ValidationError("กรุณาเขียนความคิดเห็นหรือเลือกรูปภาพอย่างน้อยหนึ่งอย่าง")
+        return cleaned_data

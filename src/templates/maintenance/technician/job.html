@@ -51,6 +51,7 @@
     <p class="muted">ยังไม่มีประวัติการเสียก่อนหน้านี้</p>
     {% endif %}
 </section>
+<div class="job-discussion">
 {% if perms.maintenance.change_failure and job.status != 'CLOSED' %}
 <section class="panel job-completion">
     {% if not job.start_date %}
@@ -138,6 +139,44 @@
     {% endif %}
 </section>
 {% endif %}
+<section class="panel job-comments" id="job-comments" aria-labelledby="comments-heading">
+    <h2 id="comments-heading">ความคิดเห็นและอัปเดตงานซ่อม</h2>
+    <ol class="comment-list">
+        {% for comment in comments %}
+        <li class="comment">
+            <div class="comment-heading">
+                <strong>{{ comment.user.get_full_name|default:comment.user.username|default:"ผู้ใช้ที่ถูกลบ" }}</strong>
+                <time class="muted" datetime="{{ comment.created|date:'c' }}">{{ comment.created|date:"d/m/Y H:i" }}</time>
+            </div>
+            {% if comment.text %}<p class="description">{{ comment.text }}</p>{% endif %}
+            {% if comment.image %}
+            <a href="{{ comment.image.url }}" target="_blank" rel="noopener">
+                <img class="comment-image" src="{{ comment.image.url }}" alt="รูปประกอบความคิดเห็น" loading="lazy">
+                <span class="muted">แตะเพื่อดูรูปใหญ่</span>
+            </a>
+            {% endif %}
+        </li>
+        {% empty %}
+        <li class="muted">ยังไม่มีความคิดเห็น</li>
+        {% endfor %}
+    </ol>
+    {% if perms.maintenance.add_failurecomment %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'maintenance:technician-comment' job.pk %}#job-comments"
+          data-dirty-form data-action-form>
+        {% csrf_token %}
+        {{ comment_form.non_field_errors }}
+        <p id="comment-help" class="muted">เขียนข้อความ แนบรูป หรือทั้งสองอย่าง · JPG, PNG หรือ WebP ไม่เกิน 12 MB</p>
+        <label for="{{ comment_form.text.id_for_label }}">{{ comment_form.text.label }}</label>
+        {{ comment_form.text }}
+        {{ comment_form.text.errors }}
+        <label for="{{ comment_form.image.id_for_label }}">{{ comment_form.image.label }}</label>
+        {{ comment_form.image }}
+        {{ comment_form.image.errors }}
+        <button type="submit" class="button primary wide">ส่งความคิดเห็น</button>
+    </form>
+    {% endif %}
+</section>
+</div>
 <section class="panel job-photos">
     <h2>รูปภาพของงานนี้</h2>
     <div class="saved-photos photo-thumbnails">

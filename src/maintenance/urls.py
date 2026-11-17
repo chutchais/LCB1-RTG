@@ -56,6 +56,7 @@ urlpatterns = [
     path('jobs/<int:pk>/', technician_views.job_detail, name='technician-job'),
     path('jobs/<int:pk>/action/', technician_views.job_action, name='technician-action'),
     path('jobs/<int:pk>/photos/', technician_views.upload_photo, name='technician-photo'),
+    path('jobs/<int:pk>/comments/', technician_views.add_comment, name='technician-comment'),
     # Existing paths
     path('', index, name='index'),
     path('failures/', FailureListView.as_view(), name='failure-list'),
